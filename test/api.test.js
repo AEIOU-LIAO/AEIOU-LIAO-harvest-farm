@@ -133,8 +133,10 @@ test('规则：保护期、狗狗防护、每日上限、新手保底', async ()
     let blocked = 0; const thieves = []; for (let i = 0; i < 20; i++) { const x = await t.guest('T' + i); await t.friends(a, x); thieves.push(x); }
     await t.call('POST', '/api/farm/harvest', { idx }, a.token); await t.plantAll(a, 0); await t.clock(200000);
     t.app.db.run('UPDATE plots SET y=100000, y0=100000 WHERE user_id=? AND c=0', a.id); t.app.db.run('UPDATE users SET lv=10 WHERE id=?', a.id); // 加大产量，避免先触发保底上限
-    for (const x of thieves) { const r = await t.call('POST', `/api/farm/${a.id}/steal`, { idx: CFG.UNLOCK_ORDER[1] }, x.token); if (r.ok && r.result.blocked) blocked++; }
-    assert.ok(blocked >= 6, `狗狗拦截了 ${blocked}/20 次`);
+    const keep = [CFG.RULES.stealPctMin, CFG.RULES.stealPctMax]; CFG.RULES.stealPctMin = 0.001; CFG.RULES.stealPctMax = 0.002; // 每次只摘很少，保证 20 次都能走到狗狗判定
+    const codes = []; for (const x of thieves) { const r = await t.call('POST', `/api/farm/${a.id}/steal`, { idx: CFG.UNLOCK_ORDER[1] }, x.token); codes.push(r.ok ? (r.result.blocked ? 'B' : 'S') : r.code); if (r.ok && r.result.blocked) blocked++; }
+    [CFG.RULES.stealPctMin, CFG.RULES.stealPctMax] = keep;
+    assert.ok(blocked >= 6, `狗狗拦截了 ${blocked}/20 次：${codes.join(',')}`); assert.ok(!codes.includes('empty'));
     // 新手保底：主人 Lv<5 时最多被偷 20%
     assert.ok(blocked <= 19, '狗狗不是 100% 拦截');
     const c2 = await t.guest('C2'), t2 = await t.guest('T2'); await t.friends(c2, t2); await t.plantAll(c2, 0); await t.clock(200000);
