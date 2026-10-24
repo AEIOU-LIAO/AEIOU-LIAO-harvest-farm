@@ -11,8 +11,8 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 function fmtTime(s) { s = Math.max(0, Math.ceil(s)); if (s < 60) return s + '秒'; const m = Math.floor(s / 60), r = s % 60; if (m < 60) return m + '分' + (r ? r + '秒' : ''); const h = Math.floor(m / 60); return h + '小时' + (m % 60 ? (m % 60) + '分' : ''); }
 function ago(t) { const s = (NET.now() - t) / 1000; if (s < 60) return '刚刚'; if (s < 3600) return Math.floor(s / 60) + '分钟前'; if (s < 86400) return Math.floor(s / 3600) + '小时前'; return Math.floor(s / 86400) + '天前'; }
 const cropOf = item => { const m = /^([cg])(\d+)$/.exec(item || ''); return m && CROPS[+m[2]] ? { golden: m[1] === 'g', id: +m[2] } : null; };
-const itemName = item => item === 'fert' ? '化肥' : item === 'dogfood' ? '狗粮' : (c => c ? (c.golden ? '金色' : '') + CROPS[c.id].name : item)(cropOf(item));
-const unitPrice = item => { const c = cropOf(item); if (!c) return 0; const b = (S && S.bonus || {})[c.id] || 0; let m = 1; (S && S.events || []).forEach(e => { if (e.kind === 'price_mult' && (e.params.crop == null || +e.params.crop === c.id)) m *= e.params.mult; }); return Math.round(CROPS[c.id].price * (1 + b) * (c.golden ? RULES.goldenPriceMult : 1) * m); };
+const itemName = item => { const ri = CFG.ranchItem(item); if (ri) return ri.name; const si = CFG.SHOP_ITEMS.find(x => x.id === item); if (si) return si.name; const c = cropOf(item); return c ? (c.golden ? '金色' : '') + CROPS[c.id].name : item; };
+const unitPrice = item => { const ri = CFG.ranchItem(item); if (ri) return ri.price; const c = cropOf(item); if (!c) return 0; const b = (S && S.bonus || {})[c.id] || 0; let m = 1; (S && S.events || []).forEach(e => { if (e.kind === 'price_mult' && (e.params.crop == null || +e.params.crop === c.id)) m *= e.params.mult; }); return Math.round(CROPS[c.id].price * (1 + b) * (c.golden ? RULES.goldenPriceMult : 1) * m); };
 const stageOf = CFG.stageOf, STAGE_NAME = CFG.STAGE_NAME;
 const cropIcon = (id, golden) => W3.cropIcon(id, golden);
 
@@ -352,7 +352,7 @@ function openModal(html, opt) {
 }
 function closeModal(force) { if ($('mback').dataset.noclose === '1' && !force) return; $('mback').classList.remove('show'); $('mback').dataset.noclose = ''; const f = modalStack; modalStack = null; if (f) f(); }
 const iconImg = id => `<img class="cimg" src="${cropIcon(id)}">`;
-const itemIcon = item => { const c = cropOf(item); if (c) return `<span class="ii${c.golden ? ' gold' : ''}"><img class="cimg" src="${cropIcon(c.id, c.golden)}"></span>`; return `<span class="ii emo">${ICON(item === 'fert' ? 'flask' : item === 'dogfood' ? 'paw' : 'box')}</span>`; };
+const itemIcon = item => { const ri = CFG.ranchItem(item); if (ri) { const d = ri.kind === 'fish' ? CFG.FISH[ri.id] : ri.kind === 'wool' ? CFG.SHEEP[ri.id] : CFG.TREES[ri.id]; return `<span class="ii emo" style="color:${ri.kind === 'wool' ? (d.body === '#fbf8f0' ? '#e8e0d0' : d.body) : d.col}">${ICON(ri.kind === 'fish' ? 'fish' : ri.kind === 'wool' ? 'sheep' : 'leaf')}</span>`; } if (['ffeed', 'sfeed', 'tfert'].includes(item)) return `<span class="ii emo">${ICON(item === 'ffeed' ? 'fish' : item === 'sfeed' ? 'sheep' : 'drop')}</span>`; const c = cropOf(item); if (c) return `<span class="ii${c.golden ? ' gold' : ''}"><img class="cimg" src="${cropIcon(c.id, c.golden)}"></span>`; return `<span class="ii emo">${ICON(item === 'fert' ? 'flask' : item === 'dogfood' ? 'paw' : 'box')}</span>`; };
 const avHtml = (av, frame, size) => { const fc = frameColor(frame); return `<img class="av" src="${avURL(av)}" style="width:${size || 40}px;height:${size || 40}px;${fc ? `box-shadow:0 0 0 2px ${fc}` : ''}">`; };
 function levelUp(lv) {
   sfx('level'); const unlocked = CROPS.filter(c => c.lv === lv);
@@ -374,7 +374,7 @@ function expand(list, total, max, fn) { const out = []; if (!total) return out; 
 let R3 = { key: '', v: null };
 function ranch3d() { const R = ranchOfView(); if (!R) return { fish: [], sheep: [], trees: [], herd: { on: false }, lv: {} }; const now = NET.now(), tick = Math.floor(now / 1000);
   if (R3.r === R && R3.tick === tick) return R3.v; // 每秒重算一次
-  const ponds = 1 + Math.floor(((R.pondLv || 1) - 1) / 10), lvs = { pond: R.pondLv || 1, pasture: R.pastLv || 1, orchard: R.orchLv || 1, ponds: Math.min(6, ponds) };
+  const ponds = 1 + Math.floor(((R.pondLv || 1) - 1) / 5), lvs = { pond: R.pondLv || 1, pasture: R.pastLv || 1, orchard: R.orchLv || 1, ponds: Math.min(6, ponds) };
   const v = { lv: lvs, fish: expand(R.fish, R.fishN !== undefined ? R.fishN : R.fish.length, 24 * lvs.ponds, f => { const d = CFG.FISH[f.t], left = CFG.fishLeft(f, now); return { t: f.t, k: d ? 1 - left / d.time : 1, ripe: left <= 0 }; }),
     sheep: expand(R.sheep, R.sheepN !== undefined ? R.sheepN : R.sheep.length, 360, s => ({ t: s.t, c: s.last ? CFG.sheepCycles(s, now, R.herd) : (s.cycles || 0) })),
     trees: expand(R.trees || [], R.treeN || 0, 160, r => { const d = CFG.TREES[r.t], g = CFG.treeGrowLeft(r, now); return { t: r.t, k: d ? 1 - g / d.grow : 1, c: CFG.treeCycles(r, now) }; }),
@@ -384,7 +384,9 @@ function dogMode() {
   const bark = Date.now() < dogBarkUntil;
   const dogs = view.key === 'home' ? (S && S.me.dogs || []).map(d => ({ id: d.id, own: d.own, fed: d.until > NET.now() })) : ((view.friend && view.friend.dogs) || []).map(d => ({ id: d.id, own: true, fed: d.fed }));
   const R = ranchOfView(), herdOn = R && R.herd && R.herd.until > NET.now() && (R.sheepN || R.sheep.length);
-  return CFG.DOGS.map(def => { const d = dogs.find(x => x.id === def.id); return !d || !d.own ? 'none' : !d.fed ? 'sleep' : herdOn && R.herd.dog === def.id ? 'herd' : bark ? 'bark' : 'guard'; });
+  const o = {}; CFG.DOGS.forEach(def => { const d = dogs.find(x => x.id === def.id); o[def.id] = !d || !d.own ? 'none' : !d.fed ? 'sleep' : herdOn && R.herd.dog === def.id ? 'herd' : bark ? 'bark' : 'guard'; });
+  const pets = view.key === 'home' ? (S && S.me.pets || []) : ((view.friend && view.friend.pets) || []); pets.forEach(p => { o[p.id] = !(p.until > NET.now() || p.fed) ? 'sleep' : herdOn && R.herd.dog === p.id ? 'herd' : 'guard'; });
+  return o;
 }
 let lastT = performance.now(), rainK = 0, wasRain = false;
 function frame(now) {
@@ -392,7 +394,7 @@ function frame(now) {
   const raining = !!CFG.rainUntil(NET.now()); if (raining && !wasRain && started) { toast('下雨了，农田被滋润了'); sfx('rain'); } wasRain = raining;
   rainK += ((raining ? 1 : 0) - rainK) * Math.min(1, dt * 1.2);
   const home = view.key === 'home';
-  W3.setTheme(themeOf(home ? (S ? S.me.theme : 'classic') : view.friend.theme)); W3.setDog(dogMode()); W3.setRanch(ranch3d()); W3.setEnv(curHour(), rainK);
+  W3.setTheme(themeOf(home ? (S ? S.me.theme : 'classic') : view.friend.theme)); W3.setDog(dogMode()); W3.setRanch(ranch3d()); W3.setPets(view.key === 'home' ? (S && S.me.pets || []) : ((view.friend && view.friend.pets) || [])); W3.setEnv(curHour(), rainK);
   W3.setPlots(view.plots, home); W3.setHover(mouse.in || painting ? hoverIdx : -1); W3.render(dt);
   updateTip(); updateWalkUi(); requestAnimationFrame(frame);
 }
@@ -421,10 +423,10 @@ function pickSpecial(i) {
   ac();
   if (i === -30 || i === -31 || i === -32) { const tb = i === -30 ? 'pond' : i === -31 ? 'pasture' : 'orchard'; if (view.key === 'home') { sfx('open'); openRanch(tb); } else toast(`这是好友家的${({ pond: '鱼塘', pasture: '牧场', orchard: '果园' })[tb]}`); return; }
   if (i === -10) { if (view.key === 'home') { sfx('open'); openShop('dog'); } else toast('这是好友家的狗窝'); return; }
-  const k = -20 - i, d = CFG.DOGS[k]; if (d && W3.petDog(k)) { sfx('bark'); const L = DOG_PET_LINES[d.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); }
+  const k = -20 - i, d = W3.dogInfo(k); if (d && W3.petDog(k)) { sfx('bark'); const L = DOG_PET_LINES[d.did] || [`${d.name}开心地蹭蹭你`, `${d.name}：汪！`, `${d.name}摇成了螺旋桨`]; toast(L[Math.random() * L.length | 0]); }
 }
-function petAction() { const k = W3.nearDog; if (k < 0) return null; const d = CFG.DOGS[k]; return d ? { k, label: `摸摸${d.name}`, id: d.id } : null; }
-function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } if (!petAction() && W3.nearKennel() && view.key === 'home') { ac(); sfx('open'); openShop('dog'); return; } if (!petAction() && W3.nearZone() && view.key === 'home') { ac(); sfx('open'); openRanch(W3.nearZone()); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); } }
+function petAction() { const k = W3.nearDog; if (k < 0) return null; const d = W3.dogInfo(k); return d ? { k, label: `摸摸${d.name}`, id: d.did, name: d.name } : null; }
+function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } if (!petAction() && W3.nearKennel() && view.key === 'home') { ac(); sfx('open'); openShop('dog'); return; } if (!petAction() && W3.nearZone() && view.key === 'home') { ac(); sfx('open'); openRanch(W3.nearZone()); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || [`${p.name}开心地蹭蹭你`, `${p.name}：汪！`]; toast(L[Math.random() * L.length | 0]); } }
 function updateWalkUi() {
   if (W3.mode !== 'walk') return; const i = W3.near, pa = petAction(), a = actionOf(i) || (pa ? pa.label : '') || (W3.nearKennel() && view.key === 'home' ? (S.me.dogs || []).some(d => d.own) ? '宠物商店' : '领养狗狗' : '') || (view.key === 'home' && W3.nearZone() ? ({ pond: '打开鱼塘', pasture: '打开牧场', orchard: '打开果园' })[W3.nearZone()] : ''), el = $('actbtn'), pr = $('actprompt');
   el.classList.toggle('ready', !!a); el.querySelector('span').textContent = a || '操作';

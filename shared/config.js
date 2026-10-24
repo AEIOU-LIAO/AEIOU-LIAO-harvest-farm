@@ -63,6 +63,25 @@
     { id: 46, name: '蓝色妖姬', lv: 33, seed: 19000, time: 19800, yield: 120, price: 215, exp: 5400, seasons: 1, rarity: 4, art: { type: 'flower', kind: 'rose', petal: '#2a5ae0', hh: 86, is: 1.0 } },
     { id: 47, name: '彩虹郁金香', lv: 40, seed: 38000, time: 27000, yield: 134, price: 370, exp: 9800, seasons: 1, rarity: 4, art: { type: 'flower', kind: 'tulip', petal: 'rainbow', hh: 84, is: 1.0 } },
   ];
+  // v3.1 高阶作物：Lv.50 → Lv.3800 共 60 种，按等级几何分布；数值随等级平滑增长（经验 ∝ (lv/44)^1.15，金币 ∝ (lv/44)^1.3）
+  (() => {
+    const pre = ['晨露', '翡翠', '琉璃', '赤焰', '冰晶', '紫霞', '星辰', '月华', '雷鸣', '流云', '玄金', '凤羽', '龙鳞', '天青', '霓虹', '极光', '琥珀', '珊瑚', '彩虹', '圣光'];
+    const base = [ // [名字, 美术模板]
+      ['西瓜', { type: 'vine', kind: 'melon', hh: 62, is: 1.0 }], ['南瓜', { type: 'vine', kind: 'pumpkin', hh: 64, is: 1.05 }], ['草莓', { type: 'bush', kind: 'berry', unripe: '#d6e8a8', nf: 6, h: 24, low: true, hh: 54, is: 1.2 }],
+      ['番茄', { type: 'bush', kind: 'tomato', unripe: '#a8d060', nf: 5, h: 58, hh: 80, is: 0.95 }], ['辣椒', { type: 'bush', kind: 'chili', unripe: '#7fc04a', nf: 6, h: 54, hh: 78, is: 1.0 }], ['茄子', { type: 'bush', kind: 'egg', unripe: '#8fae6a', nf: 3, h: 56, hh: 80, is: 1.0 }],
+      ['萝卜', { type: 'root', shape: 'radish', leaf: '#5fb83f', blush: '#ffffff', hh: 72, is: 1.15 }], ['胡萝卜', { type: 'root', shape: 'carrot', leaf: '#4fa83a', hh: 74, is: 1.15 }], ['白菜', { type: 'cabbage', hh: 70, is: 1.1 }],
+      ['郁金香', { type: 'flower', kind: 'tulip', hh: 84, is: 1.0 }], ['玫瑰', { type: 'flower', kind: 'rose', hh: 86, is: 1.0 }], ['麦穗', { type: 'grain', kind: 'wheat', stalk: '#e0b040', hh: 96, is: 0.85 }],
+    ];
+    const cols = ['#ff4a5e', '#3fcf8e', '#5ab0ff', '#ff8a1a', '#a8e8ff', '#b06aff', '#ffd23a', '#f0e4ff', '#4a5ad8', '#ffffff', '#e8b020', '#ff6a3a', '#2a9a6a', '#58c8e8', '#ff5ac8', '#7affc8', '#d89a3a', '#ff7a8a', 'rainbow', '#fff4b0'];
+    const N = 60;
+    for (let k = 0; k < N; k++) {
+      const lv = Math.round(50 * Math.pow(3800 / 50, k / (N - 1))), fe = Math.pow(lv / 44, 1.15), fm = Math.pow(lv / 44, 1.3), [bn, art0] = base[k % base.length], pc = cols[(k * 7) % cols.length], name = pre[k % pre.length] + bn;
+      const art = Object.assign({}, art0); const c = pc === 'rainbow' && art.type !== 'flower' ? '#ff6ad5' : pc;
+      if (art.type === 'vine' || art.type === 'bush') art.fruit = c; else if (art.type === 'root') art.root = c; else if (art.type === 'cabbage') art.head = c; else if (art.type === 'flower') art.petal = pc; else if (art.type === 'grain') art.ear = c;
+      const time = [21600, 28800, 36000, 43200][k % 4];
+      CROPS.push({ id: CROPS.length, name, lv, seed: Math.round(60000 * fm), time, yield: 140 + Math.round(Math.log2(lv / 44) * 12), price: Math.round(560 * fm), exp: Math.round(14000 * fe), seasons: k % 3 === 0 ? 2 : 1, rarity: lv >= 1000 ? 4 : lv >= 200 ? 4 : 3, art });
+    }
+  })();
   const RARITY = ['', '普通', '稀有', '史诗', '传说'];
 
   // 土地等级：普通 → 红土地 → 黑土地 → 金土地（生长速度、产量逐级提高）
@@ -147,7 +166,7 @@
     { id: 'a_g2', stat: 'golden_total', need: 20, tx: '点石成金', desc: '收获 20 次金色作物', gold: 5000, title: '点石成金' },
     { id: 'a_c1', stat: 'codex', need: 10, tx: '收藏家', desc: '图鉴收集 10 种', gold: 1000, title: '收藏家' },
     { id: 'a_c2', stat: 'codex', need: 24, tx: '博物学家', desc: '图鉴收集 24 种', gold: 6000, title: '博物学家' },
-    { id: 'a_c3', stat: 'codex', need: 48, tx: '万物有灵', desc: '图鉴收集全部 48 种普通作物', gold: 20000, title: '万物有灵' },
+    { id: 'a_c3', stat: 'codex', need: 108, tx: '万物有灵', desc: '图鉴收集全部 108 种普通作物', gold: 20000, title: '万物有灵' },
     { id: 'a_l1', stat: 'lv', need: 10, tx: '小有所成', desc: '达到 Lv.10', gold: 1000 },
     { id: 'a_l2', stat: 'lv', need: 20, tx: '远近闻名', desc: '达到 Lv.20', gold: 5000, title: '远近闻名' },
     { id: 'a_l3', stat: 'lv', need: 30, tx: '一方乡绅', desc: '达到 Lv.30', gold: 15000, title: '一方乡绅' },
@@ -190,8 +209,23 @@
 
   const SHOP_ITEMS = [
     { id: 'fert', name: '化肥', ic: '🧪', price: RULES.fertPrice, desc: '让作物成长进度 +30%' },
-    { id: 'dogfood', name: '狗粮', ic: '🍖', price: RULES.dogfoodPrice, desc: '小狗吃饱后看家 60 分钟，并获得成长经验' },
+    { id: 'dogfood', name: '狗粮', ic: '🍖', price: RULES.dogfoodPrice, desc: '小狗吃饱后看家 2 小时，并获得成长经验' },
+    { id: 'ffeed', name: '鱼饲料', ic: '🐟', price: 80, desc: '一份让一条鱼的生长时间缩短 30%，鱼塘里可以一键喂' },
+    { id: 'sfeed', name: '精饲料', ic: '🌾', price: 150, desc: '一份让一只羊的羊毛多长半茬，牧场里可以一键喂' },
+    { id: 'tfert', name: '果树营养液', ic: '💧', price: 200, desc: '一份让一棵果树长大快 30%（已结果的树多结半茬），果园里可以一键施' },
   ];
+  // v3.1 更多颜色的边牧：领养后自己起名字，可以放羊、跟着主人走
+  const COLLIES = [
+    { coat: 'black', name: '经典黑白边牧', lv: 30, price: 50000 },
+    { coat: 'red', name: '巧克力红白边牧', lv: 80, price: 150000 },
+    { coat: 'redmerle', name: '红陨石边牧', lv: 150, price: 400000 },
+    { coat: 'tri', name: '三色边牧', lv: 300, price: 1000000 },
+    { coat: 'lilac', name: '丁香紫边牧', lv: 600, price: 3000000 },
+    { coat: 'slate', name: '石板蓝边牧', lv: 1000, price: 8000000 },
+    { coat: 'merle', name: '蓝陌边牧', lv: 1500, price: 15000000 },
+    { coat: 'gold', name: '黄白边牧', lv: 2000, price: 25000000 },
+  ];
+  const PETS_MAX = 8;
 
   // 经验曲线：45 级以前不变；之后按 (lv/45)^1.5 增长，满级 4000 级
   const expNeed = lv => lv <= 45 ? Math.round(50 * lv * (1 + lv * 0.35)) : Math.round(37688 * Math.pow(lv / 45, 1.5));
@@ -272,12 +306,29 @@
     { id: 3, name: '鲤鱼', lv: 10, price: 400, time: 7200, yield: 3, sell: 195, exp: 60, col: '#c8a060', size: 1.1 },
     { id: 4, name: '锦鲤', lv: 15, price: 1200, time: 14400, yield: 3, sell: 610, exp: 130, col: '#ff5a3a', size: 1.15, spots: '#ffffff' },
     { id: 5, name: '金龙鱼', lv: 22, price: 4000, time: 28800, yield: 3, sell: 1950, exp: 300, col: '#ffcc2a', size: 1.25 },
+    { id: 6, name: '鳜鱼', lv: 35, price: 9000, time: 28800, yield: 3, sell: 4200, exp: 520, col: '#9a8a4a', size: 1.2, spots: '#3a3020' },
+    { id: 7, name: '石斑鱼', lv: 60, price: 22000, time: 36000, yield: 3, sell: 10000, exp: 900, col: '#b85a3a', size: 1.3, spots: '#f0d0b0' },
+    { id: 8, name: '金枪鱼', lv: 100, price: 60000, time: 36000, yield: 3, sell: 27000, exp: 1600, col: '#3a5a8a', size: 1.45 },
+    { id: 9, name: '蓝鳍金枪', lv: 200, price: 160000, time: 43200, yield: 3, sell: 72000, exp: 3000, col: '#2a4ab8', size: 1.55 },
+    { id: 10, name: '紫晶锦鲤', lv: 400, price: 450000, time: 43200, yield: 3, sell: 200000, exp: 5600, col: '#a86aff', size: 1.3, spots: '#ffffff' },
+    { id: 11, name: '红龙鱼', lv: 800, price: 1300000, time: 57600, yield: 3, sell: 580000, exp: 10500, col: '#e8282a', size: 1.6 },
+    { id: 12, name: '鲲', lv: 1600, price: 4000000, time: 72000, yield: 3, sell: 1800000, exp: 20000, col: '#5ab8e8', size: 1.8 },
+    { id: 13, name: '金鳞神鲤', lv: 3000, price: 12000000, time: 86400, yield: 3, sell: 5500000, exp: 38000, col: '#ffd23a', size: 1.7, spots: '#fff4b0' },
   ];
   // 羊：买来放进羊圈，隔一段时间长一茬羊毛，剪下来卖钱；羊毛长满 woolMax 茬后不再长，记得来剪
   const SHEEP = [
     { id: 0, name: '小绵羊', lv: 4, price: 500, period: 7200, wool: 2, woolName: '白羊毛', sell: 48, exp: 20, body: '#fbf8f0', face: '#3a3230' },
     { id: 1, name: '黑面羊', lv: 12, price: 2000, period: 10800, wool: 3, woolName: '黑羊毛', sell: 85, exp: 45, body: '#f2ede2', face: '#151214' },
     { id: 2, name: '羊驼', lv: 20, price: 6000, period: 14400, wool: 3, woolName: '羊驼毛', sell: 230, exp: 90, body: '#e8d2a8', face: '#e8d2a8', alpaca: true },
+    { id: 3, name: '美利奴羊', lv: 40, price: 18000, period: 14400, wool: 4, woolName: '美利奴羊毛', sell: 520, exp: 180, body: '#fffaf0', face: '#f0d8c8' },
+    { id: 4, name: '白羊驼', lv: 70, price: 45000, period: 18000, wool: 4, woolName: '白羊驼毛', sell: 1200, exp: 320, body: '#fbf8f2', face: '#fbf8f2', alpaca: true },
+    { id: 5, name: '卷毛羊', lv: 120, price: 110000, period: 18000, wool: 4, woolName: '卷羊毛', sell: 2800, exp: 560, body: '#f4eee0', face: '#2a2224' },
+    { id: 6, name: '咖啡羊驼', lv: 200, price: 280000, period: 21600, wool: 5, woolName: '咖啡驼毛', sell: 5600, exp: 950, body: '#9a6a42', face: '#7a5032', alpaca: true },
+    { id: 7, name: '彩虹羊', lv: 350, price: 700000, period: 21600, wool: 5, woolName: '彩虹羊毛', sell: 13000, exp: 1600, body: '#ffd0ec', face: '#3a3230' },
+    { id: 8, name: '黑羊驼', lv: 600, price: 1800000, period: 25200, wool: 5, woolName: '黑驼毛', sell: 30000, exp: 2800, body: '#3a3236', face: '#2a2226', alpaca: true },
+    { id: 9, name: '云朵羊', lv: 1000, price: 5000000, period: 28800, wool: 6, woolName: '云朵绒', sell: 72000, exp: 5000, body: '#eaf4ff', face: '#8aa0c8' },
+    { id: 10, name: '金羊毛羊', lv: 1800, price: 14000000, period: 32400, wool: 6, woolName: '金羊毛', sell: 180000, exp: 9000, body: '#ffd86a', face: '#6a4a1a' },
+    { id: 11, name: '星光羊驼', lv: 3000, price: 40000000, period: 36000, wool: 6, woolName: '星光驼绒', sell: 480000, exp: 16000, body: '#c8b8ff', face: '#c8b8ff', alpaca: true },
   ];
   // 果树：买树苗种进果园，长大（grow 秒）后每 period 秒结一茬果子，最多攒 3 茬
   const TREES = [
@@ -291,19 +342,27 @@
     { id: 7, name: '芒果树', fruit: '芒果', lv: 130, price: 380000, grow: 43200, period: 25200, yield: 9, sell: 2600, exp: 1150, col: '#ffc21a' },
     { id: 8, name: '石榴树', fruit: '石榴', lv: 200, price: 900000, grow: 57600, period: 28800, yield: 10, sell: 5200, exp: 1900, col: '#b8102a' },
     { id: 9, name: '金苹果树', fruit: '金苹果', lv: 400, price: 3000000, grow: 86400, period: 36000, yield: 10, sell: 15000, exp: 4200, col: '#ffd23a' },
+    { id: 10, name: '蓝莓树', fruit: '巨型蓝莓', lv: 550, price: 5500000, grow: 86400, period: 36000, yield: 12, sell: 22000, exp: 5600, col: '#4a5ad8' },
+    { id: 11, name: '榴莲树', fruit: '榴莲', lv: 750, price: 10000000, grow: 100800, period: 43200, yield: 10, sell: 48000, exp: 8000, col: '#c8b84a' },
+    { id: 12, name: '山竹树', fruit: '山竹', lv: 1000, price: 18000000, grow: 108000, period: 43200, yield: 12, sell: 70000, exp: 11000, col: '#6a1a4a' },
+    { id: 13, name: '樱花果树', fruit: '樱花果', lv: 1400, price: 32000000, grow: 115200, period: 46800, yield: 12, sell: 120000, exp: 15000, col: '#ff9ac8', blossom: '#ffd8ec' },
+    { id: 14, name: '星果树', fruit: '星星果', lv: 1900, price: 55000000, grow: 122400, period: 50400, yield: 12, sell: 200000, exp: 20000, col: '#ffe86a' },
+    { id: 15, name: '月光梨树', fruit: '月光梨', lv: 2500, price: 90000000, grow: 129600, period: 54000, yield: 12, sell: 320000, exp: 26000, col: '#e8f0ff', blossom: '#ffffff' },
+    { id: 16, name: '仙桃树', fruit: '蟠桃', lv: 3200, price: 150000000, grow: 144000, period: 57600, yield: 12, sell: 520000, exp: 34000, col: '#ff8a9a', blossom: '#ffc8d8' },
+    { id: 17, name: '世界树', fruit: '生命果', lv: 3900, price: 260000000, grow: 172800, period: 64800, yield: 12, sell: 900000, exp: 46000, col: '#7affc8' },
   ];
   // 鱼塘、牧场、果园都可以一级一级扩建（最多 100 级），扩建要求玩家等级，越往后越贵、容量越大
   const RANCH = {
-    maxLv: 100, needLvPer: 35,                  // 扩建到 L 级需要玩家等级 (L-1)×35
+    maxLv: 100, needLvPer: 10,                  // 扩建到 L 级需要玩家等级 (L-1)×10
     woolMax: 3, fruitMax: 3,                    // 羊毛、果子最多攒 3 茬
     herdMin: 120, herdBoost: 0.5,               // 牧羊基础：2 小时、羊毛快 50%（狗等级越高越久、越快、赶得越多）
     dogMaxLv: 100,
   };
   const _q = (l, a, b, c) => Math.round(a + b * (l - 1) + c * (l - 1) * (l - 1));
-  const pondCapOf = l => _q(Math.max(1, Math.min(RANCH.maxLv, l || 1)), 6, 4, 0.12);        // 1 级 6 条 → 100 级约 1580 条
+  const pondCapOf = l => _q(Math.max(1, Math.min(RANCH.maxLv, l || 1)), 20, 15, 0.4);       // 1 级 20 条 → 100 级约 5400 条
   const pastureCapOf = l => _q(Math.max(1, Math.min(RANCH.maxLv, l || 1)), 3, 3, 0.1);      // 1 级 3 只 → 100 级约 1280 只
   const orchardCapOf = l => _q(Math.max(1, Math.min(RANCH.maxLv, l || 1)), 4, 2, 0.05);     // 1 级 4 棵 → 100 级约 690 棵
-  const ranchUpCost = (kind, l) => Math.round(({ pond: 600, pasture: 900, orchard: 1200 })[kind] * Math.pow(l, 1.9)); // 从 l 级升到 l+1 级
+  const ranchUpCost = (kind, l) => Math.round(({ pond: 300, pasture: 900, orchard: 1200 })[kind] * Math.pow(l, 1.8)); // 从 l 级升到 l+1 级
   const ranchNeedLv = l => (l - 1) * RANCH.needLvPer;                                       // 升到 l 级需要的玩家等级
   // 旧接口（按玩家等级的容量）保留给 1 级时使用
   const pondCap = () => pondCapOf(1), pastureCap = () => pastureCapOf(1);
@@ -322,8 +381,8 @@
   const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
   // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
   function ranchItem(item) { const m = /^(fs|wl|fr)(\d+)$/.exec(item || ''); if (!m) return null; const d = ({ fs: FISH, wl: SHEEP, fr: TREES })[m[1]][+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : m[1] === 'wl' ? { kind: 'wool', id: d.id, name: d.woolName, price: d.sell } : { kind: 'fruit', id: d.id, name: d.fruit, price: d.sell }; }
-  const VERSION = '3.0.0'; // 每次发布改这里；设置页和 /api/health 会显示
-  const CFG = { VERSION, COLS, ROWS, NPLOTS, FIELDS_MAX, MAX_PLOTS, fieldNeedLv, fieldCost, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
+  const VERSION = '3.1.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const CFG = { COLLIES, PETS_MAX, VERSION, COLS, ROWS, NPLOTS, FIELDS_MAX, MAX_PLOTS, fieldNeedLv, fieldCost, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
     FISH, SHEEP, TREES, RANCH, pondCap, pastureCap, pondCapOf, pastureCapOf, orchardCapOf, ranchUpCost, ranchNeedLv, herdOf, sheepCycles, treeCycles, treeGrowLeft, fishLeft, ranchItem,
     expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };

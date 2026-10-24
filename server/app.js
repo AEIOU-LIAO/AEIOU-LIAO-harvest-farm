@@ -148,10 +148,13 @@ async function createCore(opts) {
   R('POST', '/api/ranch/upgrade', { auth: 1 }, async (c) => own(c.uid, await game.ranchUpgrade(c.uid, String(c.body.kind || ''))));
   R('POST', '/api/ranch/tree/buy', { auth: 1 }, async (c) => own(c.uid, await game.buyTree(c.uid, U.int(c.body.type, '树苗', 0, 99), c.body.n)));
   R('POST', '/api/ranch/fruit', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.pickFruit(c.uid, o), o); });
-  R('POST', '/api/dog/train', { auth: 1 }, async (c) => own(c.uid, await game.trainDog(c.uid, c.body.kind ? String(c.body.kind) : 'fuwang')));
+  R('POST', '/api/dog/train', { auth: 1 }, async (c) => own(c.uid, await game.trainDog(c.uid, c.body.kind ? String(c.body.kind) : 'fuwang', c.body.n)));
+  R('POST', '/api/ranch/boost', { auth: 1 }, async (c) => own(c.uid, await game.ranchBoost(c.uid, String(c.body.kind || ''))));
+  R('POST', '/api/pet/buy', { auth: 1 }, async (c) => own(c.uid, await game.buyPet(c.uid, String(c.body.coat || ''), c.body.name)));
+  R('POST', '/api/pet/rename', { auth: 1 }, async (c) => own(c.uid, await game.renamePet(c.uid, String(c.body.id || ''), c.body.name)));
   R('POST', '/api/ranch/shear', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.shear(c.uid, o), o); });
   R('POST', '/api/ranch/herd', { auth: 1 }, async (c) => own(c.uid, await game.herd(c.uid, c.body.kind ? String(c.body.kind) : '')));
-  R('POST', '/api/dog/feed', { auth: 1 }, async (c) => own(c.uid, await game.feedDog(c.uid, c.body.kind ? String(c.body.kind) : 'fuwang')));
+  R('POST', '/api/dog/feed', { auth: 1 }, async (c) => own(c.uid, await game.feedDog(c.uid, c.body.kind ? String(c.body.kind) : 'fuwang', c.body.n)));
   R('POST', '/api/wh/sell', { auth: 1 }, async (c) => own(c.uid, await game.sell(c.uid, String(c.body.item), c.body.n)));
   R('POST', '/api/wh/sell-all', { auth: 1 }, async (c) => own(c.uid, await game.sellAll(c.uid)));
   R('POST', '/api/checkin', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.checkin(c.uid, o), o); });

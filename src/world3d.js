@@ -326,7 +326,17 @@ const W3 = (() => {
   const DOG_LOOK = {
     fuwang: { name: '福旺', tag: '#c8d2e0', s: 1.04, coat: 'merle', harness: '#1f9e9a', trim: '#c8442e', ruffRing: false, eye: '#3a2412' },
     ruibao: { name: '睿宝', tag: '#ffcf5a', s: 1.0, coat: 'gold', harness: '#1f9e9a', trim: null, ruffRing: true, eye: '#2a1608' },
+    // v3.1 更多颜色（领养的边牧，按毛色区分模型）
+    black: { name: '黑白边牧', tag: '#e8e8e8', s: 1.02, coat: 'black', harness: '#d8402a', trim: null, ruffRing: true, eye: '#3a2412' },
+    red: { name: '红白边牧', tag: '#e8b090', s: 1.0, coat: 'red', harness: '#2a7ad8', trim: null, ruffRing: true, eye: '#5a3010' },
+    redmerle: { name: '红陨石边牧', tag: '#f0c0a8', s: 1.0, coat: 'redmerle', harness: '#3aa860', trim: '#ffd23a', ruffRing: false, eye: '#6a4020' },
+    tri: { name: '三色边牧', tag: '#e8c890', s: 1.03, coat: 'tri', harness: '#8a3ad8', trim: null, ruffRing: true, eye: '#3a2412' },
+    lilac: { name: '丁香紫边牧', tag: '#d8c8e8', s: 0.98, coat: 'lilac', harness: '#ff8ac8', trim: null, ruffRing: true, eye: '#6a5030' },
+    slate: { name: '石板蓝边牧', tag: '#b8c4d8', s: 1.02, coat: 'slate', harness: '#ffb21a', trim: null, ruffRing: true, eye: '#4a3018' },
+    merle: { name: '蓝陌边牧', tag: '#c8d2e0', s: 1.0, coat: 'merle', harness: '#d8402a', trim: '#ffffff', ruffRing: false, eye: '#4a6a8a' },
+    gold: { name: '黄白边牧', tag: '#ffcf5a', s: 0.98, coat: 'gold', harness: '#8a3ad8', trim: null, ruffRing: true, eye: '#2a1608' },
   };
+  const SOLID = { black: ['#16151a', '#2a262c'], red: ['#6e3820', '#9a5a34'], tri: ['#17161a', '#2a262c'], lilac: ['#9a888e', '#b8a8ac'], slate: ['#525a68', '#6e7684'] };
   const n3 = (x, y, z, s) => (vnoise(x, y, s, 0) + vnoise(y + 3.1, z, s + 1, 0) + vnoise(z + 7.7, x, s + 2, 0)) / 3;
   const sst = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   const smin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; };
@@ -372,6 +382,13 @@ const W3 = (() => {
       if (mid > 0.64) out.copy(C_MLIGHT).multiplyScalar(0.9 + fine * 0.18);              // 浅灰斑
       out.lerp(C_MBLACK, sst(0.53, 0.57, big));                                          // 黑色斑块
       if (darkHead) out.lerp(C_MBLACK, darkHead);
+    } else if (L.coat === 'redmerle') {
+      const big = n3(x * 4.2 + 5, y * 4.2, z * 4.2 + 9, 63), mid = n3(x * 8 + 7, y * 8, z * 8, 79);
+      out.set('#c88a6c').multiplyScalar(0.85 + fine * 0.3); if (mid > 0.64) out.set('#dcaa90');
+      out.lerp(new T.Color('#7a3420'), sst(0.53, 0.57, big)); if (darkHead) out.lerp(new T.Color('#7a3420'), darkHead * 0.8);
+    } else if (SOLID[L.coat]) {
+      const [a, b] = SOLID[L.coat]; out.set(a).multiplyScalar(0.85 + fine * 0.35); out.lerp(new T.Color(b), sst(0.66, 0.78, y) * 0.3);
+      if (L.coat === 'tri') out.lerp(new T.Color('#b8722e'), sst(0.56, 0.47, y) * sst(-0.1, 0.2, x) * 0.85 + (y > 0.8 && y < 0.92 && x > 0.5 ? 0.6 : 0)); // 三色：腿上、脸颊的棕色
     } else {
       out.copy(C_GOLD).multiplyScalar(0.84 + fine * 0.3);                                 // 金棕色
       out.lerp(C_GOLDL, sst(0.62, 0.45, y) * 0.4);                                       // 下侧偏浅
@@ -381,7 +398,7 @@ const W3 = (() => {
   }
   const DOG_GEO = {}, DOG_BASE_Y = -0.095; // 整体放低（腿短一些，更接近边牧的比例）
   function dogGeometry(kind) {
-    if (DOG_GEO[kind]) return DOG_GEO[kind]; const L = DOG_LOOK[kind], merle = L.coat === 'merle';
+    if (DOG_GEO[kind]) return DOG_GEO[kind]; const L = DOG_LOOK[kind], merle = L.coat === 'merle' || L.coat === 'redmerle';
     // ---- 身体（含脖子、毛领、后腿上段）----
     const torso = (x, y, z) => {
       let d = sEll(x, y, z, [0.26, 0.6, 0], [0.2, 0.2, 0.165]);
@@ -451,7 +468,7 @@ const W3 = (() => {
     m.customProgramCacheKey = () => 'dogfur-' + part; return m;
   }
   function furMat() { return new T.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.86, sheen: 0.35, sheenRoughness: 0.5, sheenColor: new T.Color('#fff4e0') }); }
-  function buildDog(kind) {
+  function buildDog(kind, nm, did) {
     const L = DOG_LOOK[kind || 'fuwang'], G = dogGeometry(kind || 'fuwang'), U = { uT: { value: 0 }, uMove: { value: 0 }, uBob: { value: 0 }, uWagPh: { value: 0 }, uWagA: { value: 0.3 }, uLift: { value: 0 } }, fur = dogFurMat(U, 'torso');
     const g = new T.Group(), torso = new T.Group(); torso.position.y = DOG_BASE_Y; g.add(torso);
     const body = new T.Mesh(G.torso, fur); body.castShadow = true; torso.add(body);
@@ -475,8 +492,8 @@ const W3 = (() => {
     // 尾巴
     const tail = new T.Group(); tail.position.set(-0.44, 0.64, 0); torso.add(tail); const tm = new T.Mesh(G.tail, dogFurMat(U, 'tail')); tm.castShadow = true; tail.add(tm); tail.scale.setScalar(0.88);
     g.scale.setScalar(L.s);
-    const tag = nameTag(L.name, L.tag); tag.position.set(0.1, 1.42, 0); g.add(tag);
-    const d = { g, torso, head, tail, legs, tongue, tag, kind, home: null, ang: Math.random() * 6.28, pet: 0, U, wag: 0, mv: 0 }; anim.dogs.push(d);
+    const tag = nameTag(nm || L.name, L.tag); tag.position.set(0.1, 1.42, 0); g.add(tag);
+    const d = { g, torso, head, tail, legs, tongue, tag, kind, did: did || kind, name: nm || L.name, home: null, ang: Math.random() * 6.28, pet: 0, U, wag: 0, mv: 0 }; anim.dogs.push(d);
     if (!buildDog.preview) { const hb = new T.Mesh(new T.BoxGeometry(1.1, 1.1, 0.7), new T.MeshBasicMaterial({ visible: false })); hb.position.set(0, 0.55, 0); hb.userData.idx = -20 - (anim.dogs.length - 1); hb.userData.dog = d; g.add(hb); hitBoxes.push(hb); } return g;
   }
   // 调试：大尺寸渲染某个角度的狗（只在测试中用）
@@ -508,14 +525,14 @@ const W3 = (() => {
   function buildChicken() { const g = new T.Group(); g.add(blob(mat('#fbf6ec', { p: { roughness: 0.9 } }), 0, 0.3, 0, 0.22, 0.2, 0.18)); g.add(blob(mat('#fbf6ec'), -0.2, 0.38, 0, 0.1, 0.14, 0.08)); const h = blob(mat('#fbf6ec'), 0.16, 0.5, 0, 0.12); g.add(h); g.add(blob(mat('#e0302a'), 0.18, 0.62, 0, 0.05, 0.06, 0.03)); const bk = mesh(new T.ConeGeometry(0.035, 0.09, 6), mat('#f0a020'), 0.29, 0.5, 0); bk.rotation.z = -Math.PI / 2; g.add(bk); g.add(blob(mat('#1a1008'), 0.23, 0.53, 0.07, 0.018)); g.add(blob(mat('#1a1008'), 0.23, 0.53, -0.07, 0.018)); [0.06, -0.06].forEach(z => g.add(mesh(new T.CylinderGeometry(0.012, 0.012, 0.16, 4), mat('#e0a020'), 0, 0.08, z))); const m = merge(g); m.scale.setScalar(0.9); return m; }
   function buildButterfly(col) { const g = new T.Group(), wm = mat(col, { ds: 1, p: { roughness: 0.6 } }); const wg = new T.CircleGeometry(0.12, 10); const l = mesh(wg, wm, -0.08, 0, 0), r = mesh(wg, wm, 0.08, 0, 0); l.castShadow = r.castShadow = false; const lp = new T.Group(), rp = new T.Group(); lp.add(l); rp.add(r); g.add(lp, rp); g.add(blob(mat('#2a1a10'), 0, 0, 0, 0.015, 0.015, 0.08)); return { g, lp, rp }; }
   function buildCloud() { const g = new T.Group(), m = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: new T.Color('#c8d8f0'), emissiveIntensity: 0.25, transparent: true, opacity: 0.95 }); const r = CFG3.rng(Math.round(Math.random() * 1e6)); for (let i = 0; i < 7; i++) { const o = blob(m, (i - 3) * 1.1 + (r() - 0.5), r() * 0.6, (r() - 0.5) * 1.2, 1.1 + r() * 0.8, 0.8 + r() * 0.4, 1 + r() * 0.5, 14); o.castShadow = false; g.add(o); } return g; }
-  function grassField(n, avoid) {
+  function grassField(n, avoid, cx, cz, w, h) { cx = cx || 0; cz = cz || 0; w = w || 70; h = h || 60;
     const blade = new T.BufferGeometry(), pos = [0, 0, -0.035, 0, 0, 0.035, 0.01, 0.17, -0.025, 0.01, 0.17, 0.025, 0.03, 0.34, 0], col = [0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 1.1, 1.1, 1.1];
     blade.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); blade.setAttribute('color', new T.Float32BufferAttribute(col, 3)); blade.setIndex([0, 1, 2, 2, 1, 3, 2, 3, 4]); blade.computeVertexNormals();
     const m = new T.MeshStandardMaterial({ color: new T.Color('#7cb84a'), vertexColors: true, side: T.DoubleSide, roughness: 0.8 });
     m.onBeforeCompile = sh => { sh.uniforms.uT = anim.grassU; sh.vertexShader = 'uniform float uT;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\nfloat ph = instanceMatrix[3].x*0.6 + instanceMatrix[3].z*0.8;\ntransformed.x += sin(uT*1.6+ph)*0.07*position.y*3.0;\ntransformed.z += cos(uT*1.2+ph*1.3)*0.05*position.y*3.0;\n#endif'); };
     const im = new T.InstancedMesh(blade, m, n), d = new T.Object3D(), r = CFG3.rng(5), c = new T.Color(); let k = 0;
-    while (k < n) { const x = (r() - 0.5) * 70, z = (r() - 0.5) * 60; if (avoid(x, z)) continue; d.position.set(x, 0, z); d.rotation.set(0, r() * 6.28, (r() - 0.5) * 0.4); d.scale.set(0.8 + r() * 0.5, 0.5 + r() * 0.65, 0.8 + r() * 0.5); d.updateMatrix(); im.setMatrixAt(k, d.matrix); c.setHSL(0.23 + r() * 0.06, 0.5 + r() * 0.2, 0.4 + r() * 0.12); im.setColorAt(k, c); k++; }
-    im.receiveShadow = false; return im;
+    let tries = 0; while (k < n && tries++ < n * 40) { const x = cx + (r() - 0.5) * w, z = cz + (r() - 0.5) * h; if (avoid(x, z)) continue; d.position.set(x, 0, z); d.rotation.set(0, r() * 6.28, (r() - 0.5) * 0.4); d.scale.set(0.8 + r() * 0.5, 0.5 + r() * 0.65, 0.8 + r() * 0.5); d.updateMatrix(); im.setMatrixAt(k, d.matrix); c.setHSL(0.23 + r() * 0.06, 0.5 + r() * 0.2, 0.4 + r() * 0.12); im.setColorAt(k, c); k++; }
+    im.count = k; im.receiveShadow = false; return im;
   }
   function flowerGeo() { // 五瓣小花：白色花瓣（实例颜色染色）+ 黄色花心
     const parts = []; const add = (g, col) => { g = g.toNonIndexed(); const c = new T.Color(col), n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; } g.setAttribute('color', new T.BufferAttribute(a, 3)); g.deleteAttribute('uv'); parts.push(g); };
@@ -524,8 +541,8 @@ const W3 = (() => {
     const n = parts.reduce((s, g) => s + g.attributes.position.count, 0), P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 3); let o = 0;
     parts.forEach(g => { P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); C.set(g.attributes.color.array, o * 3); o += g.attributes.position.count; });
     const G = new T.BufferGeometry(); G.setAttribute('position', new T.BufferAttribute(P, 3)); G.setAttribute('normal', new T.BufferAttribute(N, 3)); G.setAttribute('color', new T.BufferAttribute(C, 3)); return G; }
-  function flowers(n, avoid) { const geo = flowerGeo(); const im = new T.InstancedMesh(geo, mat('#ffffff', { vc: 1, p: { roughness: 0.6 } }), n), d = new T.Object3D(), r = CFG3.rng(15), c = new T.Color(), pal = ['#ff7aa0', '#ffd23a', '#ffffff', '#b98aff', '#ff9a4a', '#7ac8ff']; let k = 0; while (k < n) { const x = (r() - 0.5) * 60, z = (r() - 0.5) * 50; if (avoid(x, z)) continue; d.position.set(x, 0.14 + r() * 0.1, z); d.rotation.set((r() - 0.5) * 0.5, r() * 6.28, (r() - 0.5) * 0.5); d.scale.setScalar(0.9 + r() * 0.7); d.updateMatrix(); im.setMatrixAt(k, d.matrix); im.setColorAt(k, c.set(pal[Math.floor(r() * pal.length)])); k++; } return im; }
-  function hills() { const g = new T.Group(), m = mat('#6a9a4a', { p: { roughness: 1 } }), r = CFG3.rng(77); for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2 + r() * 0.3, d = 135 + r() * 30; const geo = new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2); displace(geo, 0.08, 1.5, i); const o = mesh(geo, m, Math.cos(a) * d, -2, Math.sin(a) * d); o.scale.set(25 + r() * 20, 8 + r() * 10, 18 + r() * 10); o.castShadow = false; g.add(o); } for (let i = 0; i < 40; i++) { const a = r() * Math.PI * 2, d = 105 + r() * 25; const t = blob(mat('#3f7a3a', { p: { roughness: 1 } }), Math.cos(a) * d, 2.5, Math.sin(a) * d, 2 + r() * 1.5, 3 + r() * 2, 2 + r()); t.castShadow = false; g.add(t); } return merge(g); }
+  function flowers(n, avoid, cx, cz, w, h) { cx = cx || 0; cz = cz || 0; w = w || 60; h = h || 50; const geo = flowerGeo(); const im = new T.InstancedMesh(geo, mat('#ffffff', { vc: 1, p: { roughness: 0.6 } }), n), d = new T.Object3D(), r = CFG3.rng(15), c = new T.Color(), pal = ['#ff7aa0', '#ffd23a', '#ffffff', '#b98aff', '#ff9a4a', '#7ac8ff']; let k = 0; let tries = 0; while (k < n && tries++ < n * 40) { const x = cx + (r() - 0.5) * w, z = cz + (r() - 0.5) * h; if (avoid(x, z)) continue; d.position.set(x, 0.14 + r() * 0.1, z); d.rotation.set((r() - 0.5) * 0.5, r() * 6.28, (r() - 0.5) * 0.5); d.scale.setScalar(0.9 + r() * 0.7); d.updateMatrix(); im.setMatrixAt(k, d.matrix); im.setColorAt(k, c.set(pal[Math.floor(r() * pal.length)])); k++; } im.count = k; return im; }
+  function hills() { const g = new T.Group(), m = mat('#6a9a4a', { p: { roughness: 1 } }), r = CFG3.rng(77); for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2 + r() * 0.3, d = 180 + r() * 30; const geo = new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2); displace(geo, 0.08, 1.5, i); const o = mesh(geo, m, Math.cos(a) * d, -2, Math.sin(a) * d); o.scale.set(25 + r() * 20, 8 + r() * 10, 18 + r() * 10); o.castShadow = false; g.add(o); } for (let i = 0; i < 40; i++) { const a = r() * Math.PI * 2, d = 140 + r() * 25; const t = blob(mat('#3f7a3a', { p: { roughness: 1 } }), Math.cos(a) * d, 2.5, Math.sin(a) * d, 2 + r() * 1.5, 3 + r() * 2, 2 + r()); t.castShadow = false; g.add(t); } return merge(g); }
   // 天空
   let sky, skyU;
   function buildSky() {
@@ -729,42 +746,54 @@ const W3 = (() => {
       f.g.position.set(x, y, z); f.g.rotation.set(0, Math.atan2(-(nz - z), nx - x) + Math.PI, f.jy >= 0 ? Math.cos(f.jy / 0.8 * Math.PI) * 0.8 : 0); f.g.userData.tail.rotation.y = Math.sin(t * 9 + i) * 0.4;
       f.g.scale.setScalar((CFG3.FISH[f.t] || { size: 1 }).size * 2.1 * (0.7 + 0.3 * Math.min(1, f.k || 0))); });
     if (RANCH3.treeList && (RANCH3.tAcc = (RANCH3.tAcc || 0) + dt) > 0.2) { RANCH3.tAcc = 0; updateTrees(RANCH3.treeList, t); }
-    // 羊：平时在牧场里吃草溜达。牧羊时：狗把羊从南门赶出去 → 在外面草地吃草 → 再赶回来 → 休息，循环
-    const H = RANCH3.herd, SH = RANCH3.sheep, n = SH.length, GI = v3(PAST.cx, 0, PAST.z1 - 0.9), GO = v3(PAST.cx, 0, PAST.z1 + 1.1), M = MEADOW, gw = PAST.gw || 0.9, mr = 2.6 + Math.sqrt(n) * 0.45;
-    if (H.on && !RANCH3.hOn) { RANCH3.hc = 0; RANCH3.phase = ''; } RANCH3.hOn = H.on;
-    const K = 1 + n / 120; let phase = 'idle';
-    if (H.on && n) { RANCH3.hc += dt; const c = RANCH3.hc % (HERD_T.loop * K); phase = c < HERD_T.out * K ? 'out' : c < HERD_T.graze * K ? 'graze' : c < HERD_T.back * K ? 'back' : 'rest'; }
-    else if (RANCH3.phase && RANCH3.phase !== 'idle' && SH.some(s => s.zone === 'out')) phase = 'back';
-    if (phase !== RANCH3.phase) { RANCH3.phase = phase; const dl = Math.min(0.8, 18 / Math.max(1, n));
-      SH.forEach((s, i) => { s.delay = i * dl; s.wpi = 0; const off = ((i % 5) - 2) / 2 * gw * 0.7;
-        if (phase === 'out') { const a = i * 2.4, rr = Math.sqrt((i + 0.5) / Math.max(1, n)) * mr; s.path = [GI.clone().add(v3(off, 0, 0)), GO.clone().add(v3(off, 0, 0)), M.clone().add(v3(Math.cos(a) * rr * 1.25, 0, Math.sin(a) * rr))]; }
-        else if (phase === 'back') s.path = [GO.clone().add(v3(off, 0, 0)), GI.clone().add(v3(off, 0, 0)), v3(PAST.x0 + 0.8 + Math.random() * (PAST.x1 - PAST.x0 - 1.6), 0, PAST.z0 + 1.8 + Math.random() * (PAST.z1 - PAST.z0 - 2.8))];
-        else s.path = null; }); }
-    let dogT = null;
-    if (phase === 'out' || phase === 'back') { const lag = SH.filter(s => s.path && s.wpi < s.path.length && s.delay <= 0); const L = v3(0, 0, 0), src = lag.length ? lag : SH; src.forEach(s => L.add(s.p)); L.multiplyScalar(1 / Math.max(1, src.length));
-      const s0 = lag[0], tgt = s0 ? s0.path[Math.min(s0.wpi, s0.path.length - 1)] : (phase === 'out' ? M : GI), dx = tgt.x - L.x, dz = tgt.z - L.z, dl = Math.hypot(dx, dz) || 1;
-      dogT = v3(L.x - dx / dl * 1.8 - dz / dl * Math.sin(t * 2.2) * 1.2, 0, L.z - dz / dl * 1.8 + dx / dl * Math.sin(t * 2.2) * 1.2); }
-    else if (phase === 'graze') { RANCH3.dang = (RANCH3.dang || 0) + dt * 0.7 / Math.max(1, mr / 3); dogT = v3(M.x + Math.cos(RANCH3.dang) * (mr * 1.25 + 0.8), 0, M.z + Math.sin(RANCH3.dang) * (mr + 0.8)); }
-    else if (phase === 'rest') dogT = v3(GI.x + gw + 0.6, 0, GI.z + 0.1);
-    RANCH3.dogT = dogT; RANCH3.dogRest = phase === 'rest';
-    const dogP = H.on || phase === 'back' ? herdDogPos() : null;
+    // 羊：平时在牧场里吃草溜达。牧羊时：狗把羊群从南门赶出去，沿着路线赶到远处的大草原，换几个地方吃草，再一路赶回来，进圈休息，循环
+    const H = RANCH3.herd, SH = RANCH3.sheep, n = SH.length, gw = PAST.gw || 0.9, GI = v3(PAST.cx, 0, PAST.z1 - 1.2), GO = v3(PAST.cx, 0, PAST.z1 + 1.8), FR = 0.55 * Math.sqrt(Math.max(1, n)) + 0.8;
+    const clampW = (x, z) => v3(Math.max(-60, Math.min(92, x)), 0, Math.max(-80, Math.min(92, z)));
+    const startRoute = () => { const z1 = PAST.z1, cx = PAST.cx, A = v3(0, 0, 0); SH.forEach(s => A.add(s.p)); if (n) A.multiplyScalar(1 / n); else A.copy(GI);
+      const S1 = clampW(cx + 2, z1 + 12), S2 = clampW(cx + 22, z1 + 25), S3 = clampW(cx - 6, z1 + 36), S4 = clampW(cx + 10, z1 + 18);
+      RANCH3.route = [{ p: GI, narrow: 1 }, { p: GO, narrow: 1 }, { p: S1, g: 35 }, { p: S2, g: 45 }, { p: S3, g: 40 }, { p: S4, g: 0 }, { p: GO.clone().add(v3(0, 0, 3)), g: 0 }, { p: GO, narrow: 1 }, { p: GI, narrow: 1 }, { p: v3(cx, 0, PAST.cz), g: 30, pen: 1 }];
+      RANCH3.leg = 0; RANCH3.A = A; RANCH3.wait = 0; RANCH3.D = v3(0, 0, 1); RANCH3.stray = null; RANCH3.strayT = 8; };
+    if (H.on && !RANCH3.hOn && n) startRoute(); RANCH3.hOn = H.on;
+    if (!H.on && RANCH3.route && RANCH3.leg <= 1) RANCH3.route = null; // 还没出门就结束了
+    if (!H.on && RANCH3.route && RANCH3.leg >= 2 && RANCH3.leg <= 5) { RANCH3.leg = 6; RANCH3.wait = 0; } // 牧羊时间到：直接往回赶
+    let dogT = null, graze = false, inPen = true; const RT = RANCH3.route;
+    if (RT && n) {
+      let L = RT[RANCH3.leg]; const A = RANCH3.A, dx = L.p.x - A.x, dz = L.p.z - A.z, d = Math.hypot(dx, dz);
+      // 羊群跟不上时锚点放慢
+      let lag = 0; SH.forEach(s => { if (s.tgt) lag += Math.hypot(s.p.x - s.tgt.x, s.p.z - s.tgt.z); }); lag /= n;
+      if (d > 0.3) { const va = (L.narrow ? 0.8 : 1.25) * (lag > FR * 0.9 ? 0.25 : lag > FR * 0.5 ? 0.6 : 1), st = Math.min(d, dt * va); A.x += dx / d * st; A.z += dz / d * st; RANCH3.D.set(dx / d, 0, dz / d); }
+      else if (L.g && (RANCH3.wait += dt) < L.g * (1 + n / 250)) { graze = !L.pen; }
+      else { RANCH3.wait = 0; RANCH3.leg++; if (RANCH3.leg >= RT.length) { if (H.on) startRoute(); else RANCH3.route = null; } }
+      L = RANCH3.route ? RANCH3.route[RANCH3.leg] : null; inPen = !L || !!L.pen || RANCH3.leg === 0;
+      const D = RANCH3.D, P = v3(-D.z, 0, D.x), nearGate = Math.min(A.distanceTo(GI), A.distanceTo(GO)) < 5 || (L && L.narrow), sq = nearGate ? Math.min(1, gw * 0.9 / FR) : 1, stretch = Math.min(6, 1 / sq);
+      // 有一只羊跑远了：狗绕到它外侧把它赶回来
+      if (graze) { RANCH3.strayT -= dt; if (RANCH3.strayT < 0 && !RANCH3.stray) { RANCH3.strayT = 9 + Math.random() * 8; const s = SH[Math.floor(Math.random() * n)], a = Math.random() * 6.28; s.strayTo = v3(A.x + Math.cos(a) * (FR + 5), 0, A.z + Math.sin(a) * (FR + 5)); RANCH3.stray = s; } } else if (RANCH3.stray) { RANCH3.stray.strayTo = null; RANCH3.stray = null; }
+      SH.forEach((s, i) => { const r = Math.sqrt((i + 0.5) / n) * FR, ang = i * 2.39996, u = -Math.abs(Math.cos(ang)) * r * stretch * (nearGate ? 1 : 0.8) + (nearGate ? 0 : Math.cos(ang) * r * 0.3), v = Math.sin(ang) * r * sq;
+        if (graze) { if (s.strayTo) { s.tgt.copy(s.strayTo); if (s.p.distanceTo(A) < FR * 0.9 && RANCH3.stray !== s) s.strayTo = null; } else if (!s.gz || s.p.distanceTo(s.tgt) < 0.15 || Math.random() < dt * 0.05) { const a = Math.random() * 6.28, rr = Math.sqrt(Math.random()) * FR * 1.3; s.tgt.set(A.x + Math.cos(a) * rr, 0, A.z + Math.sin(a) * rr); s.gz = 1; } }
+        else { s.gz = 0; s.tgt.set(A.x + D.x * u + P.x * v, 0, A.z + D.z * u + P.z * v); }
+        s.zone = inPen ? 'in' : 'out'; s.path = null; });
+      const st = RANCH3.stray;
+      if (st && st.strayTo) { const o = v3(st.p.x - A.x, 0, st.p.z - A.z).normalize(); dogT = v3(st.p.x + o.x * 1.6, 0, st.p.z + o.z * 1.6); if (st.p.distanceTo(A) > FR * 1.1 && dogT.distanceTo(herdDogPos() || dogT) < 1.2) { st.strayTo = null; RANCH3.stray = null; } }
+      else if (graze) { RANCH3.dang = (RANCH3.dang || 0) + dt * 0.5 / Math.max(1, FR / 3); dogT = v3(A.x + Math.cos(RANCH3.dang) * (FR + 2.4), 0, A.z + Math.sin(RANCH3.dang) * (FR + 2.4)); }
+      else if (L && L.pen && d <= 0.3) dogT = v3(GI.x + gw + 0.8, 0, GI.z + 0.4);
+      else { const sw = Math.sin(t * 1.3) * FR * 0.9; dogT = v3(A.x - D.x * (FR + 1.8) + P.x * sw, 0, A.z - D.z * (FR + 1.8) + P.z * sw); } // 在羊群后面左右来回压着走
+      RANCH3.dogRest = !!(L && L.pen && d <= 0.3);
+    } else RANCH3.dogRest = false;
+    RANCH3.dogT = dogT; RANCH3.phase = RT ? 'route' : 'idle';
+    const dogP = RT ? herdDogPos() : null, routing = !!(RT && n);
     // 分开挤在一起的羊：网格哈希，避免 n² 计算
     const grid = new Map(), cell = p => Math.floor(p.x / 0.6) + ',' + Math.floor(p.z / 0.6); SH.forEach(s => { const k = cell(s.p); let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(s); });
     const d3 = new T.Object3D(), used = {};
     SH.forEach((s, i) => { const p = s.p; let spd = 0.4, follow = false;
-      if (s.path && s.wpi < s.path.length) { if (s.delay > 0) s.delay -= dt; else { follow = true; s.tgt.copy(s.path[s.wpi]); spd = 1.35; if (Math.hypot(p.x - s.tgt.x, p.z - s.tgt.z) < 0.35) { s.wpi++; if (s.wpi >= s.path.length) { s.zone = phase === 'out' ? 'out' : 'in'; s.wait = 1 + Math.random() * 2; } } } }
+      if (routing) { const d0 = Math.hypot(p.x - s.tgt.x, p.z - s.tgt.z); if (d0 > (s.gz ? 0.1 : 0.5)) { follow = !s.gz; spd = s.gz ? (s.strayTo ? 1.3 : 0.35) : Math.min(2.4, 0.7 + d0 * 0.6); s.wait = 0; } else { s.wait = s.gz ? 1 + Math.random() * 3 : 0; } if (s.gz && s.wait > 0) s.graze = Math.min(1, s.graze + dt * 2); }
       else if (s.wait > 0) { s.wait -= dt; s.graze = Math.min(1, s.graze + dt * 2); }
-      else if (Math.hypot(p.x - s.tgt.x, p.z - s.tgt.z) < 0.08 || (s.path && s.wpi >= s.path.length && !s.wander)) { s.wander = true; s.wait = 2 + Math.random() * 4;
-        if (s.zone === 'out') { const a = Math.random() * 6.28, r = Math.random() * mr; s.tgt.set(M.x + Math.cos(a) * r * 1.25, 0, M.z + Math.sin(a) * r); }
-        else s.tgt.set(PAST.x0 + 0.8 + Math.random() * (PAST.x1 - PAST.x0 - 1.6), 0, PAST.z0 + 1.8 + Math.random() * (PAST.z1 - PAST.z0 - 2.8)); }
-      if (follow) s.wander = false;
+      else if (Math.hypot(p.x - s.tgt.x, p.z - s.tgt.z) < 0.08) { s.wait = 2 + Math.random() * 4; s.tgt.set(PAST.x0 + 0.8 + Math.random() * (PAST.x1 - PAST.x0 - 1.6), 0, PAST.z0 + 1.8 + Math.random() * (PAST.z1 - PAST.z0 - 2.8)); }
       let vx = s.tgt.x - p.x, vz = s.tgt.z - p.z; const d = Math.hypot(vx, vz);
-      if (dogP) { const ax = p.x - dogP.x, az = p.z - dogP.z, ad = Math.hypot(ax, az); if (ad < 1.4 && ad > 1e-3) { vx += ax / ad * 1.2; vz += az / ad * 1.2; spd = Math.max(spd, 1.1); } }
+      if (dogP) { const ax = p.x - dogP.x, az = p.z - dogP.z, ad = Math.hypot(ax, az); if (ad < 1.8 && ad > 1e-3) { vx += ax / ad * 1.4; vz += az / ad * 1.4; spd = Math.max(spd, 1.4); follow = true; } }
       const vl = Math.hypot(vx, vz); let moving = false;
       if ((s.wait <= 0 || follow) && vl > 0.05 && d > 0.05) { const st = Math.min(d + 0.2, dt * spd); p.x += vx / vl * st; p.z += vz / vl * st; moving = true; s.graze = Math.max(0, s.graze - dt * 3); const da = wrapA0(Math.atan2(-vz, vx) - s.ry); s.ry += da * Math.min(1, dt * 5); }
       const k0 = cell(p).split(','), cx = +k0[0], cz = +k0[1]; for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) { const a = grid.get((cx + ox) + ',' + (cz + oz)); if (a) for (const o of a) { if (o === s) continue; const dx = p.x - o.p.x, dz = p.z - o.p.z, dd = Math.hypot(dx, dz); if (dd < 0.5 && dd > 1e-3) { p.x += dx / dd * (0.5 - dd) * 0.5; p.z += dz / dd * (0.5 - dd) * 0.5; } } }
-      if (!follow) { if (s.zone === 'out') { const dx = p.x - M.x, dz = p.z - M.z, dd = Math.hypot(dx / 1.25, dz); if (dd > mr) { p.x = M.x + dx / dd * mr; p.z = M.z + dz / dd * mr; } p.z = Math.max(p.z, PAST.z1 + 0.5); }
-        else { p.x = Math.max(PAST.x0 + 0.45, Math.min(PAST.x1 - 0.45, p.x)); p.z = Math.max(PAST.z0 + 0.45, Math.min(PAST.z1 - 0.45, p.z)); } }
+      if (!routing || s.zone === 'in' && RANCH3.dogRest) { p.x = Math.max(PAST.x0 + 0.45, Math.min(PAST.x1 - 0.45, p.x)); p.z = Math.max(PAST.z0 + 0.45, Math.min(PAST.z1 - 0.45, p.z)); }
       const fast = follow || spd > 1, bob = moving ? Math.abs(Math.sin(t * (fast ? 14 : 8) + s.ph)) * 0.03 : 0;
       if (s.m) { const g = s.m.g; g.position.copy(p); g.rotation.y = s.ry; const sw = moving ? Math.sin(t * (fast ? 14 : 8) + s.ph) * 0.45 : 0; s.m.legs.forEach((l, j) => l.rotation.z = (j === 0 || j === 3) ? sw : -sw);
         s.m.body.position.y = bob; s.m.head.rotation.z = -s.graze * 0.75; s.m.head.position.y = (CFG3.SHEEP[s.t].alpaca ? 1.18 : 0.7) - s.graze * (CFG3.SHEEP[s.t].alpaca ? 0.15 : 0.12);
@@ -776,7 +805,7 @@ const W3 = (() => {
     Object.values(RANCH3.inst).forEach(I => { I.body.instanceMatrix.needsUpdate = true; I.head.instanceMatrix.needsUpdate = true; });
   }
   const wrapA0 = a => Math.atan2(Math.sin(a), Math.cos(a));
-  function herdDogPos() { const d = anim.dogs.find(x => x.kind === RANCH3.herd.dog && x.g.visible) || anim.dogs.find(x => x.g.visible); return d ? d.g.position : null; }
+  function herdDogPos() { const d = anim.dogs.find(x => x.did === RANCH3.herd.dog && x.g.visible) || anim.dogs.find(x => x.g.visible); return d ? d.g.position : null; }
   function spawnSplash(x, z) { for (let k = 0; k < 6; k++) spawn('drop', v3(x, 0.08, z), v3(rv(-0.8, 0.8), rv(1.2, 2.2), rv(-0.8, 0.8)), 0.6, 0.14, -7); }
   function pondSplash() { const [x, z] = PONDS[Math.floor(Math.random() * RANCH3.ponds)]; spawnSplash(x + rv(-1.5, 1.5), z + rv(-1, 1)); }
   function nearZone() { if (viewMode !== 'walk') return ''; const px = HERO.pos.x, pz = HERO.pos.z;
@@ -939,7 +968,7 @@ const W3 = (() => {
     OBST.forEach(([ox, oz, r]) => { const dx = p.x - ox, dz = p.z - oz, d = Math.hypot(dx, dz), m = r + R0; if (d < m && d > 1e-4) { p.x = ox + dx / d * m; p.z = oz + dz / d * m; } });
     for (let i = 0; i < RANCH3.ponds; i++) { const [ox, oz] = PONDS[i], dx = (p.x - ox) / 1.25, dz = p.z - oz, d = Math.hypot(dx, dz); if (d < 3.3) { const k = 3.3 / Math.max(d, 1e-4); p.x = ox + dx * k * 1.25; p.z = oz + dz * k; } } // 池塘
     if (y < 0.8) FENCE.concat(PFENCE).forEach(([x0, z0, x1, z1]) => { const vx = x1 - x0, vz = z1 - z0, L2 = vx * vx + vz * vz, t = Math.max(0, Math.min(1, ((p.x - x0) * vx + (p.z - z0) * vz) / L2)), cx = x0 + vx * t, cz = z0 + vz * t, dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz); if (d < 0.28) { const nx = d > 1e-4 ? dx / d : -vz / Math.sqrt(L2), nz = d > 1e-4 ? dz / d : vx / Math.sqrt(L2); p.x = cx + nx * 0.28; p.z = cz + nz * 0.28; } });
-    p.x = Math.max(-68, Math.min(58, p.x)); p.z = Math.max(-92, Math.min(50, p.z)); // 世界边界
+    p.x = Math.max(-68, Math.min(98, p.x)); p.z = Math.max(-92, Math.min(96, p.z)); // 世界边界（东南边是大草原）
   }
   function updateHero(dt) {
     if (!HERO.g) return; const P = HERO.p;
@@ -960,7 +989,8 @@ const W3 = (() => {
     input.jump = false;
     HERO.vy -= 21 * dt; HERO.y += HERO.vy * dt;
     if (HERO.y <= gY) { if (!HERO.ground && HERO.vy < -4) HERO.land = 0.18; HERO.y = gY; HERO.vy = 0; HERO.ground = true; } else if (HERO.y > gY + 0.05) HERO.ground = false;
-    HERO.g.position.set(HERO.pos.x, HERO.y, HERO.pos.z); HERO.g.rotation.y = HERO.face;
+    HERO.g.position.set(HERO.pos.x, HERO.y, HERO.pos.z);
+    { const tr = HERO.trail || (HERO.trail = []), l = tr[tr.length - 1]; if (!l || Math.hypot(l.x - HERO.pos.x, l.z - HERO.pos.z) > 0.35) { tr.push(v3(HERO.pos.x, 0, HERO.pos.z)); if (tr.length > 80) tr.shift(); } } // 主人走过的路（跟随的狗沿着走，不穿篱笆） HERO.g.rotation.y = HERO.face;
     // 动作
     const run = HERO.spd > 4.6, moving = HERO.spd > 0.3;
     HERO.phase += dt * (run ? 11 : 7.5) * (moving ? 1 : 0);
@@ -999,7 +1029,7 @@ const W3 = (() => {
     R = new T.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
     R.outputEncoding = T.sRGBEncoding; R.toneMapping = T.ACESFilmicToneMapping; R.toneMappingExposure = 1.05; R.shadowMap.enabled = true; R.shadowMap.type = T.PCFSoftShadowMap;
     scene = new T.Scene(); cam = new T.PerspectiveCamera(30, 1, 1, 900);
-    scene.fog = new T.Fog(new T.Color('#cfe8ff'), 90, 300);
+    scene.fog = new T.Fog(new T.Color('#cfe8ff'), 100, 360);
     buildTextures();
     FXT = { coin: coinTex(), star: starTex(), drop: dropTex(), leaf: leafSpriteTex('#5cb83c'), soil: leafSpriteTex('#7a5232'), puff: glowTex('rgba(255,255,255,0.85)', 1), heart: heartTex() };
     fxLayer = document.getElementById('fx3d');
@@ -1037,7 +1067,11 @@ const W3 = (() => {
     [[-9.6, -6.5, 0.9], [9.4, 7.2, 1], [-15.5, 3.5, 0.8], [14, 3, 0.9], [7, -8, 0.7], [-7, -8.2, 0.8], [3.4, 9.8, 0.6], [15, -10, 1]].forEach(([x, z, s]) => { scene.add(bushAt(x, z, s, '#4f9a3a')); OBST.push([x, z, 0.75 * s]); });
     [[-9.2, 9.8, 0.5], [9.2, 13.2, 0.4], [-2.2, 10.8, 0.3], [14.5, -1, 0.35], [-16, -6, 0.45], [6, 11, 0.3]].forEach(([x, z, s]) => { scene.add(rock(x, z, s)); OBST.push([x, z, 1.1 * s]); });
     const avoid = (x, z) => (Math.abs(x) < 8.6 && Math.abs(z) < 6.4) || (Math.hypot((x + 5.5) / 1.25, z - 13.5) < 3.8) || (Math.abs(x + 13) < 3.2 && Math.abs(z + 2.5) < 2.8) || Math.hypot(x - 3.5, z + 15) < 2 || (x > 9.9 && z > 6.7) || PONDS.some(([px, pz]) => Math.hypot((x - px) / 1.25, z - pz) < 3.8) || z < -25.5;
-    grassMesh = grassField(window.innerWidth < 820 ? 5000 : 11000, avoid); scene.add(grassMesh); scene.add(flowers(420, avoid)); scene.add(hills());
+    grassMesh = grassField(window.innerWidth < 820 ? 5000 : 11000, avoid); scene.add(grassMesh);
+    // 东南边的大草原（牧羊的地方）
+    { const pa = (x, z) => (x > 9.9 && x < 51 && z > 6.7 && z < 37) || Math.hypot(x, z) < 34; scene.add(grassField(window.innerWidth < 820 ? 3000 : 7000, pa, 50, 62, 96, 66)); scene.add(flowers(260, pa, 50, 62, 96, 66));
+      [[64, 58, 1.2, '#4f9a3a', 0], [82, 46, 1.0, '#5aa840', 1], [30, 84, 1.15, '#4a9238', 0], [88, 82, 1.1, '#4f9a3a', 0], [56, 90, 0.95, '#5aa840', 0], [8, 70, 1.05, '#4a9238', 1]].forEach(([x, z, sc, c, ap]) => { scene.add(tree(x, z, sc, c, ap)); OBST.push([x, z, 0.55 * sc]); });
+      [[46, 74, 0.9], [72, 70, 1.1], [20, 60, 0.8]].forEach(([x, z, sc]) => { scene.add(rock(x, z, sc)); OBST.push([x, z, 1.1 * sc]); }); } scene.add(flowers(420, avoid)); scene.add(hills());
     for (let i = 0; i < 4; i++) { const c = buildChicken(); c.position.set([-6, 7, -2, -11][i], 0, [8.2, -8, -9.5, -6.5][i]); scene.add(c); anim.chickens.push({ m: c, tx: c.position.x, tz: c.position.z, pk: 0, home: c.position.clone() }); }
     ['#ff9ac8', '#ffe066', '#9ad8ff'].forEach((c, i) => { const b = buildButterfly(c); scene.add(b.g); anim.butterflies.push(Object.assign(b, { ph: i * 2.1 })); });
     for (let i = 0; i < 6; i++) { const c = buildCloud(); c.position.set(-80 + i * 32, 30 + (i % 3) * 6, -60 - (i % 2) * 30); c.scale.setScalar(2 + (i % 3) * 0.6); scene.add(c); anim.clouds.push(c); }
@@ -1051,13 +1085,21 @@ const W3 = (() => {
   }
 
   /* ---------------- 每帧更新 ---------------- */
-  let curView = { plots: [], home: true }, envState = { hour: 12, rain: 0 }, dogMode = ['none', 'none'];
+  let curView = { plots: [], home: true }, envState = { hour: 12, rain: 0 }, dogMode = {};
   function setPlots(list, home) { curView = { plots: list, home }; ensurePlots(list.length); plots.forEach((pl, i) => { pl.node.visible = i < list.length; }); fieldDeco.forEach((g, k) => { g.visible = (k + 1) * 24 < list.length; }); const nx = home ? CFG3.UNLOCK_ORDER.find(u => list[u] && !list[u].u) : -1; list.forEach((P, i) => { const f = Math.floor(i / 24), o = { mine: !home && P.mine, next: i === nx, lite: f !== 0 && f !== ACTF }; const k = plotKey(P, o); if (plots[i].key !== k) { plots[i].key = k; rebuildPlot(i, P, o); } }); }
   function setHover(i) { hoverIdx = i; }
-  function setDog(mode) { dogMode = Array.isArray(mode) ? mode : [mode, 'none']; }
+  function setDog(mode) { if (Array.isArray(mode)) { const o = {}; CFG3.DOGS.forEach((d, i) => o[d.id] = mode[i] || 'none'); dogMode = o; } else if (typeof mode === 'string') dogMode = { fuwang: mode }; else dogMode = mode || {}; }
+  // 领养的边牧：按 id 建 / 删模型，住在狗窝附近
+  const PETS3 = {};
+  function setPets(list) {
+    if (!RANCH3.ready) return; const want = {}; (list || []).forEach((p, i) => { want[p.id] = p; const k = p.id + '|' + p.coat + '|' + p.name, cur = PETS3[p.id];
+      if (cur && cur.key === k) return; if (cur) { scene.remove(cur.dg.g); anim.dogs.splice(anim.dogs.indexOf(cur.dg), 1); }
+      const g = buildDog(DOG_LOOK[p.coat] ? p.coat : 'black', p.name, p.id), dg = anim.dogs[anim.dogs.length - 1]; g.position.set(9.6 + (i % 4) * 0.9, 0, 3.2 + Math.floor(i / 4) * 1.0); g.visible = false; scene.add(g); PETS3[p.id] = { key: k, dg }; });
+    Object.keys(PETS3).forEach(id => { if (!want[id]) { const cur = PETS3[id]; scene.remove(cur.dg.g); anim.dogs.splice(anim.dogs.indexOf(cur.dg), 1); delete PETS3[id]; } });
+  }
   function setEnv(h, rain) { envState.hour = h; envState.rain = rain; }
   const ray = new T.Raycaster(), ndc = new T.Vector2();
-  function pick(cx, cy) { if (!ready) return -1; const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); const h = ray.intersectObjects(hitBoxes, false).filter(x => (!x.object.userData.dog || x.object.userData.dog.g.visible) && (!x.object.parent || x.object.parent.visible !== false)); return h.length ? h[0].object.userData.idx : -1; }
+  function pick(cx, cy) { if (!ready) return -1; const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); const h = ray.intersectObjects(hitBoxes, false).filter(x => (!x.object.userData.dog || x.object.userData.dog.g.visible) && (!x.object.parent || x.object.parent.visible !== false)); return h.length ? (h[0].object.userData.dog ? -20 - anim.dogs.indexOf(h[0].object.userData.dog) : h[0].object.userData.idx) : -1; }
   function nearKennel() { return viewMode === 'walk' && Math.hypot(HERO.pos.x - 11.2, HERO.pos.z + 3.8) < 2.4; }
   function screenOf(i, y) { const v = P0(i, y || 0.6).project(cam); return { x: (v.x * 0.5 + 0.5) * W, y: (-v.y * 0.5 + 0.5) * H }; }
   let simK = 1; const GAITS_REF = {}; // 调试用：加快动画时间
@@ -1097,20 +1139,39 @@ const W3 = (() => {
     const pickBeh = (dg, k) => { const r = Math.random(), h = dg.home, spot = (R) => { for (let i = 0; i < 12; i++) { const a = Math.random() * 6.28, rr = 0.6 + Math.random() * R, x = h.x + Math.cos(a) * rr, z = h.z + Math.sin(a) * rr; if (x > 9.1 && Math.hypot(x - KEN.x, z - KEN.z) > 1.4 && Math.hypot(x - 14, z - 3) > 1.2) return [x, z]; } return [h.x, h.z]; };
       if (r < 0.22) return { k: 'idle', t: 2 + Math.random() * 3 }; if (r < 0.42) { const [x, z] = spot(2.2); return { k: 'sniff', x, z, t: 9 }; }
       if (r < 0.7) { const [x, z] = spot(2.8); return { k: 'trot', x, z, v: 1.6 + Math.random() * 1.4, t: 8 }; } if (r < 0.82) return { k: 'sit', t: 4 + Math.random() * 5 };
-      if (r < 0.9) return { k: 'lie', t: 5 + Math.random() * 6 }; const [x, z] = spot(3.2); return { k: 'zoom', x, z, v: 5.2, t: 6, back: true }; };
+      if (r < 0.88) return { k: 'lie', t: 5 + Math.random() * 6 }; if (r < 0.95) return { k: 'drink', t: 60 }; const [x, z] = spot(3.2); return { k: 'zoom', x, z, v: 5.2, t: 6, back: true }; };
+    // 绕开中间农田的篱笆：路线穿过农田时先走到农田外角
+    const routeAround = (a, b) => { const crosses = (p0, p1) => { for (let i = 1; i < 20; i++) { const x = p0.x + (p1.x - p0.x) * i / 20, z = p0.z + (p1.z - p0.z) * i / 20; if (Math.abs(x) < 9 && Math.abs(z) < 6.9) return true; } return false; };
+      if (!crosses(a, b)) return [b]; let best = null, bl = 1e9; [[9.8, 7.6], [-9.8, 7.6], [9.8, -7.6], [-9.8, -7.6]].forEach(([x, z]) => { const c = v3(x, 0, z), l = a.distanceTo(c) + c.distanceTo(b) + (crosses(a, c) || crosses(c, b) ? 50 : 0); if (l < bl) { bl = l; best = c; } }); return [best, b]; };
+    const makeTrip = (dg, backTo) => { const p = dg.g.position; let bp = null, bd = 1e9; for (let i = 0; i < RANCH3.ponds; i++) { const [x, z] = PONDS[i], d = Math.hypot(x - p.x, z - p.z); if (d < bd) { bd = d; bp = v3(x, 0, z); } } if (!bp || bd > 40) return null;
+      const u = v3(p.x - bp.x, 0, p.z - bp.z).normalize(), e = v3(bp.x + u.x * 4.3, 0, bp.z + u.z * 3.7), pos = p.clone(); return { stage: 'go', pts: routeAround(pos, e), i: 0, v: 3.2, pond: bp, back: backTo ? routeAround(e, backTo.clone()) : [] }; };
     const animDog = (dg, k, m) => { const ph = t + k * 1.7, p = dg.g.position; if (dg.vel === undefined) { dg.vel = 0; dg.turn = 0; } if (!dg.home) dg.home = p.clone();
-      dg.pose = 'stand'; dg.look = null; dg.headDown = 0; dg.excite = 0; dg.legs.forEach(l => l.visible = true); dg.torso.scale.y = 1; dg.tongue.visible = true; dg.head.position.y = 0.94;
+      dg.pose = 'stand'; dg.look = null; dg.headDown = 0; dg.excite = 0; dg.lap = false; dg.legs.forEach(l => l.visible = true); dg.torso.scale.y = 1; dg.tongue.visible = true; dg.head.position.y = 0.94;
       const heroNear = viewMode === 'walk' && HERO.pos.x > 8.7 && HERO.pos.z < 6.5 && Math.hypot(HERO.pos.x - p.x, HERO.pos.z - p.z) < 3.2; // 主人在狗窝这边时才跑过去（不穿过篱笆）
       if (dg.pet > 0) { dg.pet -= dt; moveDog(dg, p.x, p.z, 0, 1); faceTo(dg, HERO.pos.x, HERO.pos.z, 6); dg.excite = 1; dg.look = HERO.pos; dg.hop = Math.abs(Math.sin(ph * 8)) * 0.06; if (m === 'sleep') dg.pose = 'stand'; return; }
       dg.hop = 0;
-      if (m === 'herd') { const T0 = RANCH3.dogT || v3(PAST.cx, 0, PAST.z1 + 1.5), d = Math.hypot(T0.x - p.x, T0.z - p.z);
+      if (m === 'herd') { dg.trip = null; const T0 = RANCH3.dogT || v3(PAST.cx, 0, PAST.z1 + 1.5), d = Math.hypot(T0.x - p.x, T0.z - p.z);
         moveDog(dg, T0.x, T0.z, d > 2.5 ? 6.2 : d > 0.8 ? 3.6 : 1.6, 0.25); dg.herding = true; dg.beh = null;
         if (RANCH3.dogRest && dg.vel < 0.2) { dg.pose = 'lie'; faceTo(dg, PAST.cx, PAST.cz, 2); } else if (dg.vel < 1.8) { dg.pose = 'stalk'; dg.headDown = 0.25; } // 边牧的“盯羊”低姿态
         const sh = RANCH3.sheep[0]; if (sh) dg.look = sh.m.g.position; return; }
       if (dg.herding) { // 牧羊结束：小跑回狗窝
         if (moveDog(dg, dg.home.x, dg.home.z, 3.5, 0.2) < 0.3) dg.herding = false; return; }
-      if (m === 'sleep') { moveDog(dg, p.x, p.z, 0, 1); dg.vel = 0; dg.pose = 'sleep'; dg.tongue.visible = false; return; }
+      if (m === 'sleep') { dg.trip = null; moveDog(dg, p.x, p.z, 0, 1); dg.vel = 0; dg.pose = 'sleep'; dg.tongue.visible = false; return; }
       if (m === 'bark') { moveDog(dg, p.x, p.z, 0, 1); faceTo(dg, 0, 0, 5); dg.excite = 0.8; dg.hop = Math.abs(Math.sin(ph * 14)) * 0.1; dg.barkT = ph; return; }
+      // 去鱼塘喝水（看家的狗时不时去；跟着主人的狗在主人站着不动时也会去）
+      if (dg.trip) { const TP = dg.trip, pt = TP.pts[TP.i];
+        if (TP.stage !== 'drink') { if (!pt) { if (TP.stage === 'go') { TP.stage = 'drink'; TP.t = 4 + Math.random() * 4; } else dg.trip = null; return; } const d = moveDog(dg, pt.x, pt.z, TP.v, 0.25); if (d < 0.4) TP.i++; dg.look = null; return; }
+        moveDog(dg, p.x, p.z, 0, 1); faceTo(dg, TP.pond.x, TP.pond.z, 3); dg.headDown = 1; dg.lap = true; TP.t -= dt; if (TP.t <= 0) { TP.stage = 'back'; TP.pts = TP.back; TP.i = 0; if (!TP.back.length) dg.trip = null; } return; }
+      // 跟着主人：沿着主人走过的路走，主人停下就坐在旁边看着，站久了会去喝口水
+      if (RANCH3.follow === dg.did) { const tr = HERO.trail || [], dh = Math.hypot(HERO.pos.x - p.x, HERO.pos.z - p.z); dg.beh = null;
+        if (dh > 30) { p.set(HERO.pos.x - Math.sin(HERO.face) * 2.2, 0, HERO.pos.z - Math.cos(HERO.face) * 2.2); dg.vel = 0; if (dg.lp) dg.lp.copy(p); }
+        let tg = HERO.pos, acc = 0; for (let i = tr.length - 1; i > 0; i--) { acc += Math.hypot(tr[i].x - tr[i - 1].x, tr[i].z - tr[i - 1].z); if (acc >= 1.7) { tg = tr[i - 1]; break; } }
+        const idle = HERO.spd < 0.2; dg.idleT = idle ? (dg.idleT || 0) + dt : 0;
+        if (!idle || dh > 2.4) moveDog(dg, tg.x, tg.z, dh > 7 ? 6.6 : dh > 3.2 ? 4.4 : 2.6, idle ? 1.3 : 0.4);
+        else { moveDog(dg, p.x, p.z, 0, 1); faceTo(dg, HERO.pos.x, HERO.pos.z, 3); if (dg.idleT > 4) dg.pose = dg.idleT > 20 ? 'lie' : 'sit'; }
+        dg.look = HERO.pos; dg.excite = idle ? 0.25 : 0.45;
+        if (dg.idleT > 10 && Math.random() < dt * 0.06) { const tp = makeTrip(dg, null); if (tp) dg.trip = tp; }
+        return; }
       // 主人走过来：跑过去迎接，围着转、看着主人
       if (heroNear) { const hx = HERO.pos.x, hz = HERO.pos.z; const d = moveDog(dg, hx, hz, 3.2, 0.95); if (d < 1.3) faceTo(dg, hx, hz, 5); dg.look = HERO.pos; dg.excite = 0.7; dg.beh = null; return; }
       if (!dg.beh || dg.beh.t <= 0) dg.beh = pickBeh(dg, k); const B = dg.beh; B.t -= dt;
@@ -1119,6 +1180,7 @@ const W3 = (() => {
       else if (B.k === 'trot' || B.k === 'zoom') { const d = moveDog(dg, B.x, B.z, B.v, 0.2); if (d < 0.25) { if (B.k === 'zoom' && B.back) { B.back = false; B.x = dg.home.x + (Math.random() - 0.5); B.z = dg.home.z + (Math.random() - 0.5); } else B.t = 0; } if (B.k === 'zoom') dg.excite = 0.9; }
       else if (B.k === 'sit') { moveDog(dg, p.x, p.z, 0, 1); if (dg.vel < 0.05) dg.pose = 'sit'; if (!B.lk || Math.random() < dt * 0.4) B.lk = v3(p.x + (Math.random() - 0.5) * 8, 0.6, p.z + (Math.random() - 0.5) * 8); dg.look = B.lk; }
       else if (B.k === 'lie') { moveDog(dg, p.x, p.z, 0, 1); if (dg.vel < 0.05) dg.pose = 'lie'; }
+      else if (B.k === 'drink') { const tp = makeTrip(dg, dg.home); if (tp) dg.trip = tp; B.t = 0; }
     };
     // 步态与姿态：腿的摆动按真实走过的距离推进（脚落地时不打滑），按速度切换 走 / 小跑 / 奔跑
     const GAITS = GAITS_REF.g = { walk: { off: [0.25, 0.75, 0, 0.5], st: 0.64, A: 0.3 }, trot: { off: [0, 0.5, 0.5, 0], st: 0.5, A: 0.42 }, gallop: { off: [0, 0.12, 0.52, 0.64], st: 0.4, A: 0.62 } };
@@ -1143,7 +1205,7 @@ const W3 = (() => {
         // 头：看向目标（转头有限度），身体俯仰时头保持平稳，闻地面时低头一点一点
         let yaw = 0; if (dg.look) { const p = dg.g.position; yaw = wrapA(Math.atan2(-(dg.look.z - p.z), dg.look.x - p.x) - dg.g.rotation.y); yaw = Math.max(-0.9, Math.min(0.9, yaw)); }
         dg.hy = (dg.hy || 0) + (yaw - (dg.hy || 0)) * Math.min(1, dt * 4);
-        const nod = dg.sniff ? Math.sin(t * 9) * 0.08 : 0; dg.head.rotation.set(dg.excite ? Math.sin(t * 5) * 0.12 * dg.excite : 0, dg.hy, -pitch * 0.9 - (dg.headDown || 0) * 0.6 + nod + (m === 'bark' ? Math.sin(t * 20) * 0.15 : 0.04));
+        const nod = dg.sniff ? Math.sin(t * 9) * 0.08 : dg.lap ? Math.sin(t * 11) * 0.09 : 0; dg.head.rotation.set(dg.excite ? Math.sin(t * 5) * 0.12 * dg.excite : 0, dg.hy, -pitch * 0.9 - (dg.headDown || 0) * 0.6 + nod + (m === 'bark' ? Math.sin(t * 20) * 0.15 : 0.04));
         dg.head.position.y = 0.94 - (dg.headDown || 0) * 0.1 - bob * 0.3; }
       dg.sniff = false;
       dg.tongue.scale.y = 0.048 * (1 + (v > 2 ? 0.35 : 0) + Math.sin(t * (v > 2 ? 12 : 6)) * 0.15);
@@ -1152,7 +1214,8 @@ const W3 = (() => {
       dg.wag = (dg.wag || 0) + dt * freq; dg.tail.rotation.y = Math.sin(dg.wag) * amp * 0.55; dg.tail.rotation.z = pose === 'sleep' || pose === 'lie' ? 0 : pose === 'stalk' ? -0.15 : 0.1 + Math.min(0.3, v * 0.06) + ex * 0.25;
       const mv = Math.min(1, v / 4.5), U = dg.U; if (U) { U.uT.value = t + k * 3; U.uMove.value = mv; U.uBob.value = mk * Math.cos(phi * Math.PI * 4) * Math.min(1, v / 2); U.uWagPh.value = dg.wag; U.uWagA.value = amp; U.uLift.value = mv * 0.5 + ex * 0.4; }
     };
-    anim.dogs.forEach((dg, k) => { const m = dogMode[k] || 'none'; dg.g.visible = m !== 'none'; if (!dg.g.visible) return; animDog(dg, k, m); dogLive(dg, k, m); });
+    { const fol = viewMode === 'walk' ? anim.dogs.find(d => d.g.visible && (dogMode[d.did] === 'guard' || dogMode[d.did] === 'bark') && !(RANCH3.route && d.did === RANCH3.herd.dog)) : null; RANCH3.follow = fol ? fol.did : ''; }
+    anim.dogs.forEach((dg, k) => { const m0 = dogMode[dg.did] || 'none', m = RANCH3.route && dg.did === RANCH3.herd.dog && m0 !== 'none' && m0 !== 'sleep' ? 'herd' : m0; dg.g.visible = m !== 'none'; if (!dg.g.visible) return; animDog(dg, k, m); dogLive(dg, k, m); });
     // 农田动态
     plots.forEach((pl, i) => {
       if (pl.crop) { pl.crop.rotation.z = Math.sin(t * 1.4 + pl.sway) * 0.025; pl.crop.rotation.x = Math.cos(t * 1.1 + pl.sway) * 0.02; }
@@ -1180,5 +1243,5 @@ const W3 = (() => {
     return ICONS[key];
   }
   function zoomBy(f) { if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * f)); return; } zoom = Math.max(0.6, Math.min(1.3, zoom * f)); applyCam(); }
-  return { zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, pondSplash, setField: f => { ACTF = Math.max(0, f | 0); if (viewMode !== 'walk') fit(); }, get field() { return ACTF; }, fieldCenter: fieldC, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
+  return { zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, setPets, dogInfo: k => { const d = anim.dogs[k]; return d ? { did: d.did, name: d.name, kind: d.kind } : null; }, pondSplash, setField: f => { ACTF = Math.max(0, f | 0); if (viewMode !== 'walk') fit(); }, get field() { return ACTF; }, fieldCenter: fieldC, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ leg: RANCH3.leg, follow: RANCH3.follow, A: RANCH3.A && RANCH3.A.toArray().map(v => +v.toFixed(1)), phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
 })();

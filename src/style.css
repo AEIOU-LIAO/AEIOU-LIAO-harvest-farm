@@ -325,3 +325,4 @@ body.walk #canvas,body.walk canvas{cursor:grab}
 .qbtns{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:210px}.qbtns .btn{min-width:44px}
 .dogrow .ri-main{gap:3px}
 .fnav{display:flex;align-items:center;gap:8px;font-style:normal;font-size:12px;color:#f4e2b0;margin-top:2px}.fnav b{cursor:pointer;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;font-size:16px;line-height:1}.fnav b:hover{background:rgba(255,220,140,.3)}
+.pname{width:92px;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.25);color:inherit;font-size:13px}
