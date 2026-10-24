@@ -94,7 +94,7 @@ async function createCore(opts) {
     game.forget(v.uid); game.forget(v.owner);
     const [u, inv, badges, farm] = await all([game.user(v.uid), game.inv(v.uid), game.badges(v.uid), game.farmView(v.uid, v.owner)]); return { result: v.result, out: v.out, me: game.me(u), inv, badges, farm, now: game.now() };
   };
-  const idx = b => U.int(b.idx, '土地', 0, CFG.NPLOTS - 1);
+  const idx = b => U.int(b.idx, '土地', 0, CFG.MAX_PLOTS - 1);
   const id = v => U.int(v, 'ID', 1, Number.MAX_SAFE_INTEGER);
   const sick = P => { const l = []; if (P.u && P.c >= 0) ['d', 'w', 'b'].forEach(k => { if (P.pr[k]) l.push(P.idx); }); return l; };
 
@@ -133,6 +133,7 @@ async function createCore(opts) {
   R('POST', '/api/farm/care', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.care(c.uid, idx(c.body), o), o); });
   R('POST', '/api/farm/shovel', { auth: 1 }, async (c) => own(c.uid, await game.shovel(c.uid, idx(c.body))));
   R('POST', '/api/farm/fert', { auth: 1 }, async (c) => own(c.uid, await game.fert(c.uid, idx(c.body))));
+  R('POST', '/api/farm/field', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.buyField(c.uid, o), o); });
   R('POST', '/api/farm/expand', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.expand(c.uid, c.body.idx === undefined || c.body.idx === null ? -1 : idx(c.body), o), o); });
   R('POST', '/api/farm/red', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.red(c.uid, idx(c.body), o), o); });
   R('POST', '/api/farm/harvest-all', { auth: 1 }, async (c) => { const l = (await game.plots(c.uid)).filter(P => P.u && P.c >= 0 && P.p >= 1).map(P => P.idx); if (!l.length) throw U.conflict('还没有成熟的作物', 'none'); const b = await game.batch(c.uid, (i, o) => game.harvest(c.uid, i, o), l); return own(c.uid, b.res, b.out); });
@@ -143,7 +144,11 @@ async function createCore(opts) {
   R('POST', '/api/shop/dog', { auth: 1 }, async (c) => own(c.uid, await game.buyDog(c.uid, c.body.kind ? String(c.body.kind) : 'fuwang')));
   R('POST', '/api/ranch/fish/buy', { auth: 1 }, async (c) => own(c.uid, await game.buyFish(c.uid, U.int(c.body.type, '鱼苗', 0, 99), c.body.n)));
   R('POST', '/api/ranch/fish/collect', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.collectFish(c.uid, o), o); });
-  R('POST', '/api/ranch/sheep/buy', { auth: 1 }, async (c) => own(c.uid, await game.buySheep(c.uid, U.int(c.body.type, '羊', 0, 99))));
+  R('POST', '/api/ranch/sheep/buy', { auth: 1 }, async (c) => own(c.uid, await game.buySheep(c.uid, U.int(c.body.type, '羊', 0, 99), c.body.n)));
+  R('POST', '/api/ranch/upgrade', { auth: 1 }, async (c) => own(c.uid, await game.ranchUpgrade(c.uid, String(c.body.kind || ''))));
+  R('POST', '/api/ranch/tree/buy', { auth: 1 }, async (c) => own(c.uid, await game.buyTree(c.uid, U.int(c.body.type, '树苗', 0, 99), c.body.n)));
+  R('POST', '/api/ranch/fruit', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.pickFruit(c.uid, o), o); });
+  R('POST', '/api/dog/train', { auth: 1 }, async (c) => own(c.uid, await game.trainDog(c.uid, c.body.kind ? String(c.body.kind) : 'fuwang')));
   R('POST', '/api/ranch/shear', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.shear(c.uid, o), o); });
   R('POST', '/api/ranch/herd', { auth: 1 }, async (c) => own(c.uid, await game.herd(c.uid, c.body.kind ? String(c.body.kind) : '')));
   R('POST', '/api/dog/feed', { auth: 1 }, async (c) => own(c.uid, await game.feedDog(c.uid, c.body.kind ? String(c.body.kind) : 'fuwang')));

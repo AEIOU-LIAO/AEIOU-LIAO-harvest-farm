@@ -331,6 +331,10 @@ body.walk #canvas,body.walk canvas{cursor:grab}
 .pbar{display:block;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}.pbar i{display:block;height:100%;background:linear-gradient(90deg,#4f9a3a,#a8e878)}
 .herdbox{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(80,160,120,.14);border:1px solid rgba(120,200,160,.3);border-radius:12px;padding:10px 12px;margin-bottom:12px}
 .herdbox>svg{width:26px;height:26px;color:#9fe0b8}.herdbox>div{flex:1;min-width:160px;display:flex;flex-direction:column}.herdbox small{opacity:.8}
+.upbox{display:flex;align-items:center;gap:10px;background:rgba(255,210,90,.1);border:1px solid rgba(255,210,90,.35);border-radius:12px;padding:10px 12px;margin-bottom:10px}.upbox>div{flex:1;display:flex;flex-direction:column}.upbox small{opacity:.8}
+.qbtns{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:210px}.qbtns .btn{min-width:44px}
+.dogrow .ri-main{gap:3px}
+.fnav{display:flex;align-items:center;gap:8px;font-style:normal;font-size:12px;color:#f4e2b0;margin-top:2px}.fnav b{cursor:pointer;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;font-size:16px;line-height:1}.fnav b:hover{background:rgba(255,220,140,.3)}
 
 </style>
 </head>
@@ -373,7 +377,7 @@ body.walk #canvas,body.walk canvas{cursor:grab}
 <div id="mback"><div id="modal"></div></div>
 <script src="vendor/three.min.js"></script>
 <script>
-var HF_BUILT = '2026-10-24 23:47';
+var HF_BUILT = '2026-10-25 00:45';
 /* =====================================================
    丰收农场 · 前后端共用配置与规则
    服务端是权威；客户端只用它来显示与插值。
@@ -381,6 +385,10 @@ var HF_BUILT = '2026-10-24 23:47';
 (function (root) {
   'use strict';
   const COLS = 6, ROWS = 4, NPLOTS = COLS * ROWS;
+  // v3：农田可以一片一片开辟，每片 24 块地，最多 20 片（480 块地）。第 1 片是农场中间这片（一块一块开垦），之后每片买下来 24 块地全部开好
+  const FIELDS_MAX = 20, MAX_PLOTS = NPLOTS * FIELDS_MAX;
+  const fieldNeedLv = f => 15 + (f - 1) * 25;                 // 开辟第 f 片（f 从 1 开始，0 是自家这片）需要的等级
+  const fieldCost = f => Math.round(30000 * Math.pow(f, 1.7));
 
   // rarity: 1 普通 2 稀有 3 史诗 4 传说
   const CROPS = [
@@ -452,7 +460,7 @@ var HF_BUILT = '2026-10-24 23:47';
   ];
 
   const RULES = {
-    startGold: 300, startPlots: 6, maxLv: 45,
+    startGold: 300, startPlots: 6, maxLv: 4000,
     fertPrice: 60, fertBoost: 0.3, dogfoodPrice: 120, dogPrice: 400, dogNeedLv: 3, dogFeedMin: 120, // dogPrice/dogNeedLv 为旧字段，狗的数值见 DOGS
     redNeedLv: 5,
     // 偷菜
@@ -524,6 +532,11 @@ var HF_BUILT = '2026-10-24 23:47';
     { id: 'a_l2', stat: 'lv', need: 20, tx: '远近闻名', desc: '达到 Lv.20', gold: 5000, title: '远近闻名' },
     { id: 'a_l3', stat: 'lv', need: 30, tx: '一方乡绅', desc: '达到 Lv.30', gold: 15000, title: '一方乡绅' },
     { id: 'a_l4', stat: 'lv', need: 40, tx: '农业宗师', desc: '达到 Lv.40', gold: 40000, title: '农业宗师' },
+    { id: 'a_l5', stat: 'lv', need: 100, tx: '百级农场主', desc: '达到 Lv.100', gold: 100000, title: '百级农场主' },
+    { id: 'a_l6', stat: 'lv', need: 500, tx: '田园领主', desc: '达到 Lv.500', gold: 600000, title: '田园领主' },
+    { id: 'a_l7', stat: 'lv', need: 1000, tx: '千级传说', desc: '达到 Lv.1000', gold: 2000000, title: '千级传说' },
+    { id: 'a_l8', stat: 'lv', need: 2000, tx: '大地之子', desc: '达到 Lv.2000', gold: 6000000, title: '大地之子' },
+    { id: 'a_l9', stat: 'lv', need: 4000, tx: '丰收之神', desc: '达到满级 Lv.4000', gold: 20000000, title: '丰收之神' },
     { id: 'a_o1', stat: 'order_total', need: 30, tx: '诚信商户', desc: '完成 30 个订单', gold: 2000, title: '诚信商户' },
     { id: 'a_k1', stat: 'checkin_streak', need: 7, tx: '风雨无阻', desc: '连续签到 7 天', gold: 800, title: '勤劳农夫' },
   ];
@@ -560,8 +573,9 @@ var HF_BUILT = '2026-10-24 23:47';
     { id: 'dogfood', name: '狗粮', ic: '🍖', price: RULES.dogfoodPrice, desc: '小狗吃饱后看家 60 分钟，并获得成长经验' },
   ];
 
-  const expNeed = lv => Math.round(50 * lv * (1 + lv * 0.35));
-  const dogExpNeed = lv => 3 + lv * 2;
+  // 经验曲线：45 级以前不变；之后按 (lv/45)^1.5 增长，满级 4000 级
+  const expNeed = lv => lv <= 45 ? Math.round(50 * lv * (1 + lv * 0.35)) : Math.round(37688 * Math.pow(lv / 45, 1.5));
+  const dogExpNeed = lv => lv <= 10 ? 3 + lv * 2 : Math.round(23 + Math.pow(lv - 10, 1.5) * 3);
   const plotCost = unlocked => Math.round(500 * Math.pow(1.28, unlocked - RULES.startPlots));
   const plotNeedLv = unlocked => 2 + Math.floor((unlocked - RULES.startPlots) * 0.8);
   const soilOf = P => SOILS[Math.max(0, Math.min(SOILS.length - 1, (P && P.soil) | 0))];
@@ -645,27 +659,53 @@ var HF_BUILT = '2026-10-24 23:47';
     { id: 1, name: '黑面羊', lv: 12, price: 2000, period: 10800, wool: 3, woolName: '黑羊毛', sell: 85, exp: 45, body: '#f2ede2', face: '#151214' },
     { id: 2, name: '羊驼', lv: 20, price: 6000, period: 14400, wool: 3, woolName: '羊驼毛', sell: 230, exp: 90, body: '#e8d2a8', face: '#e8d2a8', alpaca: true },
   ];
+  // 果树：买树苗种进果园，长大（grow 秒）后每 period 秒结一茬果子，最多攒 3 茬
+  const TREES = [
+    { id: 0, name: '苹果树', fruit: '苹果', lv: 3, price: 800, grow: 3600, period: 5400, yield: 6, sell: 28, exp: 30, col: '#e8352a' },
+    { id: 1, name: '桃树', fruit: '水蜜桃', lv: 8, price: 2000, grow: 7200, period: 7200, yield: 6, sell: 55, exp: 55, col: '#ff9aa8', blossom: '#ffc8d8' },
+    { id: 2, name: '橙子树', fruit: '橙子', lv: 15, price: 5000, grow: 10800, period: 9000, yield: 7, sell: 95, exp: 90, col: '#ff9a1a' },
+    { id: 3, name: '梨树', fruit: '雪梨', lv: 25, price: 12000, grow: 14400, period: 10800, yield: 7, sell: 170, exp: 150, col: '#d8e070' },
+    { id: 4, name: '樱桃树', fruit: '樱桃', lv: 40, price: 30000, grow: 21600, period: 14400, yield: 8, sell: 330, exp: 260, col: '#c8102a', blossom: '#ffe0ec' },
+    { id: 5, name: '柿子树', fruit: '柿子', lv: 60, price: 70000, grow: 28800, period: 18000, yield: 8, sell: 640, exp: 420, col: '#ff7a10' },
+    { id: 6, name: '荔枝树', fruit: '荔枝', lv: 90, price: 160000, grow: 36000, period: 21600, yield: 9, sell: 1250, exp: 700, col: '#d8303a' },
+    { id: 7, name: '芒果树', fruit: '芒果', lv: 130, price: 380000, grow: 43200, period: 25200, yield: 9, sell: 2600, exp: 1150, col: '#ffc21a' },
+    { id: 8, name: '石榴树', fruit: '石榴', lv: 200, price: 900000, grow: 57600, period: 28800, yield: 10, sell: 5200, exp: 1900, col: '#b8102a' },
+    { id: 9, name: '金苹果树', fruit: '金苹果', lv: 400, price: 3000000, grow: 86400, period: 36000, yield: 10, sell: 15000, exp: 4200, col: '#ffd23a' },
+  ];
+  // 鱼塘、牧场、果园都可以一级一级扩建（最多 100 级），扩建要求玩家等级，越往后越贵、容量越大
   const RANCH = {
-    pondBase: 6, pondPer10: 2, pondMax: 12,       // 池塘容量：6 条，Lv.10/20/30 各 +2
-    pastureBase: 3, pasturePer10: 2, pastureMax: 9, // 羊圈容量：3 只，Lv.10/20/30 各 +2
-    woolMax: 3,                                  // 羊毛最多攒 3 茬
-    herdMin: 120, herdBoost: 0.5,                // 牧羊：牧羊犬赶一次羊，接下来 2 小时羊毛长得快 50%
+    maxLv: 100, needLvPer: 35,                  // 扩建到 L 级需要玩家等级 (L-1)×35
+    woolMax: 3, fruitMax: 3,                    // 羊毛、果子最多攒 3 茬
+    herdMin: 120, herdBoost: 0.5,               // 牧羊基础：2 小时、羊毛快 50%（狗等级越高越久、越快、赶得越多）
+    dogMaxLv: 100,
   };
-  const pondCap = lv => Math.min(RANCH.pondMax, RANCH.pondBase + Math.floor((lv || 1) / 10) * RANCH.pondPer10);
-  const pastureCap = lv => Math.min(RANCH.pastureMax, RANCH.pastureBase + Math.floor((lv || 1) / 10) * RANCH.pasturePer10);
-  // 一只羊攒了多少茬羊毛（可以是小数）。s = { t, last, acc }，herd = { from, until }：牧羊期间速度 × (1 + herdBoost)
+  const _q = (l, a, b, c) => Math.round(a + b * (l - 1) + c * (l - 1) * (l - 1));
+  const pondCapOf = l => _q(Math.max(1, Math.min(RANCH.maxLv, l || 1)), 6, 4, 0.12);        // 1 级 6 条 → 100 级约 1580 条
+  const pastureCapOf = l => _q(Math.max(1, Math.min(RANCH.maxLv, l || 1)), 3, 3, 0.1);      // 1 级 3 只 → 100 级约 1280 只
+  const orchardCapOf = l => _q(Math.max(1, Math.min(RANCH.maxLv, l || 1)), 4, 2, 0.05);     // 1 级 4 棵 → 100 级约 690 棵
+  const ranchUpCost = (kind, l) => Math.round(({ pond: 600, pasture: 900, orchard: 1200 })[kind] * Math.pow(l, 1.9)); // 从 l 级升到 l+1 级
+  const ranchNeedLv = l => (l - 1) * RANCH.needLvPer;                                       // 升到 l 级需要的玩家等级
+  // 旧接口（按玩家等级的容量）保留给 1 级时使用
+  const pondCap = () => pondCapOf(1), pastureCap = () => pastureCapOf(1);
+  // 牧羊犬等级：最多 100 级。等级越高：一次牧羊时间越长、加速越多、一次能赶的羊越多
+  const herdOf = lv => ({ min: RANCH.herdMin + (lv - 1) * 2, boost: +(0.3 + 0.007 * lv).toFixed(3), cap: 30 + 12 * (lv - 1) });
+  // 一群羊攒了多少茬羊毛（可以是小数）。s = { t, n, last, acc }，herd = { from, until, boost, share }：牧羊期间速度 × (1 + boost × share)
   function sheepCycles(s, now, herd) {
     const def = SHEEP[s.t]; if (!def) return 0; const P = def.period * 1000, a = s.last || now, b = Math.max(a, now);
     let ov = 0; if (herd && herd.until > a) ov = Math.max(0, Math.min(b, herd.until) - Math.max(a, herd.from || 0));
-    return Math.min(RANCH.woolMax, (s.acc || 0) + ((b - a) + ov * RANCH.herdBoost) / P);
+    const k = herd ? (herd.boost !== undefined ? herd.boost : RANCH.herdBoost) * (herd.share !== undefined ? herd.share : 1) : 0;
+    return Math.min(RANCH.woolMax, (s.acc || 0) + ((b - a) + ov * k) / P);
   }
+  // 一批果树攒了多少茬果子：种下 grow 秒后开始结果
+  function treeCycles(r, now) { const d = TREES[r.t]; if (!d) return 0; const start = Math.max(r.last || 0, (r.at || now) + d.grow * 1000); if (now <= start) return Math.min(RANCH.fruitMax, r.acc || 0); return Math.min(RANCH.fruitMax, (r.acc || 0) + (now - start) / (d.period * 1000)); }
+  const treeGrowLeft = (r, now) => { const d = TREES[r.t]; return d ? Math.max(0, ((r.at || 0) + d.grow * 1000 - now) / 1000) : 0; };
   const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
   // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
-  function ranchItem(item) { const m = /^(fs|wl)(\d+)$/.exec(item || ''); if (!m) return null; const d = (m[1] === 'fs' ? FISH : SHEEP)[+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : { kind: 'wool', id: d.id, name: d.woolName, price: d.sell }; }
-  const VERSION = '2.9.2'; // 每次发布改这里；设置页和 /api/health 会显示
-  const CFG = { VERSION, COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
+  function ranchItem(item) { const m = /^(fs|wl|fr)(\d+)$/.exec(item || ''); if (!m) return null; const d = ({ fs: FISH, wl: SHEEP, fr: TREES })[m[1]][+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : m[1] === 'wl' ? { kind: 'wool', id: d.id, name: d.woolName, price: d.sell } : { kind: 'fruit', id: d.id, name: d.fruit, price: d.sell }; }
+  const VERSION = '3.0.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const CFG = { VERSION, COLS, ROWS, NPLOTS, FIELDS_MAX, MAX_PLOTS, fieldNeedLv, fieldCost, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
-    FISH, SHEEP, RANCH, pondCap, pastureCap, sheepCycles, fishLeft, ranchItem,
+    FISH, SHEEP, TREES, RANCH, pondCap, pastureCap, pondCapOf, pastureCapOf, orchardCapOf, ranchUpCost, ranchNeedLv, herdOf, sheepCycles, treeCycles, treeGrowLeft, fishLeft, ranchItem,
     expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };
   if (typeof module !== 'undefined' && module.exports) module.exports = CFG; else root.GAMECFG = CFG;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -2067,7 +2107,11 @@ const W3 = (() => {
   const T = THREE, CFG3 = GAMECFG;
   T.ColorManagement.legacyMode = false;
   const PITCH = 2.32, PLOT = 2.02, BED_H = 0.22, COLS3 = 6, ROWS3 = 4;
-  const plotXZ = i => [((i % COLS3) - 2.5) * PITCH, (Math.floor(i / COLS3) - 1.5) * PITCH];
+  // 农田一片一片地排：第 0 片在农场中间；之后的田在北边，每排 4 片
+  const fieldC = f => f === 0 ? [0, 0] : [(((f - 1) % 4) - 1.5) * 17, -32 - Math.floor((f - 1) / 4) * 13];
+  const plotXZ = i => { const f = Math.floor(i / 24), j = i % 24, [cx, cz] = fieldC(f); return [cx + ((j % COLS3) - 2.5) * PITCH, cz + (Math.floor(j / COLS3) - 1.5) * PITCH]; };
+  const fieldAtXZ = (x, z) => { for (let f = 0; f < 20; f++) { const [cx, cz] = fieldC(f); if (Math.abs(x - cx) < 8 && Math.abs(z - cz) < 5.6) return f; } return -1; };
+  let ACTF = 0; // 当前关注的那片田：这片和第 0 片用精细模型，其他田用简化模型
   let R, scene, cam, canvasEl, W = 1, H = 1, ready = false, tNow = 0;
   const safe = { l: 80, r: 100, t: 86, b: 120 };
   let zoom = 1;
@@ -2581,7 +2625,7 @@ const W3 = (() => {
     parts.forEach(g => { P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); C.set(g.attributes.color.array, o * 3); o += g.attributes.position.count; });
     const G = new T.BufferGeometry(); G.setAttribute('position', new T.BufferAttribute(P, 3)); G.setAttribute('normal', new T.BufferAttribute(N, 3)); G.setAttribute('color', new T.BufferAttribute(C, 3)); return G; }
   function flowers(n, avoid) { const geo = flowerGeo(); const im = new T.InstancedMesh(geo, mat('#ffffff', { vc: 1, p: { roughness: 0.6 } }), n), d = new T.Object3D(), r = CFG3.rng(15), c = new T.Color(), pal = ['#ff7aa0', '#ffd23a', '#ffffff', '#b98aff', '#ff9a4a', '#7ac8ff']; let k = 0; while (k < n) { const x = (r() - 0.5) * 60, z = (r() - 0.5) * 50; if (avoid(x, z)) continue; d.position.set(x, 0.14 + r() * 0.1, z); d.rotation.set((r() - 0.5) * 0.5, r() * 6.28, (r() - 0.5) * 0.5); d.scale.setScalar(0.9 + r() * 0.7); d.updateMatrix(); im.setMatrixAt(k, d.matrix); im.setColorAt(k, c.set(pal[Math.floor(r() * pal.length)])); k++; } return im; }
-  function hills() { const g = new T.Group(), m = mat('#6a9a4a', { p: { roughness: 1 } }), r = CFG3.rng(77); for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2 + r() * 0.3, d = 75 + r() * 30; const geo = new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2); displace(geo, 0.08, 1.5, i); const o = mesh(geo, m, Math.cos(a) * d, -2, Math.sin(a) * d); o.scale.set(25 + r() * 20, 8 + r() * 10, 18 + r() * 10); o.castShadow = false; g.add(o); } for (let i = 0; i < 40; i++) { const a = r() * Math.PI * 2, d = 50 + r() * 25; const t = blob(mat('#3f7a3a', { p: { roughness: 1 } }), Math.cos(a) * d, 2.5, Math.sin(a) * d, 2 + r() * 1.5, 3 + r() * 2, 2 + r()); t.castShadow = false; g.add(t); } return merge(g); }
+  function hills() { const g = new T.Group(), m = mat('#6a9a4a', { p: { roughness: 1 } }), r = CFG3.rng(77); for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2 + r() * 0.3, d = 135 + r() * 30; const geo = new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2); displace(geo, 0.08, 1.5, i); const o = mesh(geo, m, Math.cos(a) * d, -2, Math.sin(a) * d); o.scale.set(25 + r() * 20, 8 + r() * 10, 18 + r() * 10); o.castShadow = false; g.add(o); } for (let i = 0; i < 40; i++) { const a = r() * Math.PI * 2, d = 105 + r() * 25; const t = blob(mat('#3f7a3a', { p: { roughness: 1 } }), Math.cos(a) * d, 2.5, Math.sin(a) * d, 2 + r() * 1.5, 3 + r() * 2, 2 + r()); t.castShadow = false; g.add(t); } return merge(g); }
   // 天空
   let sky, skyU;
   function buildSky() {
@@ -2610,7 +2654,7 @@ const W3 = (() => {
     ['d', 'w', 'b', 's'].forEach(k => BADGE[k] = new T.SpriteMaterial({ map: badgeTex(k), depthTest: false, transparent: true }));
     sparkTex = starTex();
     const hb = new T.BoxGeometry(PITCH - 0.05, 1.4, PITCH - 0.05); hb.translate(0, 0.7, 0); const hm = new T.MeshBasicMaterial({ visible: false });
-    for (let i = 0; i < 24; i++) { const [x, z] = plotXZ(i), node = new T.Group(); node.position.set(x, 0, z); scene.add(node); const hit = new T.Mesh(hb, hm); hit.userData.idx = i; node.add(hit); hitBoxes.push(hit); plots.push({ node, key: '', crop: null, badges: [], sparks: [], bug: null, sway: Math.random() * 6, cropH: 0 }); }
+    PLOT_HB = hb; PLOT_HM = hm; ensurePlots(24);
     // 悬停高亮框
     const c = mkCanvas(128), x = c.getContext('2d'); x.strokeStyle = 'rgba(255,236,170,1)'; x.lineWidth = 8; x.shadowColor = 'rgba(255,210,90,1)'; x.shadowBlur = 14; x.beginPath(); x.roundRect ? x.roundRect(12, 12, 104, 104, 18) : x.rect(12, 12, 104, 104); x.stroke();
     hoverFrame = new T.Mesh(new T.PlaneGeometry(PLOT + 0.25, PLOT + 0.25), new T.MeshBasicMaterial({ map: tex(c, 0), transparent: true, depthWrite: false, blending: T.AdditiveBlending })); hoverFrame.rotation.x = -Math.PI / 2; hoverFrame.visible = false; scene.add(hoverFrame);
@@ -2618,6 +2662,15 @@ const W3 = (() => {
   }
   let LOCK_TEX, LOCK_MAT;
   function lockTex() { if (LOCK_TEX) return LOCK_TEX; const c = mkCanvas(128), x = c.getContext('2d'); x.drawImage(TX.wood.image, 0, 0, 128, 128); x.fillStyle = 'rgba(60,36,16,.25)'; x.fillRect(0, 0, 128, 128); x.translate(64, 70); x.strokeStyle = '#3a2410'; x.lineWidth = 9; x.beginPath(); x.arc(0, -14, 16, Math.PI, 0); x.stroke(); x.fillStyle = '#3a2410'; x.fillRect(-24, -14, 48, 36); x.fillStyle = '#d8b050'; x.beginPath(); x.arc(0, 0, 5, 0, 7); x.fill(); x.fillRect(-2, 0, 4, 12); LOCK_TEX = tex(c, 0); return LOCK_TEX; }
+  let PLOT_HB, PLOT_HM; const fieldDeco = [];
+  function ensurePlots(n) {
+    for (let i = plots.length; i < n; i++) { const [x, z] = plotXZ(i), node = new T.Group(); node.position.set(x, 0, z); scene.add(node); const hit = new T.Mesh(PLOT_HB, PLOT_HM); hit.userData.idx = i; node.add(hit); hitBoxes.push(hit); plots.push({ node, key: '', crop: null, badges: [], sparks: [], bug: null, sway: Math.random() * 6, cropH: 0 });
+      if (i > 0 && i % 24 === 0) { // 新的一片田：铺一块深色草地、四角木桩和田名木牌
+        const f = i / 24, [cx, cz] = fieldC(f), g = new T.Group(), wm = mat('#a8794a', { p: { map: TX.wood, roughness: 0.85 } });
+        const pad = new T.Mesh(new T.PlaneGeometry(15.2, 10.6), mat('#6f9a48', { p: { roughness: 1, map: TX.grass } })); pad.rotation.x = -Math.PI / 2; pad.position.set(cx, 0.008, cz); pad.receiveShadow = true; g.add(pad);
+        [[-7.4, -5.1], [7.4, -5.1], [-7.4, 5.1], [7.4, 5.1]].forEach(([dx, dz]) => fencePost(g, cx + dx, cz + dz, wm));
+        woodSign(g, cx - 7.9, cz + 5.4, Math.PI * 0.75, `第${f + 1}片田`); scene.add(g); fieldDeco.push(g); } }
+  }
   function rebuildPlot(i, P, o) {
     const pl = plots[i], node = pl.node; node.children.slice().forEach(ch => { if (!ch.userData.idx && ch.userData.idx !== 0) node.remove(ch); }); pl.crop = null; pl.badges = []; pl.sparks = []; pl.bug = null; pl.cropH = 0;
     if (!P.u) {
@@ -2630,6 +2683,11 @@ const W3 = (() => {
     }
     const sm = (soilMats[P.soil | 0] || soilMats[0])[P.pr && P.pr.d ? 'dry' : (P.wet ? 'wet' : 'n')];
     const bed = new T.Mesh(BED_G, sm); bed.receiveShadow = true; node.add(bed);
+    if (o.lite) { // 远处的田：只画土和一个简化的作物（颜色 = 作物主色，大小 = 生长阶段）
+      if (P.c >= 0 && CFG3.CROPS[P.c]) { const a = CFG3.CROPS[P.c].art || {}, st = CFG3.stageOf(P.p), ripe = st === 4, col = ripe ? (a.fruit || a.head || a.root || (a.petal === 'rainbow' ? '#ff6ad5' : a.petal) || a.ear || '#e8c25a') : '#6cb048', k = [0.25, 0.45, 0.7, 0.85, 1][st] || 0.5;
+        const m = blob(mat(col, { p: { roughness: 0.6 } }), 0, BED_H + 0.25 * k, 0, 0.5 * k, 0.32 * k, 0.5 * k, 10); node.add(m); pl.cropH = 0.5 * k;
+        if (ripe) { const sp = new T.Sprite(new T.SpriteMaterial({ map: sparkTex, transparent: true, depthWrite: false, blending: T.AdditiveBlending })); sp.userData.ph = i * 0.13; sp.userData.r = 0.4; node.add(sp); pl.sparks.push(sp); } }
+      return; }
     [-0.6, -0.2, 0.2, 0.6].forEach(z => { const r = new T.Mesh(RIDGE_G, sm); r.position.set(0, BED_H, z); r.receiveShadow = true; r.castShadow = true; node.add(r); });
     if (P.pr && P.pr.w) { const g = new T.Group(), wm = mat('#6a9a2a', { vc: 1, ds: 1 }), r = CFG3.rng(i * 11 + 3); [[-0.7, -0.65], [0.72, 0.5], [-0.55, 0.72], [0.6, -0.6], [0.05, 0.78]].forEach(([x, z]) => { for (let j = 0; j < 5; j++) addLeaf(g, leafGeo(0.28 + r() * 0.15, 0.05, 0.9, 0.1, 'blade'), wm, x, BED_H, z, r() * 6, 0.4 + r() * 0.5); }); node.add(merge(g)); }
     if (P.c >= 0 && CFG3.CROPS[P.c]) {
@@ -2641,13 +2699,17 @@ const W3 = (() => {
       if (P.pr && P.pr.b && st > 0) { const bug = new T.Group(); bug.add(blob(fruitMat('#d82a20', 0.25), 0, 0.04, 0, 0.07, 0.05, 0.08, 12)); bug.add(blob(mat('#1a1008'), 0, 0.04, 0.07, 0.04, 0.035, 0.035, 8)); [[0.03, -0.02], [-0.03, 0.01], [0.02, 0.03]].forEach(([x, z]) => bug.add(blob(mat('#1a1008'), x, 0.085, z, 0.016, 0.01, 0.016, 6))); node.add(bug); pl.bug = bug; }
     }
   }
-  function plotKey(P, o) { return [P.u, P.soil, P.c, P.c >= 0 ? CFG3.stageOf(P.p) : -1, P.pr ? '' + (P.pr.d | 0) + (P.pr.w | 0) + (P.pr.b | 0) : '', P.wet ? 1 : 0, o.mine ? 1 : 0, o.next ? 1 : 0].join('|'); }
+  function plotKey(P, o) { return [P.u, P.soil, P.c, P.c >= 0 ? CFG3.stageOf(P.p) : -1, P.pr ? '' + (P.pr.d | 0) + (P.pr.w | 0) + (P.pr.b | 0) : '', P.wet ? 1 : 0, o.mine ? 1 : 0, o.next ? 1 : 0, o.lite ? 1 : 0].join('|'); }
 
-  /* ---------------- 鱼塘与羊圈 ---------------- */
-  const POND = { x: -5.5, z: 13.5 }, PAST = { x0: 10.2, x1: 16.6, z0: 7.0, z1: 12.2 }; PAST.cx = (PAST.x0 + PAST.x1) / 2; PAST.cz = (PAST.z0 + PAST.z1) / 2;
-  const MEADOW = v3(PAST.cx - 0.4, 0, PAST.z1 + 4.2), HERD_T = { out: 24, graze: 70, back: 94, loop: 110 }; // 羊圈南门外的放牧草地；一轮牧羊的节奏（秒）
-  const RANCH3 = { fish: [], sheep: [], fkey: '', skey: '', herd: { on: false, dog: '' }, group: null, ready: false };
-  // 小鱼：纺锤形身体 + 尾鳍 + 背鳍 + 眼睛
+  /* ---------------- 鱼塘、牧场、果园（v3：规模随等级扩大） ---------------- */
+  const POND = { x: -5.5, z: 13.5 }, PONDS = [[-5.5, 13.5], [-17.5, 15], [-29, 14], [-6.5, 26], [-18.5, 27.5], [-30, 27]];
+  const PAST = { x0: 10.2, z0: 7.0, x1: 16.6, z1: 12.2, lv: 0 }; PAST.cx = (PAST.x0 + PAST.x1) / 2; PAST.cz = (PAST.z0 + PAST.z1) / 2;
+  const ORCH = { x0: -64, x1: -36, z0: -16, z1: 12 }; ORCH.cx = (ORCH.x0 + ORCH.x1) / 2; ORCH.cz = (ORCH.z0 + ORCH.z1) / 2;
+  const MEADOW = v3(0, 0, 0), HERD_T = { out: 24, graze: 70, back: 94, loop: 110 };
+  const RANCH3 = { fish: [], sheep: [], fkey: '', skey: '', tkey: '', herd: { on: false, dog: '' }, ready: false, ponds: 1, pondObjs: [], pastG: null, inst: {}, trees: null };
+  const PFENCE = []; let PASTOBST = [];
+  const pastSize = l => { const g = Math.pow((Math.min(100, Math.max(1, l)) - 1) / 99, 0.6); return [6.4 + 34 * g, 5.2 + 24 * g]; };
+  // 小鱼
   const FISH_GEO = {};
   function fishGeo() { if (FISH_GEO.body) return FISH_GEO;
     const b = lathe([[0, -0.16], [0.035, -0.13], [0.055, -0.06], [0.058, 0.0], [0.048, 0.07], [0.028, 0.12], [0, 0.15]], 14); b.rotateZ(-Math.PI / 2); b.scale(1, 0.85, 0.62);
@@ -2661,14 +2723,14 @@ const W3 = (() => {
     [-1, 1].forEach(sd => { g.add(blob(mat('#101010', { p: { roughness: 0.2 } }), -0.12, 0.012, sd * 0.025, 0.011, 0.011, 0.008, 8)); });
     g.scale.setScalar(d.size * 1.3); g.userData.tail = tail; return g;
   }
-  // 绵羊 / 羊驼：蓬松的身体用 SDF 生成（一团团小毛球），脸、耳朵、腿是深色
+  // 绵羊 / 羊驼
   const SHEEP_GEO = {};
   function sheepGeo(t) {
     if (SHEEP_GEO[t]) return SHEEP_GEO[t]; const d = CFG3.SHEEP[t], al = !!d.alpaca, cB = new T.Color(d.body), cS = cB.clone().multiplyScalar(0.86);
     const puffs = []; const rr = CFG3.rng(31 + t); for (let i = 0; i < 26; i++) { const u = rr() * Math.PI * 2, v = Math.acos(2 * rr() - 1); puffs.push([Math.cos(u) * Math.sin(v) * 0.36, 0.6 + Math.cos(v) * 0.24, Math.sin(u) * Math.sin(v) * 0.27, 0.1 + rr() * 0.05]); }
     const body = (x, y, z) => { let dd = sEll(x, y, z, [0, 0.6, 0], [0.4, 0.27, 0.29]); for (const [px, py, pz, r] of puffs) dd = smin(dd, Math.hypot(x - px, y - py, z - pz) - r, 0.06); if (al) dd = smin(dd, sCap(x, y, z, [0.28, 0.66, 0], [0.4, 1.12, 0], 0.11, 0.085), 0.08); return dd; };
     const bodyCol = (x, y, z, c) => { c.copy(cB).lerp(cS, sst(0.55, 0.35, y) * 0.8); };
-    SHEEP_GEO[t] = { body: sdfMesh(body, 0.04, al ? 0.78 : 0.62, 0, al ? 0.62 : 0.5, al ? 40 : 34, bodyCol) }; return SHEEP_GEO[t];
+    SHEEP_GEO[t] = { body: sdfMesh(body, 0.04, al ? 0.78 : 0.62, 0, al ? 0.62 : 0.5, al ? 40 : 34, bodyCol), lo: sdfMesh(body, 0.04, al ? 0.78 : 0.62, 0, al ? 0.62 : 0.5, al ? 22 : 18, bodyCol) }; return SHEEP_GEO[t]; // lo：远处成群的羊用的低面数版本
   }
   function buildSheep(t) {
     const d = CFG3.SHEEP[t] || CFG3.SHEEP[0], al = !!d.alpaca, G = sheepGeo(t), g = new T.Group(), body = new T.Group(); g.add(body);
@@ -2676,8 +2738,8 @@ const W3 = (() => {
     const bm = new T.Mesh(G.body, fur); bm.castShadow = true; body.add(bm);
     const face = mat(d.face, { p: { roughness: 0.7 } }), leg = mat(al ? new T.Color(d.body).multiplyScalar(0.8).getStyle() : '#2a2224', { p: { roughness: 0.7 } });
     const head = new T.Group(); head.position.set(al ? 0.46 : 0.42, al ? 1.18 : 0.7, 0); body.add(head);
-    head.add(blob(face, 0.05, -0.02, 0, al ? 0.1 : 0.12, al ? 0.11 : 0.13, al ? 0.09 : 0.105, 18)); head.add(blob(face, 0.13, -0.06, 0, 0.07, 0.065, 0.07, 14)); // 脸和嘴
-    head.add(blob(new T.MeshPhysicalMaterial({ color: new T.Color(d.body), roughness: 0.95, sheen: 0.6, sheenColor: new T.Color('#ffffff') }), -0.03, 0.09, 0, 0.1, 0.07, 0.1, 14)); // 头顶的毛
+    head.add(blob(face, 0.05, -0.02, 0, al ? 0.1 : 0.12, al ? 0.11 : 0.13, al ? 0.09 : 0.105, 18)); head.add(blob(face, 0.13, -0.06, 0, 0.07, 0.065, 0.07, 14));
+    head.add(blob(new T.MeshPhysicalMaterial({ color: new T.Color(d.body), roughness: 0.95, sheen: 0.6, sheenColor: new T.Color('#ffffff') }), -0.03, 0.09, 0, 0.1, 0.07, 0.1, 14));
     [-1, 1].forEach(sd => { const e = blob(face, -0.02, al ? 0.12 : 0.03, sd * 0.12, al ? 0.03 : 0.07, al ? 0.07 : 0.03, 0.035, 10); e.rotation.x = sd * (al ? 0.2 : 0.5); head.add(e);
       head.add(blob(mat('#0e0b0a', { p: { roughness: 0.15 } }), 0.1, 0.02, sd * 0.07, 0.022, 0.026, 0.018, 10)); head.add(blob(new T.MeshBasicMaterial({ color: 0xffffff }), 0.118, 0.032, sd * 0.077, 0.007, 0.007, 0.005, 6)); });
     if (!al) head.add(blob(mat('#ff9aa0', { p: { roughness: 0.6 } }), 0.19, -0.07, 0, 0.018, 0.012, 0.025, 8));
@@ -2688,95 +2750,139 @@ const W3 = (() => {
     g.scale.setScalar(0.85);
     return { g, body, head, legs, mark };
   }
-  function buildPasture() {
-    const g = new T.Group(), wm = mat('#c89a62', { p: { map: TX.wood, roughness: 0.85 } }), fg = new T.Group(), { x0, x1, z0, z1 } = PAST, gate = PAST.cz;
-    // 草地颜色更嫩一些
+  const signTex = txt => { const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#c89a62'; x.fillRect(0, 0, 256, 128); x.fillStyle = '#4a2a12'; x.font = 'bold 64px "PingFang SC","Microsoft YaHei",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, 128, 66); const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; return t; };
+  function woodSign(g, x, z, ry, txt) { const wm = mat('#c89a62', { p: { map: TX.wood, roughness: 0.85 } }), sign = new T.Group(); sign.position.set(x, 0, z); sign.rotation.y = ry; g.add(sign); sign.add(mesh(new T.BoxGeometry(0.07, 0.9, 0.07), wm, 0, 0.45, 0)); sign.add(mesh(new T.BoxGeometry(0.05, 0.34, 0.7), wm, 0, 0.85, 0)); const f = mesh(new T.PlaneGeometry(0.66, 0.32), new T.MeshStandardMaterial({ map: signTex(txt), roughness: 0.8 }), -0.03, 0.85, 0); f.rotation.y = -Math.PI / 2; sign.add(f); }
+  // 牧场：等级越高草地越大（最大约 40 × 29），南边开门，门外是放牧草地
+  function setPastureLv(l) {
+    if (PAST.lv === l) return; PAST.lv = l; const [W, H] = pastSize(l); PAST.x1 = PAST.x0 + W; PAST.z1 = PAST.z0 + H; PAST.cx = (PAST.x0 + PAST.x1) / 2; PAST.cz = (PAST.z0 + PAST.z1) / 2; PAST.gw = Math.min(3.5, 0.9 + W * 0.05);
+    MEADOW.set(PAST.cx - 0.4, 0, PAST.z1 + 4.2 + Math.min(4, H * 0.1));
+    if (RANCH3.pastG) { scene.remove(RANCH3.pastG); const i = hitBoxes.indexOf(RANCH3.pastHit); if (i >= 0) hitBoxes.splice(i, 1); }
+    PFENCE.length = 0; PASTOBST.forEach(o => { const i = OBST.indexOf(o); if (i >= 0) OBST.splice(i, 1); }); PASTOBST = [];
+    const g = new T.Group(), wm = mat('#c89a62', { p: { map: TX.wood, roughness: 0.85 } }), fg = new T.Group(), { x0, x1, z0, z1 } = PAST, gx = PAST.cx, gw = PAST.gw;
     const meadow = new T.Mesh(new T.PlaneGeometry(x1 - x0, z1 - z0), mat('#8cc860', { p: { roughness: 1, map: TX.grass } })); meadow.rotation.x = -Math.PI / 2; meadow.position.set(PAST.cx, 0.012, PAST.cz); meadow.receiveShadow = true; g.add(meadow);
-    const gx = PAST.cx; fenceLine(fg, x0, z0, x1, z0, wm, 1.05); fenceLine(fg, x1, z0, x1, z1, wm, 1.05); fenceLine(fg, x0, z0, x0, z1, wm, 1.05); fenceLine(fg, x0, z1, gx - 0.9, z1, wm, 1.05); fenceLine(fg, gx + 0.9, z1, x1, z1, wm, 1.05); // 南边开门，对着放牧草地
-    g.add(merge(fg));
-    FENCE.push([x0, z0, x1, z0], [x1, z0, x1, z1], [x0, z0, x0, z1], [x0, z1, gx - 0.9, z1], [gx + 0.9, z1, x1, z1]); void gate;
-    // 羊棚
-    const shed = new T.Group(); shed.position.set(x1 - 1.1, 0, z0 + 0.95); g.add(shed);
-    const wall = mat('#e8d2a8', { p: { map: TX.wood, roughness: 0.85 } }), roof = mat('#c8503a', { p: { roughness: 0.7 } });
-    shed.add(mesh(new T.BoxGeometry(1.5, 0.9, 1.2), wall, 0, 0.45, 0)); const r1 = mesh(new T.BoxGeometry(1.7, 0.08, 0.8), roof, 0, 1.05, 0.33); r1.rotation.x = 0.55; shed.add(r1); const r2 = mesh(new T.BoxGeometry(1.7, 0.08, 0.8), roof, 0, 1.05, -0.33); r2.rotation.x = -0.55; shed.add(r2);
-    shed.add(mesh(new T.BoxGeometry(0.5, 0.6, 0.02), mat('#5a3a22'), 0, 0.3, 0.61)); OBST.push([x1 - 1.1, z0 + 0.95, 0.9]);
-    // 草垛、水槽
-    const hay = mat('#e8c25a', { p: { roughness: 0.95, map: strawTex() } }); [[x0 + 0.9, z1 - 0.8], [x0 + 1.6, z1 - 0.6]].forEach(([x, z], i) => { const h = mesh(new T.CylinderGeometry(0.38, 0.38, 0.55, 18), hay, x, 0.28, z); h.rotation.z = Math.PI / 2; h.rotation.y = i * 0.6; g.add(h); OBST.push([x, z, 0.45]); });
-    const tr = new T.Group(); tr.position.set(x1 - 0.8, 0, z1 - 1.0); tr.rotation.y = 0.3; g.add(tr); tr.add(mesh(new T.BoxGeometry(1.0, 0.3, 0.4), mat('#8a6040', { p: { map: TX.wood } }), 0, 0.2, 0)); const wt = mesh(new T.PlaneGeometry(0.9, 0.3), mat('#5ab0d8', { p: { roughness: 0.1, metalness: 0.2 } }), 0, 0.33, 0); wt.rotation.x = -Math.PI / 2; tr.add(wt); OBST.push([x1 - 0.8, z1 - 1.0, 0.55]);
-    // 木牌
-    const sign = new T.Group(); sign.position.set(gx - 1.25, 0, z1 + 0.2); sign.rotation.y = -Math.PI / 2; g.add(sign); sign.add(mesh(new T.BoxGeometry(0.07, 0.9, 0.07), wm, 0, 0.45, 0)); const bd = mesh(new T.BoxGeometry(0.05, 0.34, 0.7), wm, 0, 0.85, 0); sign.add(bd);
-    const st = (() => { const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#c89a62'; x.fillRect(0, 0, 256, 128); x.fillStyle = '#4a2a12'; x.font = 'bold 64px "PingFang SC","Microsoft YaHei",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('羊圈', 128, 66); const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; return t; })();
-    const face = mesh(new T.PlaneGeometry(0.66, 0.32), new T.MeshStandardMaterial({ map: st, roughness: 0.8 }), -0.03, 0.85, 0); face.rotation.y = -Math.PI / 2; sign.add(face);
-    // 点击区域
-    const hk = new T.Mesh(new T.BoxGeometry(x1 - x0, 1.2, z1 - z0), new T.MeshBasicMaterial({ visible: false })); hk.position.set(PAST.cx, 0.6, PAST.cz); hk.userData.idx = -31; g.add(hk); hitBoxes.push(hk);
-    return g;
+    fenceLine(fg, x0, z0, x1, z0, wm, 1.05); fenceLine(fg, x1, z0, x1, z1, wm, 1.05); fenceLine(fg, x0, z0, x0, z1, wm, 1.05); fenceLine(fg, x0, z1, gx - gw, z1, wm, 1.05); fenceLine(fg, gx + gw, z1, x1, z1, wm, 1.05); g.add(merge(fg));
+    PFENCE.push([x0, z0, x1, z0], [x1, z0, x1, z1], [x0, z0, x0, z1], [x0, z1, gx - gw, z1], [gx + gw, z1, x1, z1]);
+    const nShed = 1 + Math.floor(W / 12); for (let i = 0; i < nShed; i++) { const shed = new T.Group(), sx = x1 - 1.1 - i * 4.2, sz = z0 + 0.95; shed.position.set(sx, 0, sz); g.add(shed);
+      const wall = mat('#e8d2a8', { p: { map: TX.wood, roughness: 0.85 } }), roof = mat('#c8503a', { p: { roughness: 0.7 } });
+      shed.add(mesh(new T.BoxGeometry(1.5, 0.9, 1.2), wall, 0, 0.45, 0)); const r1 = mesh(new T.BoxGeometry(1.7, 0.08, 0.8), roof, 0, 1.05, 0.33); r1.rotation.x = 0.55; shed.add(r1); const r2 = mesh(new T.BoxGeometry(1.7, 0.08, 0.8), roof, 0, 1.05, -0.33); r2.rotation.x = -0.55; shed.add(r2);
+      shed.add(mesh(new T.BoxGeometry(0.5, 0.6, 0.02), mat('#5a3a22'), 0, 0.3, 0.61)); const o = [sx, sz, 0.9]; OBST.push(o); PASTOBST.push(o); }
+    const hay = mat('#e8c25a', { p: { roughness: 0.95, map: strawTex() } }), nh = 2 + Math.floor(W / 8); for (let i = 0; i < nh; i++) { const x = x0 + 0.9 + i * 0.75 + Math.floor(i / 2) * 2.5, z = z1 - 0.7 - (i % 2) * 0.2; if (x > gx - gw - 0.6) break; const h = mesh(new T.CylinderGeometry(0.38, 0.38, 0.55, 18), hay, x, 0.28, z); h.rotation.z = Math.PI / 2; h.rotation.y = i * 0.6; g.add(h); const o = [x, z, 0.45]; OBST.push(o); PASTOBST.push(o); }
+    const ntr = 1 + Math.floor(H / 9); for (let i = 0; i < ntr; i++) { const tr = new T.Group(), tx = x1 - 0.8, tz = z1 - 1.0 - i * 5; tr.position.set(tx, 0, tz); tr.rotation.y = Math.PI / 2; g.add(tr); tr.add(mesh(new T.BoxGeometry(1.0, 0.3, 0.4), mat('#8a6040', { p: { map: TX.wood } }), 0, 0.2, 0)); const wt = mesh(new T.PlaneGeometry(0.9, 0.3), mat('#5ab0d8', { p: { roughness: 0.1, metalness: 0.2 } }), 0, 0.33, 0); wt.rotation.x = -Math.PI / 2; tr.add(wt); const o = [tx, tz, 0.55]; OBST.push(o); PASTOBST.push(o); }
+    woodSign(g, gx - gw - 0.35, z1 + 0.2, -Math.PI / 2, '牧场');
+    const hk = new T.Mesh(new T.BoxGeometry(x1 - x0, 1.2, z1 - z0), new T.MeshBasicMaterial({ visible: false })); hk.position.set(PAST.cx, 0.6, PAST.cz); hk.userData.idx = -31; g.add(hk); hitBoxes.push(hk); RANCH3.pastHit = hk;
+    scene.add(g); RANCH3.pastG = g; RANCH3.skey = ''; // 牧场变了：羊重新放
+  }
+  // 鱼塘：每 10 级多挖一个池塘（最多 6 个）
+  function setPonds(n) {
+    n = Math.max(1, Math.min(PONDS.length, n)); if (RANCH3.ponds >= n) return;
+    for (let i = RANCH3.ponds; i < n; i++) { const [x, z] = PONDS[i]; scene.add(buildPond(x, z)); const hk = new T.Mesh(new T.BoxGeometry(8.4, 0.5, 6.8), new T.MeshBasicMaterial({ visible: false })); hk.position.set(x, 0.1, z); hk.userData.idx = -30; scene.add(hk); hitBoxes.push(hk); }
+    RANCH3.ponds = n; RANCH3.fkey = '';
   }
   function pondHit() { const hk = new T.Mesh(new T.BoxGeometry(8.4, 0.5, 6.8), new T.MeshBasicMaterial({ visible: false })); hk.position.set(POND.x, 0.1, POND.z); hk.userData.idx = -30; hitBoxes.push(hk); return hk; }
-  // 由游戏每帧传入：{ fish: [{ t, k, ripe }], sheep: [{ t, c }], herd: { on, dog } }
+  // 果园：篱笆围起来的一大片地，果树按网格种（画出来最多 169 棵），用实例化绘制
+  function buildOrchard() {
+    const g = new T.Group(), wm = mat('#b88a52', { p: { map: TX.wood, roughness: 0.85 } }), fg = new T.Group(), { x0, x1, z0, z1 } = ORCH, gz = ORCH.cz;
+    const ground = new T.Mesh(new T.PlaneGeometry(x1 - x0, z1 - z0), mat('#7cb04e', { p: { roughness: 1, map: TX.grass } })); ground.rotation.x = -Math.PI / 2; ground.position.set(ORCH.cx, 0.011, ORCH.cz); ground.receiveShadow = true; g.add(ground);
+    fenceLine(fg, x0, z0, x1, z0, wm, 1.2); fenceLine(fg, x0, z1, x1, z1, wm, 1.2); fenceLine(fg, x0, z0, x0, z1, wm, 1.2); fenceLine(fg, x1, z0, x1, gz - 1.5, wm, 1.2); fenceLine(fg, x1, gz + 1.5, x1, z1, wm, 1.2); g.add(merge(fg));
+    PFENCE.push([x0, z0, x1, z0], [x0, z1, x1, z1], [x0, z0, x0, z1], [x1, z0, x1, gz - 1.5], [x1, gz + 1.5, x1, z1]); RANCH3.orchFence = PFENCE.slice(-5);
+    woodSign(g, x1 + 0.3, gz - 1.9, Math.PI, '果园');
+    const hk = new T.Mesh(new T.BoxGeometry(x1 - x0, 1.6, z1 - z0), new T.MeshBasicMaterial({ visible: false })); hk.position.set(ORCH.cx, 0.8, ORCH.cz); hk.userData.idx = -32; g.add(hk); hitBoxes.push(hk);
+    // 实例化的树干、树冠、果子
+    const N = 169, trunk = new T.CylinderGeometry(0.09, 0.14, 1, 8); trunk.translate(0, 0.5, 0); const crown = new T.SphereGeometry(1, 16, 12); displace(crown, 0.1, 1.6, 5); crown.computeVertexNormals(); const fruit = new T.SphereGeometry(0.09, 10, 8);
+    const I = { trunk: new T.InstancedMesh(trunk, mat('#7a5232', { p: { map: TX.wood, roughness: 0.9 } }), N), crown: new T.InstancedMesh(crown, mat('#ffffff', { p: { roughness: 0.85 } }), N), fruit: new T.InstancedMesh(fruit, mat('#ffffff', { phys: 1, p: { roughness: 0.35, clearcoat: 0.6 } }), N * 6) };
+    const c0 = new T.Color('#5aa840'); Object.values(I).forEach(m => { for (let k = 0; k < m.instanceMatrix.count; k++) m.setColorAt(k, c0); m.count = 0; m.castShadow = true; m.frustumCulled = false; g.add(m); }); // 先建好实例颜色，避免着色器缺少颜色变成白色
+    RANCH3.trees = I; scene.add(g);
+  }
+  const ORCH_SPOT = i => { const c = i % 13, r = Math.floor(i / 13); return [ORCH.x0 + 1.4 + c * ((ORCH.x1 - ORCH.x0 - 2.8) / 12), ORCH.z0 + 1.4 + r * ((ORCH.z1 - ORCH.z0 - 2.8) / 12)]; };
+  function updateTrees(list, t) {
+    const I = RANCH3.trees; if (!I) return; const d3 = new T.Object3D(), col = new T.Color(); let nf = 0;
+    list.forEach((r, i) => { const [x, z] = ORCH_SPOT(i), def = CFG3.TREES[r.t] || CFG3.TREES[0], s = 0.35 + 0.65 * Math.min(1, r.k), sway = Math.sin(t * 0.9 + i) * 0.03;
+      d3.position.set(x, 0, z); d3.rotation.set(sway, i * 1.7, sway * 0.6); d3.scale.set(s * 1.1, s * 1.5, s * 1.1); d3.updateMatrix(); I.trunk.setMatrixAt(i, d3.matrix);
+      d3.position.set(x, s * 1.85, z); d3.scale.set(s * 0.95, s * 0.8, s * 0.95); d3.updateMatrix(); I.crown.setMatrixAt(i, d3.matrix); I.crown.setColorAt(i, col.set(def.blossom && r.c < 0.5 && r.k >= 1 ? def.blossom : i % 3 ? '#5aa840' : '#4f9a3a'));
+      const nfr = r.k < 1 ? 0 : r.c >= 1 ? 6 : r.c > 0.4 ? 3 : 0;
+      for (let k = 0; k < nfr; k++) { const a = k / nfr * 6.28 + i, h = s * (1.6 + (k % 3) * 0.25); d3.position.set(x + Math.cos(a) * s * 0.85, h, z + Math.sin(a) * s * 0.85); d3.rotation.set(0, 0, 0); d3.scale.setScalar(r.c >= 1 ? 1.25 : 0.8); d3.updateMatrix(); I.fruit.setMatrixAt(nf, d3.matrix); I.fruit.setColorAt(nf, col.set(r.c >= 1 ? def.col : '#9ac860')); nf++; } });
+    I.trunk.count = I.crown.count = list.length; I.fruit.count = nf; [I.trunk, I.crown, I.fruit].forEach(m => { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; });
+  }
+  // 由游戏每秒传入：{ lv: { pond, pasture, orchard, ponds }, fish: [{ t, k, ripe }], sheep: [{ t, c }], trees: [{ t, k, c }], herd: { on, dog } }
+  const DET = 16; // 前 16 只羊用精细模型，其余用实例化的简化模型
   function setRanch(R) {
     if (!RANCH3.ready || !R) return;
-    const fk = R.fish.map(f => f.t).join(','), sk = R.sheep.map(s => s.t).join(',');
-    if (fk !== RANCH3.fkey) { RANCH3.fkey = fk; RANCH3.fish.forEach(f => scene.remove(f.g)); RANCH3.fish = R.fish.map((f, i) => { const g = buildFish(f.t); scene.add(g); return { g, t: f.t, ph: i * 1.7 + Math.random(), r: 0.45 + ((i * 0.37) % 0.5), sp: 0.25 + Math.random() * 0.2, jump: 2 + Math.random() * 5, jy: -1 }; }); }
+    if (R.lv) { setPastureLv(R.lv.pasture || 1); setPonds(R.lv.ponds || 1); }
+    const fk = R.fish.map(f => f.t).join(',') + '|' + RANCH3.ponds, sk = R.sheep.map(s => s.t).join(',') + '|' + PAST.lv;
+    if (fk !== RANCH3.fkey) { RANCH3.fkey = fk; RANCH3.fish.forEach(f => scene.remove(f.g)); RANCH3.fish = R.fish.map((f, i) => { const g = buildFish(f.t); scene.add(g); return { g, t: f.t, pond: i % RANCH3.ponds, ph: i * 1.7 + Math.random(), r: 0.45 + ((i * 0.37) % 0.5), sp: 0.25 + Math.random() * 0.2, jump: 2 + Math.random() * 5, jy: -1 }; }); }
     R.fish.forEach((f, i) => { const o = RANCH3.fish[i]; if (o) { o.k = f.k; o.ripe = f.ripe; } });
-    if (sk !== RANCH3.skey) { RANCH3.skey = sk; RANCH3.sheep.forEach(s => scene.remove(s.m.g)); const rr = CFG3.rng(sk.length + 7); RANCH3.sheep = R.sheep.map((s, i) => { const m = buildSheep(s.t); const p = v3(PAST.x0 + 0.8 + rr() * (PAST.x1 - PAST.x0 - 1.6), 0, PAST.z0 + 0.8 + rr() * (PAST.z1 - PAST.z0 - 1.6)); m.g.position.copy(p); m.g.rotation.y = rr() * 6.28; scene.add(m.g); return { m, t: s.t, tgt: p.clone(), wait: rr() * 3, graze: 0, ph: rr() * 6, zone: 'in' }; }); }
+    if (sk !== RANCH3.skey) { RANCH3.skey = sk; RANCH3.sheep.forEach(s => s.m && scene.remove(s.m.g)); Object.values(RANCH3.inst).forEach(o => { scene.remove(o.body); scene.remove(o.head); }); RANCH3.inst = {};
+      const rr = CFG3.rng(sk.length + 7), cnt = {};
+      RANCH3.sheep = R.sheep.map((s, i) => { const p = v3(PAST.x0 + 0.8 + rr() * (PAST.x1 - PAST.x0 - 1.6), 0, PAST.z0 + 1.8 + rr() * (PAST.z1 - PAST.z0 - 2.6)); const o = { t: s.t, p, ry: rr() * 6.28, tgt: p.clone(), wait: rr() * 3, graze: 0, ph: rr() * 6, zone: 'in' };
+        if (i < DET) { o.m = buildSheep(s.t); o.m.g.position.copy(p); o.m.g.rotation.y = o.ry; scene.add(o.m.g); } else { o.ii = cnt[s.t] = (cnt[s.t] || 0) + 1; o.ii--; } return o; });
+      Object.keys(cnt).forEach(t => { const d = CFG3.SHEEP[t], G = sheepGeo(+t); const body = new T.InstancedMesh(G.lo, new T.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.95, sheen: 0.5, sheenColor: new T.Color('#ffffff') }), cnt[t]); const head = new T.InstancedMesh(new T.SphereGeometry(0.12, 10, 8), mat(d.face, { p: { roughness: 0.7 } }), cnt[t]);
+        [body, head].forEach(m => { m.castShadow = true; m.frustumCulled = false; scene.add(m); }); RANCH3.inst[t] = { body, head }; }); }
     R.sheep.forEach((s, i) => { const o = RANCH3.sheep[i]; if (o) o.c = s.c; });
+    const tk = R.trees.map(r => r.t).join(','); if (R.trees.length || RANCH3.tkey) { RANCH3.treeList = R.trees; RANCH3.tkey = tk; }
     RANCH3.herd = R.herd || { on: false };
   }
-  const inPast = (x, z, m) => x > PAST.x0 + m && x < PAST.x1 - m && z > PAST.z0 + m && z < PAST.z1 - m;
   function updateRanch(dt, t) {
-    // 鱼：在池塘里绕圈游；长大的鱼时不时跳出水面
-    RANCH3.fish.forEach((f, i) => { f.ph += dt * f.sp; const a = f.ph, rx = 3.0 * f.r * 1.25, rz = 2.6 * f.r, x = POND.x + Math.cos(a) * rx, z = POND.z + Math.sin(a * (i % 2 ? 1 : -1)) * rz;
-      const nx = POND.x + Math.cos(a + 0.05) * rx, nz = POND.z + Math.sin((a + 0.05) * (i % 2 ? 1 : -1)) * rz; let y = 0.02 + Math.sin(t * 1.3 + i) * 0.012;
+    // 鱼：分到各个池塘里绕圈游；长大的鱼时不时跳出水面
+    RANCH3.fish.forEach((f, i) => { const [px, pz] = PONDS[f.pond] || PONDS[0]; f.ph += dt * f.sp; const a = f.ph, rx = 3.0 * f.r * 1.25, rz = 2.6 * f.r, sg = i % 2 ? 1 : -1, x = px + Math.cos(a) * rx, z = pz + Math.sin(a * sg) * rz;
+      const nx = px + Math.cos(a + 0.05) * rx, nz = pz + Math.sin((a + 0.05) * sg) * rz; let y = 0.02 + Math.sin(t * 1.3 + i) * 0.012;
       if (f.ripe) { f.jump -= dt; if (f.jump < 0 && f.jy < 0) { f.jy = 0; f.jump = 4 + Math.random() * 6; spawnSplash(x, z); } if (f.jy >= 0) { f.jy += dt; const k = f.jy / 0.8; y = Math.sin(Math.min(1, k) * Math.PI) * 0.7 - 0.05; if (k >= 1) { f.jy = -1; spawnSplash(x, z); } } }
       f.g.position.set(x, y, z); f.g.rotation.set(0, Math.atan2(-(nz - z), nx - x) + Math.PI, f.jy >= 0 ? Math.cos(f.jy / 0.8 * Math.PI) * 0.8 : 0); f.g.userData.tail.rotation.y = Math.sin(t * 9 + i) * 0.4;
-      const s = (CFG3.FISH[f.t] || { size: 1 }).size * 2.1 * (0.7 + 0.3 * Math.min(1, f.k || 0)); f.g.scale.setScalar(s); });
-    // 羊：平时在羊圈里吃草溜达。牧羊时：狗把羊从南门赶出去 → 在外面草地吃草 → 再赶回羊圈 → 休息，循环
-    const H = RANCH3.herd, SH = RANCH3.sheep, n = SH.length, GI = v3(PAST.cx, 0, PAST.z1 - 0.9), GO = v3(PAST.cx, 0, PAST.z1 + 1.1), M = MEADOW;
+      f.g.scale.setScalar((CFG3.FISH[f.t] || { size: 1 }).size * 2.1 * (0.7 + 0.3 * Math.min(1, f.k || 0))); });
+    if (RANCH3.treeList && (RANCH3.tAcc = (RANCH3.tAcc || 0) + dt) > 0.2) { RANCH3.tAcc = 0; updateTrees(RANCH3.treeList, t); }
+    // 羊：平时在牧场里吃草溜达。牧羊时：狗把羊从南门赶出去 → 在外面草地吃草 → 再赶回来 → 休息，循环
+    const H = RANCH3.herd, SH = RANCH3.sheep, n = SH.length, GI = v3(PAST.cx, 0, PAST.z1 - 0.9), GO = v3(PAST.cx, 0, PAST.z1 + 1.1), M = MEADOW, gw = PAST.gw || 0.9, mr = 2.6 + Math.sqrt(n) * 0.45;
     if (H.on && !RANCH3.hOn) { RANCH3.hc = 0; RANCH3.phase = ''; } RANCH3.hOn = H.on;
-    let phase = 'idle';
-    if (H.on && n) { RANCH3.hc += dt; const c = RANCH3.hc % HERD_T.loop; phase = c < HERD_T.out ? 'out' : c < HERD_T.graze ? 'graze' : c < HERD_T.back ? 'back' : 'rest'; }
-    else if (RANCH3.phase && RANCH3.phase !== 'idle' && SH.some(s => s.zone === 'out')) phase = 'back'; // 牧羊结束时羊还在外面：先赶回来
-    if (phase !== RANCH3.phase) { RANCH3.phase = phase;
-      SH.forEach((s, i) => { s.delay = i * 0.8; s.wpi = 0;
-        if (phase === 'out') s.path = [GI.clone().add(v3(((i % 3) - 1) * 0.35, 0, 0)), GO.clone(), M.clone().add(v3(Math.cos(i * 2.4) * (0.6 + (i % 3) * 0.45), 0, Math.sin(i * 2.4) * (0.5 + (i % 3) * 0.35)))];
-        else if (phase === 'back') s.path = [GO.clone().add(v3(((i % 3) - 1) * 0.35, 0, 0)), GI.clone(), v3(PAST.x0 + 0.9 + (i % 3) * 1.4, 0, PAST.z0 + 1.0 + Math.floor(i / 3) * 1.1)];
+    const K = 1 + n / 120; let phase = 'idle';
+    if (H.on && n) { RANCH3.hc += dt; const c = RANCH3.hc % (HERD_T.loop * K); phase = c < HERD_T.out * K ? 'out' : c < HERD_T.graze * K ? 'graze' : c < HERD_T.back * K ? 'back' : 'rest'; }
+    else if (RANCH3.phase && RANCH3.phase !== 'idle' && SH.some(s => s.zone === 'out')) phase = 'back';
+    if (phase !== RANCH3.phase) { RANCH3.phase = phase; const dl = Math.min(0.8, 18 / Math.max(1, n));
+      SH.forEach((s, i) => { s.delay = i * dl; s.wpi = 0; const off = ((i % 5) - 2) / 2 * gw * 0.7;
+        if (phase === 'out') { const a = i * 2.4, rr = Math.sqrt((i + 0.5) / Math.max(1, n)) * mr; s.path = [GI.clone().add(v3(off, 0, 0)), GO.clone().add(v3(off, 0, 0)), M.clone().add(v3(Math.cos(a) * rr * 1.25, 0, Math.sin(a) * rr))]; }
+        else if (phase === 'back') s.path = [GO.clone().add(v3(off, 0, 0)), GI.clone().add(v3(off, 0, 0)), v3(PAST.x0 + 0.8 + Math.random() * (PAST.x1 - PAST.x0 - 1.6), 0, PAST.z0 + 1.8 + Math.random() * (PAST.z1 - PAST.z0 - 2.8))];
         else s.path = null; }); }
-    // 羊群中心、还在路上的羊
-    const C = v3(0, 0, 0); SH.forEach(s => C.add(s.m.g.position)); if (n) C.multiplyScalar(1 / n);
-    // 狗该去的位置
     let dogT = null;
-    if (phase === 'out' || phase === 'back') { const lag = SH.filter(s => s.path && s.wpi < s.path.length); const L = v3(0, 0, 0); (lag.length ? lag : SH).forEach(s => L.add(s.m.g.position)); L.multiplyScalar(1 / Math.max(1, (lag.length ? lag : SH).length));
+    if (phase === 'out' || phase === 'back') { const lag = SH.filter(s => s.path && s.wpi < s.path.length && s.delay <= 0); const L = v3(0, 0, 0), src = lag.length ? lag : SH; src.forEach(s => L.add(s.p)); L.multiplyScalar(1 / Math.max(1, src.length));
       const s0 = lag[0], tgt = s0 ? s0.path[Math.min(s0.wpi, s0.path.length - 1)] : (phase === 'out' ? M : GI), dx = tgt.x - L.x, dz = tgt.z - L.z, dl = Math.hypot(dx, dz) || 1;
-      dogT = v3(L.x - dx / dl * 1.5 - dz / dl * Math.sin(t * 2.2) * 0.9, 0, L.z - dz / dl * 1.5 + dx / dl * Math.sin(t * 2.2) * 0.9); }
-    else if (phase === 'graze') { RANCH3.dang = (RANCH3.dang || 0) + dt * 0.7; dogT = v3(M.x + Math.cos(RANCH3.dang) * 2.9, 0, M.z + Math.sin(RANCH3.dang) * 2.4); }
-    else if (phase === 'rest') dogT = v3(GI.x + 1.3, 0, GI.z + 0.1);
+      dogT = v3(L.x - dx / dl * 1.8 - dz / dl * Math.sin(t * 2.2) * 1.2, 0, L.z - dz / dl * 1.8 + dx / dl * Math.sin(t * 2.2) * 1.2); }
+    else if (phase === 'graze') { RANCH3.dang = (RANCH3.dang || 0) + dt * 0.7 / Math.max(1, mr / 3); dogT = v3(M.x + Math.cos(RANCH3.dang) * (mr * 1.25 + 0.8), 0, M.z + Math.sin(RANCH3.dang) * (mr + 0.8)); }
+    else if (phase === 'rest') dogT = v3(GI.x + gw + 0.6, 0, GI.z + 0.1);
     RANCH3.dogT = dogT; RANCH3.dogRest = phase === 'rest';
     const dogP = H.on || phase === 'back' ? herdDogPos() : null;
-    SH.forEach((s, i) => { const g = s.m.g, p = g.position; let spd = 0.4, follow = false;
-      if (s.path && s.wpi < s.path.length) { if (s.delay > 0) s.delay -= dt; else { follow = true; s.tgt.copy(s.path[s.wpi]); spd = 1.35; if (p.distanceTo(s.tgt) < 0.3) { s.wpi++; if (s.wpi >= s.path.length) { s.zone = phase === 'out' ? 'out' : 'in'; s.wait = 1 + Math.random() * 2; } } } }
+    // 分开挤在一起的羊：网格哈希，避免 n² 计算
+    const grid = new Map(), cell = p => Math.floor(p.x / 0.6) + ',' + Math.floor(p.z / 0.6); SH.forEach(s => { const k = cell(s.p); let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(s); });
+    const d3 = new T.Object3D(), used = {};
+    SH.forEach((s, i) => { const p = s.p; let spd = 0.4, follow = false;
+      if (s.path && s.wpi < s.path.length) { if (s.delay > 0) s.delay -= dt; else { follow = true; s.tgt.copy(s.path[s.wpi]); spd = 1.35; if (Math.hypot(p.x - s.tgt.x, p.z - s.tgt.z) < 0.35) { s.wpi++; if (s.wpi >= s.path.length) { s.zone = phase === 'out' ? 'out' : 'in'; s.wait = 1 + Math.random() * 2; } } } }
       else if (s.wait > 0) { s.wait -= dt; s.graze = Math.min(1, s.graze + dt * 2); }
-      else if (p.distanceTo(s.tgt) < 0.08 || (s.path && s.wpi >= s.path.length && !s.wander)) { s.wander = true; s.wait = 2 + Math.random() * 4;
-        if (s.zone === 'out') { const a = Math.random() * 6.28, r = Math.random() * 2; s.tgt.set(M.x + Math.cos(a) * r, 0, M.z + Math.sin(a) * r * 0.8); }
-        else s.tgt.set(PAST.x0 + 0.8 + Math.random() * (PAST.x1 - PAST.x0 - 1.6), 0, PAST.z0 + 0.8 + Math.random() * (PAST.z1 - PAST.z0 - 1.6)); }
+      else if (Math.hypot(p.x - s.tgt.x, p.z - s.tgt.z) < 0.08 || (s.path && s.wpi >= s.path.length && !s.wander)) { s.wander = true; s.wait = 2 + Math.random() * 4;
+        if (s.zone === 'out') { const a = Math.random() * 6.28, r = Math.random() * mr; s.tgt.set(M.x + Math.cos(a) * r * 1.25, 0, M.z + Math.sin(a) * r); }
+        else s.tgt.set(PAST.x0 + 0.8 + Math.random() * (PAST.x1 - PAST.x0 - 1.6), 0, PAST.z0 + 1.8 + Math.random() * (PAST.z1 - PAST.z0 - 2.8)); }
       if (follow) s.wander = false;
       let vx = s.tgt.x - p.x, vz = s.tgt.z - p.z; const d = Math.hypot(vx, vz);
-      if (dogP) { const ax = p.x - dogP.x, az = p.z - dogP.z, ad = Math.hypot(ax, az); if (ad < 1.2 && ad > 1e-3) { vx += ax / ad * 1.2; vz += az / ad * 1.2; spd = Math.max(spd, 1.1); } }
+      if (dogP) { const ax = p.x - dogP.x, az = p.z - dogP.z, ad = Math.hypot(ax, az); if (ad < 1.4 && ad > 1e-3) { vx += ax / ad * 1.2; vz += az / ad * 1.2; spd = Math.max(spd, 1.1); } }
       const vl = Math.hypot(vx, vz); let moving = false;
-      if ((s.wait <= 0 || follow) && vl > 0.05 && d > 0.05) { const st = Math.min(d + 0.2, dt * spd); p.x += vx / vl * st; p.z += vz / vl * st; moving = true; s.graze = Math.max(0, s.graze - dt * 3); let want = Math.atan2(-vz, vx), da = want - g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); g.rotation.y += da * Math.min(1, dt * 5); }
-      SH.forEach((o, j) => { if (j === i) return; const q = o.m.g.position, dx = p.x - q.x, dz = p.z - q.z, dd = Math.hypot(dx, dz); if (dd < 0.5 && dd > 1e-3) { p.x += dx / dd * (0.5 - dd) * 0.5; p.z += dz / dd * (0.5 - dd) * 0.5; } });
-      if (!follow) { if (s.zone === 'out') { const dx = p.x - M.x, dz = p.z - M.z, dd = Math.hypot(dx / 1.25, dz); if (dd > 2.6) { p.x = M.x + dx / dd * 2.6; p.z = M.z + dz / dd * 2.6; } p.z = Math.max(p.z, PAST.z1 + 0.5); }
+      if ((s.wait <= 0 || follow) && vl > 0.05 && d > 0.05) { const st = Math.min(d + 0.2, dt * spd); p.x += vx / vl * st; p.z += vz / vl * st; moving = true; s.graze = Math.max(0, s.graze - dt * 3); const da = wrapA0(Math.atan2(-vz, vx) - s.ry); s.ry += da * Math.min(1, dt * 5); }
+      const k0 = cell(p).split(','), cx = +k0[0], cz = +k0[1]; for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) { const a = grid.get((cx + ox) + ',' + (cz + oz)); if (a) for (const o of a) { if (o === s) continue; const dx = p.x - o.p.x, dz = p.z - o.p.z, dd = Math.hypot(dx, dz); if (dd < 0.5 && dd > 1e-3) { p.x += dx / dd * (0.5 - dd) * 0.5; p.z += dz / dd * (0.5 - dd) * 0.5; } } }
+      if (!follow) { if (s.zone === 'out') { const dx = p.x - M.x, dz = p.z - M.z, dd = Math.hypot(dx / 1.25, dz); if (dd > mr) { p.x = M.x + dx / dd * mr; p.z = M.z + dz / dd * mr; } p.z = Math.max(p.z, PAST.z1 + 0.5); }
         else { p.x = Math.max(PAST.x0 + 0.45, Math.min(PAST.x1 - 0.45, p.x)); p.z = Math.max(PAST.z0 + 0.45, Math.min(PAST.z1 - 0.45, p.z)); } }
-      const fast = follow || spd > 1; const sw = moving ? Math.sin(t * (fast ? 14 : 8) + s.ph) * 0.45 : 0; s.m.legs.forEach((l, j) => l.rotation.z = (j === 0 || j === 3) ? sw : -sw);
-      s.m.body.position.y = moving ? Math.abs(Math.sin(t * (fast ? 14 : 8) + s.ph)) * 0.03 : 0;
-      s.m.head.rotation.z = -s.graze * 0.75; s.m.head.position.y = (CFG3.SHEEP[s.t].alpaca ? 1.18 : 0.7) - s.graze * (CFG3.SHEEP[s.t].alpaca ? 0.15 : 0.12);
-      const full = (s.c || 0) >= 1; s.m.mark.visible = full; if (full) s.m.mark.material.opacity = 0.6 + Math.sin(t * 4 + i) * 0.4;
-      s.m.body.children[0].scale.setScalar(0.92 + 0.12 * Math.min(1, (s.c || 0) / CFG3.RANCH.woolMax));
+      const fast = follow || spd > 1, bob = moving ? Math.abs(Math.sin(t * (fast ? 14 : 8) + s.ph)) * 0.03 : 0;
+      if (s.m) { const g = s.m.g; g.position.copy(p); g.rotation.y = s.ry; const sw = moving ? Math.sin(t * (fast ? 14 : 8) + s.ph) * 0.45 : 0; s.m.legs.forEach((l, j) => l.rotation.z = (j === 0 || j === 3) ? sw : -sw);
+        s.m.body.position.y = bob; s.m.head.rotation.z = -s.graze * 0.75; s.m.head.position.y = (CFG3.SHEEP[s.t].alpaca ? 1.18 : 0.7) - s.graze * (CFG3.SHEEP[s.t].alpaca ? 0.15 : 0.12);
+        const full = (s.c || 0) >= 1; s.m.mark.visible = full; if (full) s.m.mark.material.opacity = 0.6 + Math.sin(t * 4 + i) * 0.4; s.m.body.children[0].scale.setScalar(0.92 + 0.12 * Math.min(1, (s.c || 0) / CFG3.RANCH.woolMax)); }
+      else { const I = RANCH3.inst[s.t]; if (I) { const fl = 0.85 * (0.92 + 0.12 * Math.min(1, (s.c || 0) / CFG3.RANCH.woolMax)), al = CFG3.SHEEP[s.t].alpaca;
+        d3.position.set(p.x, bob, p.z); d3.rotation.set(0, s.ry, 0); d3.scale.setScalar(fl); d3.updateMatrix(); I.body.setMatrixAt(s.ii, d3.matrix);
+        const hx = (al ? 0.46 : 0.45) * 0.85, hy = ((al ? 1.18 : 0.68) - s.graze * 0.25) * 0.85; d3.position.set(p.x + Math.cos(s.ry) * hx, hy + bob, p.z - Math.sin(s.ry) * hx); d3.scale.setScalar(0.85); d3.updateMatrix(); I.head.setMatrixAt(s.ii, d3.matrix); used[s.t] = 1; } }
     });
+    Object.values(RANCH3.inst).forEach(I => { I.body.instanceMatrix.needsUpdate = true; I.head.instanceMatrix.needsUpdate = true; });
   }
+  const wrapA0 = a => Math.atan2(Math.sin(a), Math.cos(a));
   function herdDogPos() { const d = anim.dogs.find(x => x.kind === RANCH3.herd.dog && x.g.visible) || anim.dogs.find(x => x.g.visible); return d ? d.g.position : null; }
   function spawnSplash(x, z) { for (let k = 0; k < 6; k++) spawn('drop', v3(x, 0.08, z), v3(rv(-0.8, 0.8), rv(1.2, 2.2), rv(-0.8, 0.8)), 0.6, 0.14, -7); }
-  function pondSplash() { spawnSplash(POND.x + rv(-1.5, 1.5), POND.z + rv(-1, 1)); }
-  function nearZone() { if (viewMode !== 'walk') return ''; const px = HERO.pos.x, pz = HERO.pos.z; if (Math.hypot((px - POND.x) / 1.25, pz - POND.z) < 4.4) return 'pond'; if (px > PAST.x0 - 1.2 && px < PAST.x1 + 0.5 && pz > PAST.z0 - 0.5 && pz < PAST.z1 + 0.5) return 'pasture'; return ''; }
+  function pondSplash() { const [x, z] = PONDS[Math.floor(Math.random() * RANCH3.ponds)]; spawnSplash(x + rv(-1.5, 1.5), z + rv(-1, 1)); }
+  function nearZone() { if (viewMode !== 'walk') return ''; const px = HERO.pos.x, pz = HERO.pos.z;
+    for (let i = 0; i < RANCH3.ponds; i++) { const [x, z] = PONDS[i]; if (Math.hypot((px - x) / 1.25, pz - z) < 4.4) return 'pond'; }
+    if (px > PAST.x0 - 1.2 && px < PAST.x1 + 0.5 && pz > PAST.z0 - 0.5 && pz < PAST.z1 + 0.5) return 'pasture';
+    if (px > ORCH.x0 - 0.5 && px < ORCH.x1 + 1.5 && pz > ORCH.z0 - 0.5 && pz < ORCH.z1 + 0.5) return 'orchard'; return ''; }
   /* ---------------- 特效 ---------------- */
   const parts = []; let FXT = {}; const floats = []; let fxLayer;
   function spawn(kind, pos, vel, life, size, grav, spin) { const s = new T.Sprite(new T.SpriteMaterial({ map: FXT[kind], transparent: true, depthWrite: false, blending: kind === 'star' ? T.AdditiveBlending : T.NormalBlending })); s.position.copy(pos); s.scale.setScalar(size); s.renderOrder = 20; scene.add(s); parts.push({ s, v: vel, t: 0, life, g: grav, size, spin: spin || 0 }); }
@@ -2802,8 +2908,8 @@ const W3 = (() => {
   /* ---------------- 初始化 ---------------- */
   const CAM_LAND = v3(1, 0.98, 1.05).normalize(), CAM_PORT = v3(1, 1.3, 0.2).normalize(); let CAM_DIR = CAM_LAND.clone(), target = v3(0, 0, 0.4), camDist = 30;
   function fit() {
-    const pts = []; [-7.6, 7.6].forEach(x => [-5.6, 5.6].forEach(z => [0, 1.4].forEach(y => pts.push(v3(x, y, z)))));
-    CAM_DIR = (H > W * 1.15 ? CAM_PORT : CAM_LAND).clone(); target.set(0, 0, H > W * 1.15 ? 0 : 0.4);
+    const [fx0, fz0] = fieldC(ACTF), pts = []; [-7.6, 7.6].forEach(x => [-5.6, 5.6].forEach(z => [0, 1.4].forEach(y => pts.push(v3(x + fx0, y, z + fz0)))));
+    CAM_DIR = (H > W * 1.15 ? CAM_PORT : CAM_LAND).clone(); target.set(fx0, 0, fz0 + (H > W * 1.15 ? 0 : 0.4));
     const sl = safe.l, sr = W - safe.r, st = safe.t, sb = H - safe.b, scx = (sl + sr) / 2, scy = (st + sb) / 2;
     cam.aspect = W / H; cam.clearViewOffset(); cam.setViewOffset(W, H, W / 2 - scx, H / 2 - scy, W, H);
     let lo = 10, hi = 140;
@@ -2927,13 +3033,13 @@ const W3 = (() => {
     const was = HERO.g; HERO.g = buildHero(look); HERO.g.visible = true; if (was) { scene.remove(was); } scene.add(HERO.g);
   }
   function resetHero() { HERO.pos.set(0, 0, 8.6); HERO.y = 0; HERO.vy = 0; HERO.face = Math.PI; camYaw = 0; camFocus.set(0, 1, 8.6); }
-  function groundAt(x, z) { for (let i = 0; i < 24; i++) { const [px, pz] = plotXZ(i); if (Math.abs(x - px) < PLOT / 2 - 0.04 && Math.abs(z - pz) < PLOT / 2 - 0.04) return BED_H; } return 0; }
+  function groundAt(x, z) { const f = fieldAtXZ(x, z); if (f < 0 || f * 24 >= plots.length || !plots[f * 24].node.visible) return 0; for (let i = f * 24; i < f * 24 + 24; i++) { const [px, pz] = plotXZ(i); if (Math.abs(x - px) < PLOT / 2 - 0.04 && Math.abs(z - pz) < PLOT / 2 - 0.04) return BED_H; } return 0; }
   function collide(p, y) {
     const R0 = 0.32;
     OBST.forEach(([ox, oz, r]) => { const dx = p.x - ox, dz = p.z - oz, d = Math.hypot(dx, dz), m = r + R0; if (d < m && d > 1e-4) { p.x = ox + dx / d * m; p.z = oz + dz / d * m; } });
-    { const dx = (p.x + 5.5) / 1.25, dz = p.z - 13.5, d = Math.hypot(dx, dz); if (d < 3.3) { const k = 3.3 / Math.max(d, 1e-4); p.x = -5.5 + dx * k * 1.25; p.z = 13.5 + dz * k; } } // 池塘
-    if (y < 0.8) FENCE.forEach(([x0, z0, x1, z1]) => { const vx = x1 - x0, vz = z1 - z0, L2 = vx * vx + vz * vz, t = Math.max(0, Math.min(1, ((p.x - x0) * vx + (p.z - z0) * vz) / L2)), cx = x0 + vx * t, cz = z0 + vz * t, dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz); if (d < 0.28) { const nx = d > 1e-4 ? dx / d : -vz / Math.sqrt(L2), nz = d > 1e-4 ? dz / d : vx / Math.sqrt(L2); p.x = cx + nx * 0.28; p.z = cz + nz * 0.28; } });
-    const rr = Math.hypot(p.x, p.z); if (rr > 34) { p.x *= 34 / rr; p.z *= 34 / rr; }
+    for (let i = 0; i < RANCH3.ponds; i++) { const [ox, oz] = PONDS[i], dx = (p.x - ox) / 1.25, dz = p.z - oz, d = Math.hypot(dx, dz); if (d < 3.3) { const k = 3.3 / Math.max(d, 1e-4); p.x = ox + dx * k * 1.25; p.z = oz + dz * k; } } // 池塘
+    if (y < 0.8) FENCE.concat(PFENCE).forEach(([x0, z0, x1, z1]) => { const vx = x1 - x0, vz = z1 - z0, L2 = vx * vx + vz * vz, t = Math.max(0, Math.min(1, ((p.x - x0) * vx + (p.z - z0) * vz) / L2)), cx = x0 + vx * t, cz = z0 + vz * t, dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz); if (d < 0.28) { const nx = d > 1e-4 ? dx / d : -vz / Math.sqrt(L2), nz = d > 1e-4 ? dz / d : vx / Math.sqrt(L2); p.x = cx + nx * 0.28; p.z = cz + nz * 0.28; } });
+    p.x = Math.max(-68, Math.min(58, p.x)); p.z = Math.max(-92, Math.min(50, p.z)); // 世界边界
   }
   function updateHero(dt) {
     if (!HERO.g) return; const P = HERO.p;
@@ -2968,7 +3074,8 @@ const W3 = (() => {
     P.ring.material.opacity = 0.35 + Math.sin(tNow * 3) * 0.15; P.ring.position.y = gY - HERO.y + 0.02;
     // 附近的地块（优先面前的）
     let best = -1, bd = 1e9; const fx = Math.sin(HERO.face), fz = Math.cos(HERO.face);
-    for (let i = 0; i < 24; i++) { const [px, pz] = plotXZ(i), dx = px - HERO.pos.x, dz = pz - HERO.pos.z, d = Math.hypot(dx, dz); if (d > 1.9) continue; const sc = d - (d > 0.05 ? (dx * fx + dz * fz) / d * 0.5 : 0.5); if (sc < bd) { bd = sc; best = i; } }
+    const hf = fieldAtXZ(HERO.pos.x, HERO.pos.z); if (hf >= 0 && hf !== ACTF && hf * 24 < plots.length) ACTF = hf; // 走进哪片田，哪片田就用精细模型
+    if (hf >= 0 && hf * 24 < plots.length && plots[hf * 24].node.visible) for (let i = hf * 24; i < hf * 24 + 24; i++) { const [px, pz] = plotXZ(i), dx = px - HERO.pos.x, dz = pz - HERO.pos.z, d = Math.hypot(dx, dz); if (d > 1.9) continue; const sc = d - (d > 0.05 ? (dx * fx + dz * fz) / d * 0.5 : 0.5); if (sc < bd) { bd = sc; best = i; } }
     nearIdx = best;
     let nd = -1, ndd = 1.7; anim.dogs.forEach((dg, k) => { if (!dg.g.visible) return; const d = Math.hypot(dg.g.position.x - HERO.pos.x, dg.g.position.z - HERO.pos.z); if (d < ndd) { ndd = d; nd = k; } }); nearDog = nd;
   }
@@ -2992,7 +3099,7 @@ const W3 = (() => {
     R = new T.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
     R.outputEncoding = T.sRGBEncoding; R.toneMapping = T.ACESFilmicToneMapping; R.toneMappingExposure = 1.05; R.shadowMap.enabled = true; R.shadowMap.type = T.PCFSoftShadowMap;
     scene = new T.Scene(); cam = new T.PerspectiveCamera(30, 1, 1, 900);
-    scene.fog = new T.Fog(new T.Color('#cfe8ff'), 70, 230);
+    scene.fog = new T.Fog(new T.Color('#cfe8ff'), 90, 300);
     buildTextures();
     FXT = { coin: coinTex(), star: starTex(), drop: dropTex(), leaf: leafSpriteTex('#5cb83c'), soil: leafSpriteTex('#7a5232'), puff: glowTex('rgba(255,255,255,0.85)', 1), heart: heartTex() };
     fxLayer = document.getElementById('fx3d');
@@ -3019,17 +3126,17 @@ const W3 = (() => {
     OBST.length = 0; OBST.push([-13, -2.5, 3.3], [3.5, -15, 1.9], [11.2, -3.8, 0.9], [-10.5, 6.5, 0.35]);
     const house = buildHouse(); house.position.set(-13, 0, -2.5); house.rotation.y = 0.15; scene.add(house); doorLamp.position.set(-13 + 0.6, 2.8, -2.5 + 2.6);
     const wmill = buildWindmill(); wmill.position.set(3.5, 0, -15); wmill.rotation.y = -0.2; scene.add(wmill);
-    scene.add(buildPond(-5.5, 13.5)); scene.add(pondHit()); scene.add(buildPasture()); RANCH3.ready = true;
+    scene.add(buildPond(-5.5, 13.5)); scene.add(pondHit()); setPastureLv(1); buildOrchard(); RANCH3.ready = true;
     const scare = buildScarecrow(); scare.position.set(-10.5, 0, 6.5); scene.add(scare);
     const dh = buildDoghouse(); dh.position.set(11.2, 0, -3.8); dh.rotation.y = -0.6; scene.add(dh);
     { const hk = new T.Mesh(new T.BoxGeometry(1.8, 1.6, 1.8), new T.MeshBasicMaterial({ visible: false })); hk.position.set(11.2, 0.8, -3.8); hk.userData.idx = -10; scene.add(hk); hitBoxes.push(hk); } // 点狗窝：领养 / 喂狗
     // 狗狗模型计算量较大：画面出来后再生成，避免打开游戏时卡顿
     setTimeout(() => { const dog = buildDog('fuwang'); dog.position.set(10.4, 0, 1.2); dog.rotation.y = -2.9; dog.visible = false; scene.add(dog);
       setTimeout(() => { const dog2 = buildDog('ruibao'); dog2.position.set(10.6, 0, -1.4); dog2.rotation.y = -2.6; dog2.visible = false; scene.add(dog2); }, 60); }, 400);
-    [[-17, -10, 1.2, '#4f9a3a', 1], [-20, 2, 1.1, '#5aa840', 0], [-9, -14, 1.0, '#4a9238', 1], [12, -13, 1.25, '#4f9a3a', 0], [17, -6, 1.05, '#5aa840', 1], [24, 4, 1.2, '#4a9238', 0], [17, 15, 1.0, '#5aa840', 1], [-24, 16, 1.15, '#4f9a3a', 0], [9, 22, 0.9, '#5aa840', 0], [-24, -5, 1.3, '#467f36', 0], [24, 0, 1.25, '#467f36', 1], [-2, -20, 1.2, '#4f9a3a', 0], [26, 18, 1.1, '#4a9238', 0]].forEach(([x, z, s, c, ap]) => { scene.add(tree(x, z, s, c, ap)); OBST.push([x, z, 0.55 * s]); });
+    [[-17, -10, 1.2, '#4f9a3a', 1], [-20, 2, 1.1, '#5aa840', 0], [-9, -14, 1.0, '#4a9238', 1], [12, -13, 1.25, '#4f9a3a', 0], [17, -6, 1.05, '#5aa840', 1], [24, 4, 1.2, '#4a9238', 0], [30, -12, 1.0, '#5aa840', 1], [-40, 22, 1.15, '#4f9a3a', 0], [9, 22, 0.9, '#5aa840', 0], [-24, -5, 1.3, '#467f36', 0], [24, 0, 1.25, '#467f36', 1], [-2, -20, 1.2, '#4f9a3a', 0], [-44, -24, 1.1, '#4a9238', 0]].forEach(([x, z, s, c, ap]) => { scene.add(tree(x, z, s, c, ap)); OBST.push([x, z, 0.55 * s]); });
     [[-9.6, -6.5, 0.9], [9.4, 7.2, 1], [-15.5, 3.5, 0.8], [14, 3, 0.9], [7, -8, 0.7], [-7, -8.2, 0.8], [3.4, 9.8, 0.6], [15, -10, 1]].forEach(([x, z, s]) => { scene.add(bushAt(x, z, s, '#4f9a3a')); OBST.push([x, z, 0.75 * s]); });
     [[-9.2, 9.8, 0.5], [9.2, 13.2, 0.4], [-2.2, 10.8, 0.3], [14.5, -1, 0.35], [-16, -6, 0.45], [6, 11, 0.3]].forEach(([x, z, s]) => { scene.add(rock(x, z, s)); OBST.push([x, z, 1.1 * s]); });
-    const avoid = (x, z) => (Math.abs(x) < 8.6 && Math.abs(z) < 6.4) || (Math.hypot((x + 5.5) / 1.25, z - 13.5) < 3.8) || (Math.abs(x + 13) < 3.2 && Math.abs(z + 2.5) < 2.8) || Math.hypot(x - 3.5, z + 15) < 2 || (x > 9.9 && x < 16.9 && z > 6.7 && z < 12.5);
+    const avoid = (x, z) => (Math.abs(x) < 8.6 && Math.abs(z) < 6.4) || (Math.hypot((x + 5.5) / 1.25, z - 13.5) < 3.8) || (Math.abs(x + 13) < 3.2 && Math.abs(z + 2.5) < 2.8) || Math.hypot(x - 3.5, z + 15) < 2 || (x > 9.9 && z > 6.7) || PONDS.some(([px, pz]) => Math.hypot((x - px) / 1.25, z - pz) < 3.8) || z < -25.5;
     grassMesh = grassField(window.innerWidth < 820 ? 5000 : 11000, avoid); scene.add(grassMesh); scene.add(flowers(420, avoid)); scene.add(hills());
     for (let i = 0; i < 4; i++) { const c = buildChicken(); c.position.set([-6, 7, -2, -11][i], 0, [8.2, -8, -9.5, -6.5][i]); scene.add(c); anim.chickens.push({ m: c, tx: c.position.x, tz: c.position.z, pk: 0, home: c.position.clone() }); }
     ['#ff9ac8', '#ffe066', '#9ad8ff'].forEach((c, i) => { const b = buildButterfly(c); scene.add(b.g); anim.butterflies.push(Object.assign(b, { ph: i * 2.1 })); });
@@ -3045,12 +3152,12 @@ const W3 = (() => {
 
   /* ---------------- 每帧更新 ---------------- */
   let curView = { plots: [], home: true }, envState = { hour: 12, rain: 0 }, dogMode = ['none', 'none'];
-  function setPlots(list, home) { curView = { plots: list, home }; const nx = home ? CFG3.UNLOCK_ORDER.find(u => list[u] && !list[u].u) : -1; list.forEach((P, i) => { const o = { mine: !home && P.mine, next: i === nx }; const k = plotKey(P, o); if (plots[i].key !== k) { plots[i].key = k; rebuildPlot(i, P, o); } }); }
+  function setPlots(list, home) { curView = { plots: list, home }; ensurePlots(list.length); plots.forEach((pl, i) => { pl.node.visible = i < list.length; }); fieldDeco.forEach((g, k) => { g.visible = (k + 1) * 24 < list.length; }); const nx = home ? CFG3.UNLOCK_ORDER.find(u => list[u] && !list[u].u) : -1; list.forEach((P, i) => { const f = Math.floor(i / 24), o = { mine: !home && P.mine, next: i === nx, lite: f !== 0 && f !== ACTF }; const k = plotKey(P, o); if (plots[i].key !== k) { plots[i].key = k; rebuildPlot(i, P, o); } }); }
   function setHover(i) { hoverIdx = i; }
   function setDog(mode) { dogMode = Array.isArray(mode) ? mode : [mode, 'none']; }
   function setEnv(h, rain) { envState.hour = h; envState.rain = rain; }
   const ray = new T.Raycaster(), ndc = new T.Vector2();
-  function pick(cx, cy) { if (!ready) return -1; const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); const h = ray.intersectObjects(hitBoxes, false).filter(x => !x.object.userData.dog || x.object.userData.dog.g.visible); return h.length ? h[0].object.userData.idx : -1; }
+  function pick(cx, cy) { if (!ready) return -1; const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); const h = ray.intersectObjects(hitBoxes, false).filter(x => (!x.object.userData.dog || x.object.userData.dog.g.visible) && (!x.object.parent || x.object.parent.visible !== false)); return h.length ? h[0].object.userData.idx : -1; }
   function nearKennel() { return viewMode === 'walk' && Math.hypot(HERO.pos.x - 11.2, HERO.pos.z + 3.8) < 2.4; }
   function screenOf(i, y) { const v = P0(i, y || 0.6).project(cam); return { x: (v.x * 0.5 + 0.5) * W, y: (-v.y * 0.5 + 0.5) * H }; }
   let simK = 1; const GAITS_REF = {}; // 调试用：加快动画时间
@@ -3173,7 +3280,7 @@ const W3 = (() => {
     return ICONS[key];
   }
   function zoomBy(f) { if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * f)); return; } zoom = Math.max(0.6, Math.min(1.3, zoom * f)); applyCam(); }
-  return { zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, pondSplash, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
+  return { zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, pondSplash, setField: f => { ACTF = Math.max(0, f | 0); if (viewMode !== 'walk') fit(); }, get field() { return ACTF; }, fieldCenter: fieldC, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
 })();
 
 'use strict';
@@ -3211,7 +3318,7 @@ const AVO = CFG.AVATAR_OPTS;
 function avStyle(av) { av = av || {}; const bg = AVO.bg[av.bg || 0] || AVO.bg[0]; const hat = av.hat === undefined ? 1 : av.hat; return { skin: AVO.skin[av.skin || 0], hair: hat ? undefined : AVO.hair[av.hair || 0], hat, fringe: hat ? 0 : (av.fringe === undefined ? 1 : av.fringe), pig: !hat && av.pig, band: AVO.band[av.band || 0], shirt: AVO.shirt[av.shirt || 0], bg1: bg[0], bg2: bg[1] }; }
 const frameColor = id => (CFG.FRAMES.find(f => f.id === id) || {}).color || '';
 const themeOf = id => (CFG.THEMES.find(t => t.id === id) || CFG.THEMES[0]).th;
-const unlockedCount = () => S ? S.plots.filter(p => p.u).length : RULES.startPlots;
+const unlockedCount = () => S ? S.plots.filter(p => p.u && p.idx < CFG.NPLOTS).length : RULES.startPlots;
 const isFriend = id => FR.list.some(f => f.id === id);
 
 /* ============ 音效 ============ */
@@ -3402,11 +3509,11 @@ async function visit(f) {
   if (!f) return; closeModal(); $('tip').style.display = 'none';
   try {
     const r = await NET.get('/api/farm/' + f.id);
-    view = { key: 'f' + f.id, friend: r.farm.owner, plots: r.farm.plots, farm: r.farm }; tool = 'auto'; hoverIdx = -1; sfx('open'); syncSide(r.farm); W3.resetHero();
+    view = { key: 'f' + f.id, friend: r.farm.owner, plots: r.farm.plots, farm: r.farm }; tool = 'auto'; hoverIdx = -1; sfx('open'); syncSide(r.farm); W3.resetHero(); W3.setField(0);
     renderToolbar(); renderTitle(); renderFriends(); toast(`来到了 ${f.name} 的农场`); refreshState();
   } catch (e) { toast(e.message, 'warn'); }
 }
-function goHome() { if (!S) return; W3.resetHero(); view = { key: 'home', friend: null, plots: S.plots, farm: null }; hoverIdx = -1; sfx('open'); renderToolbar(); renderTitle(); renderFriends(); refreshState(); }
+function goHome() { if (!S) return; W3.resetHero(); W3.setField(0); view = { key: 'home', friend: null, plots: S.plots, farm: null }; hoverIdx = -1; sfx('open'); renderToolbar(); renderTitle(); renderFriends(); refreshState(); }
 function stealFx(x) {
   if (x.blocked) { const who = x.dogs && x.dogs.length ? x.dogs.join('和') : '狗'; dogBarkUntil = Date.now() + 2500; sfx('bark'); FX.text(x.idx, x.bite ? `被${who}咬了 -${x.bite}金币` : `被${who}赶走了`, '#ff9a8a', 20); return; }
   FX.stars(x.idx, x.crit ? 18 : 8); FX.text(x.idx, `${x.crit ? '手气爆棚！' : ''}${CROPS[x.crop].name} ×${x.qty}`, x.crit ? '#ffd23a' : '#fff2c4', x.crit ? 24 : 22);
@@ -3458,9 +3565,13 @@ function renderHud() {
   drawAvatar($('avatar'), avStyle(me.avatar)); const fc = frameColor(me.frame); $('avatar').style.boxShadow = fc ? `0 0 0 2px ${fc}, 0 0 10px ${fc}` : '';
   $('btn-snd').innerHTML = ICON(PREF.sound ? 'sound' : 'mute');
 }
+// 切换到某片田：俯视时镜头移过去；漫游时人物走过去太远，直接传送到那片田边
+function setField(f) { const nf = Math.ceil((view.plots || []).length / CFG.NPLOTS); f = Math.max(0, Math.min(nf - 1, f | 0)); W3.setField(f); if (W3.mode === 'walk') { const [x, z] = W3.fieldCenter(f); W3.teleport(x, z + 6.2, 0); } renderTitle(); }
 function renderTitle() {
-  if (view.key === 'home') $('title').innerHTML = S ? `<span>${esc(S.me.name)}的农场</span>` : '<span>丰收农场</span>';
-  else $('title').innerHTML = `<span>${esc(view.friend.name)}的农场</span><small>Lv.${view.friend.lv}${view.friend.title ? ' · ' + esc(view.friend.title) : ''}${(view.friend.dogs || []).length ? ' · ' + view.friend.dogs.map(d => d.name + (d.fed ? '看家中' : '在睡觉')).join('，') : ''}</small>`;
+  const nf = Math.ceil((view.plots || []).length / CFG.NPLOTS), fnav = nf > 1 ? `<em class="fnav"><b data-f="-1">‹</b>第${W3.field + 1}/${nf}片田<b data-f="1">›</b></em>` : '';
+  if (view.key === 'home') $('title').innerHTML = S ? `<span>${esc(S.me.name)}的农场</span>${fnav}` : '<span>丰收农场</span>';
+  else $('title').innerHTML = `<span>${esc(view.friend.name)}的农场</span>${fnav}<small>Lv.${view.friend.lv}${view.friend.title ? ' · ' + esc(view.friend.title) : ''}${(view.friend.dogs || []).length ? ' · ' + view.friend.dogs.map(d => d.name + (d.fed ? '看家中' : '在睡觉')).join('，') : ''}</small>`;
+  $('title').querySelectorAll('[data-f]').forEach(b => b.onclick = e => { e.stopPropagation(); ac(); sfx('click'); setField((W3.field + +b.dataset.f + nf) % nf); });
   $('todbtn').innerHTML = ICON(({ auto: 'cloudsun', day: 'sun', dusk: 'sunset', night: 'moon' })[PREF.tod] || 'cloudsun');
 }
 function renderToolbar() {
@@ -3487,7 +3598,7 @@ function toolbarClick(id) {
   m[id] && m[id]();
 }
 // 牧场角标：可以收的鱼 + 可以剪毛的羊
-function ranchBadge() { const R = S && S.me.ranch; if (!R) return 0; const now = NET.now(); return R.fish.filter(f => fishLeftC(f, now) <= 0).length + R.sheep.filter(s => sheepCyclesC(s, now, R) >= 1).length; }
+function ranchBadge() { const R = S && S.me.ranch; if (!R) return 0; const now = NET.now(); return (R.fish.some(f => fishLeftC(f, now) <= 0) ? 1 : 0) + (R.sheep.some(s => sheepCyclesC(s, now, R) >= 1 || s.pend) ? 1 : 0) + ((R.trees || []).some(r => CFG.treeCycles(r, now) >= 1) ? 1 : 0); }
 const fishLeftC = (f, now) => CFG.fishLeft(f, now), sheepCyclesC = (s, now, R) => CFG.sheepCycles(s, now, R.herd);
 function renderSide() {
   if (!S) return; const b = S.badges;
@@ -3543,12 +3654,21 @@ function curHour() { const m = { day: 12.5, dusk: 18.4, night: 22.5 }; if (m[PRE
 // 两只狗各自的状态：none 没养 / sleep 饿着在睡觉 / guard 看家 / bark 正在叫
 function ranchOfView() { return view.key === 'home' ? S && S.me.ranch : view.friend && view.friend.ranch; }
 // 传给 3D 场景的鱼和羊（每帧）
-function ranch3d() { const R = ranchOfView(); if (!R) return { fish: [], sheep: [], herd: { on: false } }; const now = NET.now();
-  return { fish: R.fish.map(f => { const d = CFG.FISH[f.t], left = CFG.fishLeft(f, now); return { t: f.t, k: d ? 1 - left / d.time : 1, ripe: left <= 0 }; }), sheep: R.sheep.map(s => ({ t: s.t, c: s.last ? CFG.sheepCycles(s, now, R.herd) : (s.cycles || 0) })), herd: { on: R.herd && R.herd.until > now, dog: R.herd && R.herd.dog } }; }
+// 3D 场景里画出来的数量有上限（鱼每个池塘最多 24 条、羊最多 360 只、果树最多 160 棵），按比例展开各个批次
+function expand(list, total, max, fn) { const out = []; if (!total) return out; const k = Math.min(1, max / total); list.forEach(x => { let m = Math.round(x.n * k); if (x.n > 0 && m < 1) m = 1; for (let i = 0; i < m && out.length < max; i++) out.push(fn(x)); }); return out; }
+let R3 = { key: '', v: null };
+function ranch3d() { const R = ranchOfView(); if (!R) return { fish: [], sheep: [], trees: [], herd: { on: false }, lv: {} }; const now = NET.now(), tick = Math.floor(now / 1000);
+  if (R3.r === R && R3.tick === tick) return R3.v; // 每秒重算一次
+  const ponds = 1 + Math.floor(((R.pondLv || 1) - 1) / 10), lvs = { pond: R.pondLv || 1, pasture: R.pastLv || 1, orchard: R.orchLv || 1, ponds: Math.min(6, ponds) };
+  const v = { lv: lvs, fish: expand(R.fish, R.fishN !== undefined ? R.fishN : R.fish.length, 24 * lvs.ponds, f => { const d = CFG.FISH[f.t], left = CFG.fishLeft(f, now); return { t: f.t, k: d ? 1 - left / d.time : 1, ripe: left <= 0 }; }),
+    sheep: expand(R.sheep, R.sheepN !== undefined ? R.sheepN : R.sheep.length, 360, s => ({ t: s.t, c: s.last ? CFG.sheepCycles(s, now, R.herd) : (s.cycles || 0) })),
+    trees: expand(R.trees || [], R.treeN || 0, 160, r => { const d = CFG.TREES[r.t], g = CFG.treeGrowLeft(r, now); return { t: r.t, k: d ? 1 - g / d.grow : 1, c: CFG.treeCycles(r, now) }; }),
+    herd: { on: R.herd && R.herd.until > now, dog: R.herd && R.herd.dog } };
+  R3 = { r: R, tick, v }; return v; }
 function dogMode() {
   const bark = Date.now() < dogBarkUntil;
   const dogs = view.key === 'home' ? (S && S.me.dogs || []).map(d => ({ id: d.id, own: d.own, fed: d.until > NET.now() })) : ((view.friend && view.friend.dogs) || []).map(d => ({ id: d.id, own: true, fed: d.fed }));
-  const R = ranchOfView(), herdOn = R && R.herd && R.herd.until > NET.now() && R.sheep.length;
+  const R = ranchOfView(), herdOn = R && R.herd && R.herd.until > NET.now() && (R.sheepN || R.sheep.length);
   return CFG.DOGS.map(def => { const d = dogs.find(x => x.id === def.id); return !d || !d.own ? 'none' : !d.fed ? 'sleep' : herdOn && R.herd.dog === def.id ? 'herd' : bark ? 'bark' : 'guard'; });
 }
 let lastT = performance.now(), rainK = 0, wasRain = false;
@@ -3584,14 +3704,14 @@ const DOG_PET_LINES = { fuwang: ['福旺开心地蹭蹭你', '福旺：汪！再
 // 点到场景里的特殊物体：狗窝 → 宠物商店（自己家）；狗 → 摸摸头
 function pickSpecial(i) {
   ac();
-  if (i === -30 || i === -31) { if (view.key === 'home') { sfx('open'); openRanch(i === -30 ? 'pond' : 'pasture'); } else toast(i === -30 ? '这是好友家的鱼塘' : '这是好友家的羊圈'); return; }
+  if (i === -30 || i === -31 || i === -32) { const tb = i === -30 ? 'pond' : i === -31 ? 'pasture' : 'orchard'; if (view.key === 'home') { sfx('open'); openRanch(tb); } else toast(`这是好友家的${({ pond: '鱼塘', pasture: '牧场', orchard: '果园' })[tb]}`); return; }
   if (i === -10) { if (view.key === 'home') { sfx('open'); openShop('dog'); } else toast('这是好友家的狗窝'); return; }
   const k = -20 - i, d = CFG.DOGS[k]; if (d && W3.petDog(k)) { sfx('bark'); const L = DOG_PET_LINES[d.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); }
 }
 function petAction() { const k = W3.nearDog; if (k < 0) return null; const d = CFG.DOGS[k]; return d ? { k, label: `摸摸${d.name}`, id: d.id } : null; }
-function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } if (!petAction() && W3.nearKennel() && view.key === 'home') { ac(); sfx('open'); openShop('dog'); return; } if (!petAction() && W3.nearZone() && view.key === 'home') { ac(); sfx('open'); openRanch(W3.nearZone() === 'pond' ? 'pond' : 'pasture'); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); } }
+function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } if (!petAction() && W3.nearKennel() && view.key === 'home') { ac(); sfx('open'); openShop('dog'); return; } if (!petAction() && W3.nearZone() && view.key === 'home') { ac(); sfx('open'); openRanch(W3.nearZone()); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); } }
 function updateWalkUi() {
-  if (W3.mode !== 'walk') return; const i = W3.near, pa = petAction(), a = actionOf(i) || (pa ? pa.label : '') || (W3.nearKennel() && view.key === 'home' ? (S.me.dogs || []).some(d => d.own) ? '宠物商店' : '领养狗狗' : '') || (view.key === 'home' && W3.nearZone() ? W3.nearZone() === 'pond' ? '打开鱼塘' : '打开羊圈' : ''), el = $('actbtn'), pr = $('actprompt');
+  if (W3.mode !== 'walk') return; const i = W3.near, pa = petAction(), a = actionOf(i) || (pa ? pa.label : '') || (W3.nearKennel() && view.key === 'home' ? (S.me.dogs || []).some(d => d.own) ? '宠物商店' : '领养狗狗' : '') || (view.key === 'home' && W3.nearZone() ? ({ pond: '打开鱼塘', pasture: '打开牧场', orchard: '打开果园' })[W3.nearZone()] : ''), el = $('actbtn'), pr = $('actprompt');
   el.classList.toggle('ready', !!a); el.querySelector('span').textContent = a || '操作';
   pr.style.display = a && !window.matchMedia('(pointer: coarse)').matches ? 'block' : 'none'; if (a) pr.innerHTML = `<kbd>F</kbd> ${esc(a)}`;
 }
@@ -3872,7 +3992,9 @@ function openShop(tab) {
     const tiers = CFG.SOILS.slice(1).map(T => { const have = S.plots.filter(p => p.u && (p.soil | 0) >= T.id).length, cost = CFG.soilCost(T.id, have), lock = S.me.lv < T.lv;
       return `<div class="row-item"><div class="ri-ic"><span class="ii emo soil${T.id}">${ICON('sparkle')}</span></div><div class="ri-main"><b>${T.name}</b><small>生长速度 +${Math.round((T.speed - 1) * 100)}%，产量 +${Math.round((T.yield - 1) * 100)}% · 需要 Lv.${T.lv}${T.id > 1 ? ` · 由${CFG.SOILS[T.id - 1].name}升级` : ' · 由普通土地升级'} · 已有 ${have} 块</small></div><div class="price">${G(cost)}</div><button class="btn sm primary" data-soil="${T.id}" ${lock ? 'disabled' : ''}>${lock ? `Lv.${T.lv}` : '选择土地'}</button></div>`; }).join('');
     body = `<div class="row-item"><div class="ri-ic"><span class="ii emo">${ICON('grid')}</span></div><div class="ri-main"><b>开垦荒地</b><small>已开垦 ${owned}/${CFG.NPLOTS} 块 · 需要 Lv.${CFG.plotNeedLv(owned)}（也可以直接点农场里的荒地）</small></div><div class="price">${can ? G(CFG.plotCost(owned)) : '—'}</div><button class="btn sm primary" id="buyland" ${can ? '' : 'disabled'}>开垦</button></div>
-    <p class="fine">土地可以一级一级升级：普通土地 → 红土地 → 黑土地 → 金土地。选好等级后点击农场里要升级的那块地。</p>${tiers}`;
+    ${(() => { const nf = Math.ceil(S.plots.length / CFG.NPLOTS), f = nf, mx = f >= CFG.FIELDS_MAX, need = CFG.fieldNeedLv(f), cost = CFG.fieldCost(f), first = S.plots.filter(p => p.idx < CFG.NPLOTS && p.u).length < CFG.NPLOTS, ok = !mx && !first && S.me.lv >= need && S.me.gold >= cost;
+      return `<div class="row-item"><div class="ri-ic"><span class="ii emo">${ICON('grid')}</span></div><div class="ri-main"><b>开辟新农田（${nf}/${CFG.FIELDS_MAX} 片，共 ${S.plots.length} 块地）</b><small>${mx ? '农田已经全部开辟' : `第 ${f + 1} 片田一次开好 24 块地 · 需要 Lv.${need}${first ? ' · 先把中间这片 24 块全部开垦' : ''}`}</small></div><div class="price">${mx ? '—' : G(cost)}</div><button class="btn sm primary" id="buyfield" ${ok ? '' : 'disabled'}>${mx ? '已满' : first ? '先开垦' : S.me.lv < need ? 'Lv.' + need : '开辟'}</button></div>`; })()}
+    <p class="fine">土地可以一级一级升级：普通土地 → 红土地 → 黑土地 → 金土地。选好等级后点击农场里要升级的那块地。一键收获、种植、护理、催熟对所有农田都有效。</p>${tiers}`;
   } else {
     body = (S.me.dogs || []).map(d => { const def = CFG.DOGS.find(x => x.id === d.id), lock = !d.own && S.me.lv < def.lv;
       return `<div class="row-item"><div class="ri-ic dogpic">${(() => { const u = W3.dogPortrait(d.id); return u ? `<img src="${u}" alt="${d.name}">` : `<span class="ii emo dog-${d.id}">${ICON('paw')}</span>`; })()}</div><div class="ri-main"><b>${d.name}${d.own ? ` Lv.${d.lv}` : ''}</b><small>${def.desc}。喂饱后看家，拦截率 ${Math.round(d.chance * 100)}%（喂得越多等级越高、拦截率越高）${lock ? ` · 需要 Lv.${def.lv}` : ''}</small></div><div class="price">${d.own ? '' : G(def.price)}</div><button class="btn sm primary" data-dog="${d.id}" ${d.own || lock ? 'disabled' : ''}>${d.own ? '已领养' : lock ? `Lv.${def.lv}` : '领养'}</button></div>`; }).join('') + `<p class="fine">也可以直接点农场右边的红色狗窝打开这里；漫游模式走到狗窝旁按操作键也行。两只狗可以都养。喂饱的狗会各自判定能不能抓住来摘菜的人，两只一起抓住时两口都要咬。</p>`;
@@ -3881,6 +4003,7 @@ function openShop(tab) {
     wide: true, mount: () => {
       bindTabs(openShop);
       qsa('[data-buy]').forEach(b => b.onclick = async () => { const r = await api('/api/shop/buy', { item: b.dataset.buy, n: +b.dataset.n }); if (r) { sfx('coin'); toast(`购买成功 ×${b.dataset.n}`); openShop('item'); } });
+      const bf = $('buyfield'); if (bf) bf.onclick = async () => { bf.disabled = true; const r = await api('/api/farm/field'); if (r) { sfx('level'); toast(`开辟了第 ${r.result.field + 1} 片农田，多了 24 块地！`); closeModal(true); setField(r.result.field); } else openShop('land'); };
       const bl = $('buyland'); if (bl) bl.onclick = async () => { if (view.key !== 'home') goHome(); await doExpand(-1); openShop('land'); };
       qsa('[data-soil]').forEach(b => b.onclick = () => { const T = CFG.SOILS[+b.dataset.soil]; closeModal(); if (view.key !== 'home') goHome(); tool = 'red'; renderToolbar(); updateCursor(); toast(`点击一块${CFG.SOILS[T.id - 1].name}升级为${T.name}（右键或点「自动」取消）`); });
       qsa('[data-dog]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/shop/dog', { kind: b.dataset.dog }); if (r) { sfx('bark'); toast(`${r.result.name}来到你的农场了，送你一份狗粮，记得去仓库喂它`); } openShop('dog'); });
@@ -4143,7 +4266,8 @@ function openHelp() {
   <p><b>自动模式</b>：直接点击土地，系统按状态自动处理：空地播种、成熟收获、有缺水/杂草/害虫就顺手处理。按住拖动可以连续操作，滚轮可以缩放视角。</p>
   <p><b>生长</b>：所有作物的生长由服务器计时，下线也会继续长。每出现一种问题（缺水、杂草、害虫），生长速度降到 ${P(R.probSlow)}；下雨可以防止缺水。土地可以升级为红土地、黑土地、金土地，生长和产量逐级提高。红土地生长与产量 +20%。</p>
   <p><b>变异</b>：每次收获有 ${P(R.goldenChance)} 几率额外获得金色作物，价值是普通作物的 ${R.goldenPriceMult} 倍，可以收集进图鉴。</p>
-  <p><b>大丰收</b>：每次收获有 ${P(R.bumperChance)} 几率额外多收 ${P(R.bumperBonus)}。等级上限 Lv.${R.maxLv}，后期还有更多高级作物等你解锁。</p>
+  <p><b>大丰收</b>：每次收获有 ${P(R.bumperChance)} 几率额外多收 ${P(R.bumperBonus)}。等级上限 Lv.${R.maxLv}。</p>
+  <p><b>宏大农场</b>：菜园可以一片一片开辟（最多 ${CFG.FIELDS_MAX} 片、${CFG.MAX_PLOTS} 块地，商店 → 土地），标题下面的 ‹ › 可以切换查看每片田；左边「牧场」里，鱼塘、牧场、果园都能扩建到 100 级（鱼塘约 1500 条鱼、牧场约 1200 只羊、果园约 700 棵果树）；福旺、睿宝最高 100 级，等级越高放羊越久、越快、能照看的羊越多。</p>
   <h3>摘菜</h3>
   <p>不用加好友，任何玩家的农场都可以去串门。① 作物成熟后，主人有 <b>${R.stealDelaySec} 秒</b>保护时间；② 每块地每一季你只能摘一次，每次约为产量的 ${P(R.stealPctMin)}–${P(R.stealPctMax)}；③ 一块地最多被摘走 <b>${P(R.stealMaxPct)}</b>，主人至少保留 ${P(1 - R.stealMaxPct)}，Lv.${R.newbieLv} 以下的新手最多被摘 ${P(R.newbieMaxPct)}；④ 摘菜<b>不限次数</b>，每次都加 ${R.stealExp} 经验；每次有 ${P(R.stealCritChance)} 几率<b>手气爆棚</b>，一次摘两份；⑤ 主人家的看家狗<b>福旺</b>（咬一口 5 金币）和<b>睿宝</b>（咬一口 15 金币）吃饱时会各自判定能不能抓住你，抓住了就要被咬，这一季这块地你也不能再摘了。</p>
   <p><b>互助</b>：帮别人浇水、除草、除虫，对方的作物会顺带多长 ${P(R.helpBoost)}。每次都能得到 ${R.helpExp} 经验和 ${R.helpGold} 金币，<b>不限次数</b>。</p>
@@ -4154,34 +4278,48 @@ function openHelp() {
   </div>`, { wide: true });
 }
 
-/* ---------------- 牧场：鱼塘 + 羊圈 + 牧羊 ---------------- */
+/* ---------------- 牧场：鱼塘 + 牧场（羊）+ 果园 + 牧羊犬 ---------------- */
 function openRanch(tab) {
   if (view.key !== 'home') { goHome(); }
-  tab = tab || 'pond'; const R = S.me.ranch || { fish: [], sheep: [], herd: {}, pondCap: 6, pastureCap: 3 }, now = NET.now(), lv = S.me.lv, gold = S.me.gold;
-  const bar = k => `<span class="pbar"><i style="width:${Math.round(Math.min(1, k) * 100)}%"></i></span>`;
+  tab = tab || 'pond'; const R = S.me.ranch, now = NET.now(), lv = S.me.lv, gold = S.me.gold;
+  const bar = k => `<span class="pbar"><i style="width:${Math.round(Math.max(0, Math.min(1, k)) * 100)}%"></i></span>`;
+  const qty = (left, price) => [1, 10, 100, 1000].filter(n => n <= left && n * price <= gold).concat(left > 0 && left * price <= gold && ![1, 10, 100, 1000].includes(left) ? [left] : []);
+  const upBox = (kind, name, lvNow, cap, unit) => { const u = R.up[kind]; return `<div class="upbox"><div><b>${name} ${lvNow} 级</b><small>容量 ${fmt(cap)} ${unit}${u ? ` · 下一级 ${fmt(({ pond: CFG.pondCapOf, pasture: CFG.pastureCapOf, orchard: CFG.orchardCapOf })[kind](lvNow + 1))} ${unit}` : ' · 已满级'}</small></div>${u ? `<button class="btn sm ${lv >= u.needLv && gold >= u.cost ? 'primary' : ''}" data-up="${kind}" ${lv >= u.needLv && gold >= u.cost ? '' : 'disabled'}>${lv < u.needLv ? `需要 Lv.${u.needLv}` : `扩建 ${G(u.cost)}`}</button>` : ''}</div>`; };
+  const buyRow = (ic, col, title, desc, price, lock, left, attr, id) => `<div class="row-item"><div class="ri-ic"><span class="ii emo" style="color:${col}">${ICON(ic)}</span></div><div class="ri-main"><b>${title}</b><small>${desc}${lock ? ` · 需要 Lv.${lock}` : ''}</small></div><div class="price">${G(price)}</div><div class="qbtns">${lock ? `<button class="btn sm" disabled>Lv.${lock}</button>` : left <= 0 ? '<button class="btn sm" disabled>满了</button>' : qty(left, price).map(n => `<button class="btn sm primary" data-${attr}="${id}" data-n="${n}">×${fmt(n)}</button>`).join('') || '<button class="btn sm" disabled>金币不足</button>'}</div></div>`;
   let body = '';
   if (tab === 'pond') {
-    const ripe = R.fish.filter(f => CFG.fishLeft(f, now) <= 0).length;
-    body = `<div class="ranch-top"><b>池塘 ${R.fish.length}/${R.pondCap}</b><span class="fine">Lv.10 / 20 / 30 各多 2 个位置</span><button class="btn primary" id="rcol" ${ripe ? '' : 'disabled'}>${ICON('fish')} 收鱼${ripe ? ` ×${ripe}` : ''}</button></div>`;
-    body += R.fish.length ? `<div class="fishes">${R.fish.map(f => { const d = CFG.FISH[f.t], left = CFG.fishLeft(f, now); return `<div class="fishc${left <= 0 ? ' ok' : ''}"><span class="fdot" style="background:${d.col}"></span><b>${d.name}</b><small>${left <= 0 ? '可以收了' : '还要 ' + fmtTime(left)}</small>${bar(1 - left / d.time)}</div>`; }).join('')}</div>` : '<div class="empty">池塘里还没有鱼，买点鱼苗放进去吧</div>';
-    body += `<h4 class="sec">买鱼苗</h4>` + CFG.FISH.map(d => { const lock = lv < d.lv, full = R.fish.length >= R.pondCap; return `<div class="row-item"><div class="ri-ic"><span class="ii emo" style="color:${d.col}">${ICON('fish')}</span></div><div class="ri-main"><b>${d.name}</b><small>${fmtTime(d.time)} 长大 · 收 ${d.yield} 条 · 每条卖 ${d.sell} 金币${lock ? ` · 需要 Lv.${d.lv}` : ''}</small></div><div class="price">${G(d.price)}</div><button class="btn sm primary" data-fish="${d.id}" ${lock || full || gold < d.price ? 'disabled' : ''}>${lock ? 'Lv.' + d.lv : full ? '满了' : '放 1 条'}</button></div>`; }).join('');
-  } else {
-    const herd = R.herd || {}, herding = herd.until > now, ready = R.sheep.filter(s => CFG.sheepCycles(s, now, herd) >= 1).length;
+    const ripe = R.fish.filter(f => CFG.fishLeft(f, now) <= 0).reduce((a, f) => a + f.n, 0), left = R.pondCap - R.fishN;
+    body = upBox('pond', '鱼塘', R.pondLv, R.pondCap, '条') + `<div class="ranch-top"><b>鱼 ${fmt(R.fishN)}/${fmt(R.pondCap)}</b><span class="fine">鱼塘每 10 级多挖一个池塘</span><button class="btn primary" id="rcol" ${ripe ? '' : 'disabled'}>${ICON('fish')} 收鱼${ripe ? ` ×${fmt(ripe)}` : ''}</button></div>`;
+    body += R.fish.length ? `<div class="fishes">${R.fish.slice(0, 60).map(f => { const d = CFG.FISH[f.t], l = CFG.fishLeft(f, now); return `<div class="fishc${l <= 0 ? ' ok' : ''}"><span class="fdot" style="background:${d.col}"></span><b>${d.name} ×${fmt(f.n)}</b><small>${l <= 0 ? '可以收了' : '还要 ' + fmtTime(l)}</small>${bar(1 - l / d.time)}</div>`; }).join('')}</div>` : '<div class="empty">鱼塘里还没有鱼，买点鱼苗放进去吧</div>';
+    body += `<h4 class="sec">买鱼苗</h4>` + CFG.FISH.map(d => buyRow('fish', d.col, d.name, `${fmtTime(d.time)} 长大 · 每条收 ${d.yield} 条 · 每条卖 ${d.sell}`, d.price, lv < d.lv ? d.lv : 0, left, 'fish', d.id)).join('');
+  } else if (tab === 'pasture') {
+    const herd = R.herd || {}, herding = herd.until > now, ready = R.sheep.reduce((a, s) => a + (CFG.sheepCycles(s, now, herd) >= 1 || s.pend ? s.n : 0), 0), left = R.pastureCap - R.sheepN;
     const dogs = (S.me.dogs || []).filter(d => d.own), hd = herding ? CFG.DOGS.find(x => x.id === herd.dog) : null;
-    body = `<div class="ranch-top"><b>羊圈 ${R.sheep.length}/${R.pastureCap}</b><span class="fine">羊毛最多攒 ${CFG.RANCH.woolMax} 茬，满了就不长了</span><button class="btn primary" id="rshear" ${ready ? '' : 'disabled'}>${ICON('sheep')} 剪羊毛${ready ? ` ×${ready}` : ''}</button></div>`;
-    body += `<div class="herdbox">${ICON('paw')}<div><b>牧羊</b><small>${herding ? `${hd ? hd.name : '牧羊犬'}正在赶羊，羊毛长得快 ${Math.round(CFG.RANCH.herdBoost * 100)}%，还剩 ${fmtTime((herd.until - now) / 1000)}` : dogs.length ? `派吃饱的牧羊犬去赶羊，接下来 ${CFG.RANCH.herdMin / 60} 小时羊毛长得快 ${Math.round(CFG.RANCH.herdBoost * 100)}%` : '领养福旺或睿宝后，它们就能帮你牧羊'}</small></div>
-      ${herding ? '' : dogs.map(d => `<button class="btn sm ${d.fed ? 'primary' : ''}" data-herd="${d.id}" ${d.fed && R.sheep.length ? '' : 'disabled'} title="${d.fed ? '' : '先去仓库喂它'}">${d.name}去牧羊${d.fed ? '' : '（饿了）'}</button>`).join('')}</div>`;
-    body += R.sheep.length ? `<div class="fishes">${R.sheep.map(s => { const d = CFG.SHEEP[s.t], c = CFG.sheepCycles(s, now, herd), k = Math.floor(c); return `<div class="fishc${k ? ' ok' : ''}"><span class="fdot" style="background:${d.body};border:1px solid #c8bca0"></span><b>${d.name}</b><small>${k ? `${k * d.wool} 份${d.woolName}可以剪` : '羊毛在长'}${c >= CFG.RANCH.woolMax ? '（满了）' : ''}</small>${bar(c / CFG.RANCH.woolMax)}</div>`; }).join('')}</div>` : '<div class="empty">羊圈里还没有羊</div>';
-    body += `<h4 class="sec">买羊</h4>` + CFG.SHEEP.map(d => { const lock = lv < d.lv, full = R.sheep.length >= R.pastureCap; return `<div class="row-item"><div class="ri-ic"><span class="ii emo">${ICON('sheep')}</span></div><div class="ri-main"><b>${d.name}</b><small>每 ${fmtTime(d.period)} 长一茬，剪 ${d.wool} 份${d.woolName}，每份 ${d.sell} 金币${lock ? ` · 需要 Lv.${d.lv}` : ''}</small></div><div class="price">${G(d.price)}</div><button class="btn sm primary" data-sheep="${d.id}" ${lock || full || gold < d.price ? 'disabled' : ''}>${lock ? 'Lv.' + d.lv : full ? '满了' : '买'}</button></div>`; }).join('');
+    body = upBox('pasture', '牧场', R.pastLv, R.pastureCap, '只') + `<div class="ranch-top"><b>羊 ${fmt(R.sheepN)}/${fmt(R.pastureCap)}</b><span class="fine">牧场越大，草地越大；羊毛最多攒 ${CFG.RANCH.woolMax} 茬</span><button class="btn primary" id="rshear" ${ready ? '' : 'disabled'}>${ICON('sheep')} 剪羊毛${ready ? ` ×${fmt(ready)}` : ''}</button></div>`;
+    body += `<div class="herdbox">${ICON('paw')}<div><b>牧羊</b><small>${herding ? `${hd ? hd.name : '牧羊犬'}正在放羊：羊毛长得快 ${Math.round((herd.boost || 0.5) * (herd.share === undefined ? 1 : herd.share) * 100)}%，还剩 ${fmtTime((herd.until - now) / 1000)}` : dogs.length ? '派吃饱的牧羊犬把羊赶出去吃草，羊毛长得更快。狗等级越高，放得越久、越快、能照看的羊越多' : '领养福旺或睿宝后，它们就能帮你牧羊'}</small></div>
+      ${herding ? '' : dogs.map(d => `<button class="btn sm ${d.fed ? 'primary' : ''}" data-herd="${d.id}" ${d.fed && R.sheepN ? '' : 'disabled'}>${d.name}去牧羊${d.fed ? '' : '（饿了）'}</button>`).join('')}</div>`;
+    body += dogs.map(d => { const H = CFG.herdOf(d.lv), mx = d.lv >= CFG.RANCH.dogMaxLv; return `<div class="row-item dogrow"><div class="ri-ic dogpic">${(() => { const u = W3.dogPortrait(d.id); return u ? `<img src="${u}">` : ICON('paw'); })()}</div><div class="ri-main"><b>${d.name} Lv.${d.lv}${mx ? '（满级）' : ''}</b><small>放羊 ${fmtTime(H.min * 60)} · 羊毛快 ${Math.round(H.boost * 100)}% · 能照看 ${fmt(H.cap)} 只${mx ? '' : ` · 经验 ${d.exp}/${d.need}`}</small>${mx ? '' : bar(d.exp / d.need)}</div>${mx ? '' : `<button class="btn sm" data-train="${d.id}" ${gold >= 150 * d.lv ? '' : 'disabled'}>训练 ${G(150 * d.lv)}</button>`}</div>`; }).join('');
+    body += R.sheep.length ? `<div class="fishes">${R.sheep.map(s => { const d = CFG.SHEEP[s.t], c = CFG.sheepCycles(s, now, herd), k = Math.floor(c), w = k * s.n * d.wool + (s.pend || 0); return `<div class="fishc${w ? ' ok' : ''}"><span class="fdot" style="background:${d.body};border:1px solid #c8bca0"></span><b>${d.name} ×${fmt(s.n)}</b><small>${w ? `${fmt(w)} 份${d.woolName}可以剪` : '羊毛在长'}${c >= CFG.RANCH.woolMax ? '（满了）' : ''}</small>${bar(c / CFG.RANCH.woolMax)}</div>`; }).join('')}</div>` : '<div class="empty">牧场里还没有羊</div>';
+    body += `<h4 class="sec">买羊</h4>` + CFG.SHEEP.map(d => buyRow('sheep', '#e8e0d0', d.name, `每 ${fmtTime(d.period)} 长一茬，剪 ${d.wool} 份${d.woolName}，每份 ${d.sell}`, d.price, lv < d.lv ? d.lv : 0, left, 'sheep', d.id)).join('');
+  } else {
+    const ready = R.trees.reduce((a, r) => a + (CFG.treeCycles(r, now) >= 1 ? r.n : 0), 0), left = R.orchardCap - R.treeN;
+    body = upBox('orchard', '果园', R.orchLv, R.orchardCap, '棵') + `<div class="ranch-top"><b>果树 ${fmt(R.treeN)}/${fmt(R.orchardCap)}</b><span class="fine">树苗长大后每隔一段时间结一茬果，最多攒 ${CFG.RANCH.fruitMax} 茬</span><button class="btn primary" id="rfruit" ${ready ? '' : 'disabled'}>${ICON('basket')} 摘果子${ready ? ` ×${fmt(ready)}` : ''}</button></div>`;
+    body += R.trees.length ? `<div class="fishes">${R.trees.slice(0, 60).map(r => { const d = CFG.TREES[r.t], g = CFG.treeGrowLeft(r, now), c = CFG.treeCycles(r, now), k = Math.floor(c); return `<div class="fishc${k ? ' ok' : ''}"><span class="fdot" style="background:${d.col}"></span><b>${d.name} ×${fmt(r.n)}</b><small>${g > 0 ? `还要 ${fmtTime(g)} 长大` : k ? `${fmt(k * r.n * d.yield)} 个${d.fruit}可以摘` : '正在结果'}</small>${bar(g > 0 ? 1 - g / d.grow : c / CFG.RANCH.fruitMax)}</div>`; }).join('')}</div>` : '<div class="empty">果园里还没有树，种几棵果树吧</div>';
+    body += `<h4 class="sec">买树苗</h4>` + CFG.TREES.map(d => buyRow('leaf', d.col, d.name, `${fmtTime(d.grow)} 长大 · 每 ${fmtTime(d.period)} 结 ${d.yield} 个${d.fruit} · 每个卖 ${fmt(d.sell)}`, d.price, lv < d.lv ? d.lv : 0, left, 'tree', d.id)).join('');
   }
-  openModal(`${H2('sheep', '牧场', '池塘养鱼、草地养羊，福旺和睿宝还会帮你牧羊')}${tabsHtml([['pond', '鱼塘'], ['pasture', '羊圈']], tab)}<div class="mygold">我的金币 ${G(gold)}</div><div class="list">${body}</div>`, {
+  openModal(`${H2('sheep', '牧场', '鱼塘、牧场、果园都能一级一级扩建（最多 100 级），福旺和睿宝还会帮你放羊')}${tabsHtml([['pond', '鱼塘'], ['pasture', '牧场'], ['orchard', '果园']], tab)}<div class="mygold">我的金币 ${G(gold)}</div><div class="list">${body}</div>`, {
     wide: true, mount: () => {
       bindTabs(openRanch);
-      qsa('[data-fish]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/ranch/fish/buy', { type: +b.dataset.fish, n: 1 }); if (r) { sfx('water'); toast(`放了一条${r.result.name}进池塘`); W3.fx && W3.pondSplash && W3.pondSplash(); } openRanch('pond'); });
-      const rc = $('rcol'); if (rc) rc.onclick = async () => { rc.disabled = true; const r = await api('/api/ranch/fish/collect'); if (r) { sfx('coin'); const t = Object.entries(r.result.got).map(([id, n]) => `${CFG.FISH[id].name}×${n}`).join('、'); toast(`收获 ${t}${r.result.exp ? `，+${r.result.exp} 经验` : ''}`); W3.pondSplash && W3.pondSplash(); } openRanch('pond'); };
-      qsa('[data-sheep]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/ranch/sheep/buy', { type: +b.dataset.sheep }); if (r) { sfx('level'); toast(`${r.result.name}住进羊圈啦`); } openRanch('pasture'); });
-      const rs = $('rshear'); if (rs) rs.onclick = async () => { rs.disabled = true; const r = await api('/api/ranch/shear'); if (r) { sfx('coin'); const t = Object.entries(r.result.got).map(([id, n]) => `${CFG.SHEEP[id].woolName}×${n}`).join('、'); toast(`剪下 ${t}${r.result.exp ? `，+${r.result.exp} 经验` : ''}`); } openRanch('pasture'); };
-      qsa('[data-herd]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/ranch/herd', { kind: b.dataset.herd }); if (r) { sfx('bark'); toast(`${r.result.name}冲进羊圈开始赶羊啦！`); closeModal && closeModal(); } else openRanch('pasture'); });
+      const act = async (url, b, ok) => { const r = await api(url, b); if (r) ok(r.result); openRanch(tab); };
+      qsa('[data-up]').forEach(b => b.onclick = () => { b.disabled = true; act('/api/ranch/upgrade', { kind: b.dataset.up }, x => { sfx('level'); toast(`${x.name}扩建到 ${x.lv} 级，能容纳 ${fmt(x.cap)} 了！`); W3.fx && 0; }); });
+      qsa('[data-fish]').forEach(b => b.onclick = () => { b.disabled = true; act('/api/ranch/fish/buy', { type: +b.dataset.fish, n: +b.dataset.n }, x => { sfx('water'); toast(`放了 ${fmt(x.n)} 条${x.name}进鱼塘`); W3.pondSplash && W3.pondSplash(); }); });
+      qsa('[data-sheep]').forEach(b => b.onclick = () => { b.disabled = true; act('/api/ranch/sheep/buy', { type: +b.dataset.sheep, n: +b.dataset.n }, x => { sfx('level'); toast(`${fmt(x.n)} 只${x.name}住进牧场啦`); }); });
+      qsa('[data-tree]').forEach(b => b.onclick = () => { b.disabled = true; act('/api/ranch/tree/buy', { type: +b.dataset.tree, n: +b.dataset.n }, x => { sfx('plant'); toast(`种下 ${fmt(x.n)} 棵${x.name}`); }); });
+      qsa('[data-train]').forEach(b => b.onclick = () => { b.disabled = true; act('/api/dog/train', { kind: b.dataset.train }, x => { sfx('bark'); toast(x.lvUp ? `${x.name}升到 Lv.${x.lvUp} 了！` : `${x.name}训练得很认真`); }); });
+      const rc = $('rcol'); if (rc) rc.onclick = () => { rc.disabled = true; act('/api/ranch/fish/collect', {}, x => { sfx('coin'); toast(`收获 ${Object.entries(x.got).map(([id, n]) => `${CFG.FISH[id].name}×${fmt(n)}`).join('、')}${x.exp ? `，+${fmt(x.exp)} 经验` : ''}`); W3.pondSplash && W3.pondSplash(); }); };
+      const rs = $('rshear'); if (rs) rs.onclick = () => { rs.disabled = true; act('/api/ranch/shear', {}, x => { sfx('coin'); toast(`剪下 ${Object.entries(x.got).map(([id, n]) => `${CFG.SHEEP[id].woolName}×${fmt(n)}`).join('、')}${x.exp ? `，+${fmt(x.exp)} 经验` : ''}`); }); };
+      const rf = $('rfruit'); if (rf) rf.onclick = () => { rf.disabled = true; act('/api/ranch/fruit', {}, x => { sfx('harvest'); toast(`摘了 ${Object.entries(x.got).map(([id, n]) => `${CFG.TREES[id].fruit}×${fmt(n)}`).join('、')}${x.exp ? `，+${fmt(x.exp)} 经验` : ''}`); }); };
+      qsa('[data-herd]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/ranch/herd', { kind: b.dataset.herd }); if (r) { sfx('bark'); toast(`${r.result.name}冲出去放羊啦！${r.result.share < 1 ? `（羊太多了，它只能照看 ${fmt(r.result.cap)} 只，多训练它吧）` : ''}`); closeModal(true); } else openRanch('pasture'); });
     }
   });
 }

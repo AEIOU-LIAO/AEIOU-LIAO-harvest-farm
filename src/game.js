@@ -33,7 +33,7 @@ const AVO = CFG.AVATAR_OPTS;
 function avStyle(av) { av = av || {}; const bg = AVO.bg[av.bg || 0] || AVO.bg[0]; const hat = av.hat === undefined ? 1 : av.hat; return { skin: AVO.skin[av.skin || 0], hair: hat ? undefined : AVO.hair[av.hair || 0], hat, fringe: hat ? 0 : (av.fringe === undefined ? 1 : av.fringe), pig: !hat && av.pig, band: AVO.band[av.band || 0], shirt: AVO.shirt[av.shirt || 0], bg1: bg[0], bg2: bg[1] }; }
 const frameColor = id => (CFG.FRAMES.find(f => f.id === id) || {}).color || '';
 const themeOf = id => (CFG.THEMES.find(t => t.id === id) || CFG.THEMES[0]).th;
-const unlockedCount = () => S ? S.plots.filter(p => p.u).length : RULES.startPlots;
+const unlockedCount = () => S ? S.plots.filter(p => p.u && p.idx < CFG.NPLOTS).length : RULES.startPlots;
 const isFriend = id => FR.list.some(f => f.id === id);
 
 /* ============ 音效 ============ */
@@ -224,11 +224,11 @@ async function visit(f) {
   if (!f) return; closeModal(); $('tip').style.display = 'none';
   try {
     const r = await NET.get('/api/farm/' + f.id);
-    view = { key: 'f' + f.id, friend: r.farm.owner, plots: r.farm.plots, farm: r.farm }; tool = 'auto'; hoverIdx = -1; sfx('open'); syncSide(r.farm); W3.resetHero();
+    view = { key: 'f' + f.id, friend: r.farm.owner, plots: r.farm.plots, farm: r.farm }; tool = 'auto'; hoverIdx = -1; sfx('open'); syncSide(r.farm); W3.resetHero(); W3.setField(0);
     renderToolbar(); renderTitle(); renderFriends(); toast(`来到了 ${f.name} 的农场`); refreshState();
   } catch (e) { toast(e.message, 'warn'); }
 }
-function goHome() { if (!S) return; W3.resetHero(); view = { key: 'home', friend: null, plots: S.plots, farm: null }; hoverIdx = -1; sfx('open'); renderToolbar(); renderTitle(); renderFriends(); refreshState(); }
+function goHome() { if (!S) return; W3.resetHero(); W3.setField(0); view = { key: 'home', friend: null, plots: S.plots, farm: null }; hoverIdx = -1; sfx('open'); renderToolbar(); renderTitle(); renderFriends(); refreshState(); }
 function stealFx(x) {
   if (x.blocked) { const who = x.dogs && x.dogs.length ? x.dogs.join('和') : '狗'; dogBarkUntil = Date.now() + 2500; sfx('bark'); FX.text(x.idx, x.bite ? `被${who}咬了 -${x.bite}金币` : `被${who}赶走了`, '#ff9a8a', 20); return; }
   FX.stars(x.idx, x.crit ? 18 : 8); FX.text(x.idx, `${x.crit ? '手气爆棚！' : ''}${CROPS[x.crop].name} ×${x.qty}`, x.crit ? '#ffd23a' : '#fff2c4', x.crit ? 24 : 22);
@@ -280,9 +280,13 @@ function renderHud() {
   drawAvatar($('avatar'), avStyle(me.avatar)); const fc = frameColor(me.frame); $('avatar').style.boxShadow = fc ? `0 0 0 2px ${fc}, 0 0 10px ${fc}` : '';
   $('btn-snd').innerHTML = ICON(PREF.sound ? 'sound' : 'mute');
 }
+// 切换到某片田：俯视时镜头移过去；漫游时人物走过去太远，直接传送到那片田边
+function setField(f) { const nf = Math.ceil((view.plots || []).length / CFG.NPLOTS); f = Math.max(0, Math.min(nf - 1, f | 0)); W3.setField(f); if (W3.mode === 'walk') { const [x, z] = W3.fieldCenter(f); W3.teleport(x, z + 6.2, 0); } renderTitle(); }
 function renderTitle() {
-  if (view.key === 'home') $('title').innerHTML = S ? `<span>${esc(S.me.name)}的农场</span>` : '<span>丰收农场</span>';
-  else $('title').innerHTML = `<span>${esc(view.friend.name)}的农场</span><small>Lv.${view.friend.lv}${view.friend.title ? ' · ' + esc(view.friend.title) : ''}${(view.friend.dogs || []).length ? ' · ' + view.friend.dogs.map(d => d.name + (d.fed ? '看家中' : '在睡觉')).join('，') : ''}</small>`;
+  const nf = Math.ceil((view.plots || []).length / CFG.NPLOTS), fnav = nf > 1 ? `<em class="fnav"><b data-f="-1">‹</b>第${W3.field + 1}/${nf}片田<b data-f="1">›</b></em>` : '';
+  if (view.key === 'home') $('title').innerHTML = S ? `<span>${esc(S.me.name)}的农场</span>${fnav}` : '<span>丰收农场</span>';
+  else $('title').innerHTML = `<span>${esc(view.friend.name)}的农场</span>${fnav}<small>Lv.${view.friend.lv}${view.friend.title ? ' · ' + esc(view.friend.title) : ''}${(view.friend.dogs || []).length ? ' · ' + view.friend.dogs.map(d => d.name + (d.fed ? '看家中' : '在睡觉')).join('，') : ''}</small>`;
+  $('title').querySelectorAll('[data-f]').forEach(b => b.onclick = e => { e.stopPropagation(); ac(); sfx('click'); setField((W3.field + +b.dataset.f + nf) % nf); });
   $('todbtn').innerHTML = ICON(({ auto: 'cloudsun', day: 'sun', dusk: 'sunset', night: 'moon' })[PREF.tod] || 'cloudsun');
 }
 function renderToolbar() {
@@ -309,7 +313,7 @@ function toolbarClick(id) {
   m[id] && m[id]();
 }
 // 牧场角标：可以收的鱼 + 可以剪毛的羊
-function ranchBadge() { const R = S && S.me.ranch; if (!R) return 0; const now = NET.now(); return R.fish.filter(f => fishLeftC(f, now) <= 0).length + R.sheep.filter(s => sheepCyclesC(s, now, R) >= 1).length; }
+function ranchBadge() { const R = S && S.me.ranch; if (!R) return 0; const now = NET.now(); return (R.fish.some(f => fishLeftC(f, now) <= 0) ? 1 : 0) + (R.sheep.some(s => sheepCyclesC(s, now, R) >= 1 || s.pend) ? 1 : 0) + ((R.trees || []).some(r => CFG.treeCycles(r, now) >= 1) ? 1 : 0); }
 const fishLeftC = (f, now) => CFG.fishLeft(f, now), sheepCyclesC = (s, now, R) => CFG.sheepCycles(s, now, R.herd);
 function renderSide() {
   if (!S) return; const b = S.badges;
@@ -365,12 +369,21 @@ function curHour() { const m = { day: 12.5, dusk: 18.4, night: 22.5 }; if (m[PRE
 // 两只狗各自的状态：none 没养 / sleep 饿着在睡觉 / guard 看家 / bark 正在叫
 function ranchOfView() { return view.key === 'home' ? S && S.me.ranch : view.friend && view.friend.ranch; }
 // 传给 3D 场景的鱼和羊（每帧）
-function ranch3d() { const R = ranchOfView(); if (!R) return { fish: [], sheep: [], herd: { on: false } }; const now = NET.now();
-  return { fish: R.fish.map(f => { const d = CFG.FISH[f.t], left = CFG.fishLeft(f, now); return { t: f.t, k: d ? 1 - left / d.time : 1, ripe: left <= 0 }; }), sheep: R.sheep.map(s => ({ t: s.t, c: s.last ? CFG.sheepCycles(s, now, R.herd) : (s.cycles || 0) })), herd: { on: R.herd && R.herd.until > now, dog: R.herd && R.herd.dog } }; }
+// 3D 场景里画出来的数量有上限（鱼每个池塘最多 24 条、羊最多 360 只、果树最多 160 棵），按比例展开各个批次
+function expand(list, total, max, fn) { const out = []; if (!total) return out; const k = Math.min(1, max / total); list.forEach(x => { let m = Math.round(x.n * k); if (x.n > 0 && m < 1) m = 1; for (let i = 0; i < m && out.length < max; i++) out.push(fn(x)); }); return out; }
+let R3 = { key: '', v: null };
+function ranch3d() { const R = ranchOfView(); if (!R) return { fish: [], sheep: [], trees: [], herd: { on: false }, lv: {} }; const now = NET.now(), tick = Math.floor(now / 1000);
+  if (R3.r === R && R3.tick === tick) return R3.v; // 每秒重算一次
+  const ponds = 1 + Math.floor(((R.pondLv || 1) - 1) / 10), lvs = { pond: R.pondLv || 1, pasture: R.pastLv || 1, orchard: R.orchLv || 1, ponds: Math.min(6, ponds) };
+  const v = { lv: lvs, fish: expand(R.fish, R.fishN !== undefined ? R.fishN : R.fish.length, 24 * lvs.ponds, f => { const d = CFG.FISH[f.t], left = CFG.fishLeft(f, now); return { t: f.t, k: d ? 1 - left / d.time : 1, ripe: left <= 0 }; }),
+    sheep: expand(R.sheep, R.sheepN !== undefined ? R.sheepN : R.sheep.length, 360, s => ({ t: s.t, c: s.last ? CFG.sheepCycles(s, now, R.herd) : (s.cycles || 0) })),
+    trees: expand(R.trees || [], R.treeN || 0, 160, r => { const d = CFG.TREES[r.t], g = CFG.treeGrowLeft(r, now); return { t: r.t, k: d ? 1 - g / d.grow : 1, c: CFG.treeCycles(r, now) }; }),
+    herd: { on: R.herd && R.herd.until > now, dog: R.herd && R.herd.dog } };
+  R3 = { r: R, tick, v }; return v; }
 function dogMode() {
   const bark = Date.now() < dogBarkUntil;
   const dogs = view.key === 'home' ? (S && S.me.dogs || []).map(d => ({ id: d.id, own: d.own, fed: d.until > NET.now() })) : ((view.friend && view.friend.dogs) || []).map(d => ({ id: d.id, own: true, fed: d.fed }));
-  const R = ranchOfView(), herdOn = R && R.herd && R.herd.until > NET.now() && R.sheep.length;
+  const R = ranchOfView(), herdOn = R && R.herd && R.herd.until > NET.now() && (R.sheepN || R.sheep.length);
   return CFG.DOGS.map(def => { const d = dogs.find(x => x.id === def.id); return !d || !d.own ? 'none' : !d.fed ? 'sleep' : herdOn && R.herd.dog === def.id ? 'herd' : bark ? 'bark' : 'guard'; });
 }
 let lastT = performance.now(), rainK = 0, wasRain = false;
@@ -406,14 +419,14 @@ const DOG_PET_LINES = { fuwang: ['福旺开心地蹭蹭你', '福旺：汪！再
 // 点到场景里的特殊物体：狗窝 → 宠物商店（自己家）；狗 → 摸摸头
 function pickSpecial(i) {
   ac();
-  if (i === -30 || i === -31) { if (view.key === 'home') { sfx('open'); openRanch(i === -30 ? 'pond' : 'pasture'); } else toast(i === -30 ? '这是好友家的鱼塘' : '这是好友家的羊圈'); return; }
+  if (i === -30 || i === -31 || i === -32) { const tb = i === -30 ? 'pond' : i === -31 ? 'pasture' : 'orchard'; if (view.key === 'home') { sfx('open'); openRanch(tb); } else toast(`这是好友家的${({ pond: '鱼塘', pasture: '牧场', orchard: '果园' })[tb]}`); return; }
   if (i === -10) { if (view.key === 'home') { sfx('open'); openShop('dog'); } else toast('这是好友家的狗窝'); return; }
   const k = -20 - i, d = CFG.DOGS[k]; if (d && W3.petDog(k)) { sfx('bark'); const L = DOG_PET_LINES[d.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); }
 }
 function petAction() { const k = W3.nearDog; if (k < 0) return null; const d = CFG.DOGS[k]; return d ? { k, label: `摸摸${d.name}`, id: d.id } : null; }
-function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } if (!petAction() && W3.nearKennel() && view.key === 'home') { ac(); sfx('open'); openShop('dog'); return; } if (!petAction() && W3.nearZone() && view.key === 'home') { ac(); sfx('open'); openRanch(W3.nearZone() === 'pond' ? 'pond' : 'pasture'); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); } }
+function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } if (!petAction() && W3.nearKennel() && view.key === 'home') { ac(); sfx('open'); openShop('dog'); return; } if (!petAction() && W3.nearZone() && view.key === 'home') { ac(); sfx('open'); openRanch(W3.nearZone()); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); } }
 function updateWalkUi() {
-  if (W3.mode !== 'walk') return; const i = W3.near, pa = petAction(), a = actionOf(i) || (pa ? pa.label : '') || (W3.nearKennel() && view.key === 'home' ? (S.me.dogs || []).some(d => d.own) ? '宠物商店' : '领养狗狗' : '') || (view.key === 'home' && W3.nearZone() ? W3.nearZone() === 'pond' ? '打开鱼塘' : '打开羊圈' : ''), el = $('actbtn'), pr = $('actprompt');
+  if (W3.mode !== 'walk') return; const i = W3.near, pa = petAction(), a = actionOf(i) || (pa ? pa.label : '') || (W3.nearKennel() && view.key === 'home' ? (S.me.dogs || []).some(d => d.own) ? '宠物商店' : '领养狗狗' : '') || (view.key === 'home' && W3.nearZone() ? ({ pond: '打开鱼塘', pasture: '打开牧场', orchard: '打开果园' })[W3.nearZone()] : ''), el = $('actbtn'), pr = $('actprompt');
   el.classList.toggle('ready', !!a); el.querySelector('span').textContent = a || '操作';
   pr.style.display = a && !window.matchMedia('(pointer: coarse)').matches ? 'block' : 'none'; if (a) pr.innerHTML = `<kbd>F</kbd> ${esc(a)}`;
 }

@@ -5,6 +5,10 @@
 (function (root) {
   'use strict';
   const COLS = 6, ROWS = 4, NPLOTS = COLS * ROWS;
+  // v3：农田可以一片一片开辟，每片 24 块地，最多 20 片（480 块地）。第 1 片是农场中间这片（一块一块开垦），之后每片买下来 24 块地全部开好
+  const FIELDS_MAX = 20, MAX_PLOTS = NPLOTS * FIELDS_MAX;
+  const fieldNeedLv = f => 15 + (f - 1) * 25;                 // 开辟第 f 片（f 从 1 开始，0 是自家这片）需要的等级
+  const fieldCost = f => Math.round(30000 * Math.pow(f, 1.7));
 
   // rarity: 1 普通 2 稀有 3 史诗 4 传说
   const CROPS = [
@@ -76,7 +80,7 @@
   ];
 
   const RULES = {
-    startGold: 300, startPlots: 6, maxLv: 45,
+    startGold: 300, startPlots: 6, maxLv: 4000,
     fertPrice: 60, fertBoost: 0.3, dogfoodPrice: 120, dogPrice: 400, dogNeedLv: 3, dogFeedMin: 120, // dogPrice/dogNeedLv 为旧字段，狗的数值见 DOGS
     redNeedLv: 5,
     // 偷菜
@@ -148,6 +152,11 @@
     { id: 'a_l2', stat: 'lv', need: 20, tx: '远近闻名', desc: '达到 Lv.20', gold: 5000, title: '远近闻名' },
     { id: 'a_l3', stat: 'lv', need: 30, tx: '一方乡绅', desc: '达到 Lv.30', gold: 15000, title: '一方乡绅' },
     { id: 'a_l4', stat: 'lv', need: 40, tx: '农业宗师', desc: '达到 Lv.40', gold: 40000, title: '农业宗师' },
+    { id: 'a_l5', stat: 'lv', need: 100, tx: '百级农场主', desc: '达到 Lv.100', gold: 100000, title: '百级农场主' },
+    { id: 'a_l6', stat: 'lv', need: 500, tx: '田园领主', desc: '达到 Lv.500', gold: 600000, title: '田园领主' },
+    { id: 'a_l7', stat: 'lv', need: 1000, tx: '千级传说', desc: '达到 Lv.1000', gold: 2000000, title: '千级传说' },
+    { id: 'a_l8', stat: 'lv', need: 2000, tx: '大地之子', desc: '达到 Lv.2000', gold: 6000000, title: '大地之子' },
+    { id: 'a_l9', stat: 'lv', need: 4000, tx: '丰收之神', desc: '达到满级 Lv.4000', gold: 20000000, title: '丰收之神' },
     { id: 'a_o1', stat: 'order_total', need: 30, tx: '诚信商户', desc: '完成 30 个订单', gold: 2000, title: '诚信商户' },
     { id: 'a_k1', stat: 'checkin_streak', need: 7, tx: '风雨无阻', desc: '连续签到 7 天', gold: 800, title: '勤劳农夫' },
   ];
@@ -184,8 +193,9 @@
     { id: 'dogfood', name: '狗粮', ic: '🍖', price: RULES.dogfoodPrice, desc: '小狗吃饱后看家 60 分钟，并获得成长经验' },
   ];
 
-  const expNeed = lv => Math.round(50 * lv * (1 + lv * 0.35));
-  const dogExpNeed = lv => 3 + lv * 2;
+  // 经验曲线：45 级以前不变；之后按 (lv/45)^1.5 增长，满级 4000 级
+  const expNeed = lv => lv <= 45 ? Math.round(50 * lv * (1 + lv * 0.35)) : Math.round(37688 * Math.pow(lv / 45, 1.5));
+  const dogExpNeed = lv => lv <= 10 ? 3 + lv * 2 : Math.round(23 + Math.pow(lv - 10, 1.5) * 3);
   const plotCost = unlocked => Math.round(500 * Math.pow(1.28, unlocked - RULES.startPlots));
   const plotNeedLv = unlocked => 2 + Math.floor((unlocked - RULES.startPlots) * 0.8);
   const soilOf = P => SOILS[Math.max(0, Math.min(SOILS.length - 1, (P && P.soil) | 0))];
@@ -269,27 +279,53 @@
     { id: 1, name: '黑面羊', lv: 12, price: 2000, period: 10800, wool: 3, woolName: '黑羊毛', sell: 85, exp: 45, body: '#f2ede2', face: '#151214' },
     { id: 2, name: '羊驼', lv: 20, price: 6000, period: 14400, wool: 3, woolName: '羊驼毛', sell: 230, exp: 90, body: '#e8d2a8', face: '#e8d2a8', alpaca: true },
   ];
+  // 果树：买树苗种进果园，长大（grow 秒）后每 period 秒结一茬果子，最多攒 3 茬
+  const TREES = [
+    { id: 0, name: '苹果树', fruit: '苹果', lv: 3, price: 800, grow: 3600, period: 5400, yield: 6, sell: 28, exp: 30, col: '#e8352a' },
+    { id: 1, name: '桃树', fruit: '水蜜桃', lv: 8, price: 2000, grow: 7200, period: 7200, yield: 6, sell: 55, exp: 55, col: '#ff9aa8', blossom: '#ffc8d8' },
+    { id: 2, name: '橙子树', fruit: '橙子', lv: 15, price: 5000, grow: 10800, period: 9000, yield: 7, sell: 95, exp: 90, col: '#ff9a1a' },
+    { id: 3, name: '梨树', fruit: '雪梨', lv: 25, price: 12000, grow: 14400, period: 10800, yield: 7, sell: 170, exp: 150, col: '#d8e070' },
+    { id: 4, name: '樱桃树', fruit: '樱桃', lv: 40, price: 30000, grow: 21600, period: 14400, yield: 8, sell: 330, exp: 260, col: '#c8102a', blossom: '#ffe0ec' },
+    { id: 5, name: '柿子树', fruit: '柿子', lv: 60, price: 70000, grow: 28800, period: 18000, yield: 8, sell: 640, exp: 420, col: '#ff7a10' },
+    { id: 6, name: '荔枝树', fruit: '荔枝', lv: 90, price: 160000, grow: 36000, period: 21600, yield: 9, sell: 1250, exp: 700, col: '#d8303a' },
+    { id: 7, name: '芒果树', fruit: '芒果', lv: 130, price: 380000, grow: 43200, period: 25200, yield: 9, sell: 2600, exp: 1150, col: '#ffc21a' },
+    { id: 8, name: '石榴树', fruit: '石榴', lv: 200, price: 900000, grow: 57600, period: 28800, yield: 10, sell: 5200, exp: 1900, col: '#b8102a' },
+    { id: 9, name: '金苹果树', fruit: '金苹果', lv: 400, price: 3000000, grow: 86400, period: 36000, yield: 10, sell: 15000, exp: 4200, col: '#ffd23a' },
+  ];
+  // 鱼塘、牧场、果园都可以一级一级扩建（最多 100 级），扩建要求玩家等级，越往后越贵、容量越大
   const RANCH = {
-    pondBase: 6, pondPer10: 2, pondMax: 12,       // 池塘容量：6 条，Lv.10/20/30 各 +2
-    pastureBase: 3, pasturePer10: 2, pastureMax: 9, // 羊圈容量：3 只，Lv.10/20/30 各 +2
-    woolMax: 3,                                  // 羊毛最多攒 3 茬
-    herdMin: 120, herdBoost: 0.5,                // 牧羊：牧羊犬赶一次羊，接下来 2 小时羊毛长得快 50%
+    maxLv: 100, needLvPer: 35,                  // 扩建到 L 级需要玩家等级 (L-1)×35
+    woolMax: 3, fruitMax: 3,                    // 羊毛、果子最多攒 3 茬
+    herdMin: 120, herdBoost: 0.5,               // 牧羊基础：2 小时、羊毛快 50%（狗等级越高越久、越快、赶得越多）
+    dogMaxLv: 100,
   };
-  const pondCap = lv => Math.min(RANCH.pondMax, RANCH.pondBase + Math.floor((lv || 1) / 10) * RANCH.pondPer10);
-  const pastureCap = lv => Math.min(RANCH.pastureMax, RANCH.pastureBase + Math.floor((lv || 1) / 10) * RANCH.pasturePer10);
-  // 一只羊攒了多少茬羊毛（可以是小数）。s = { t, last, acc }，herd = { from, until }：牧羊期间速度 × (1 + herdBoost)
+  const _q = (l, a, b, c) => Math.round(a + b * (l - 1) + c * (l - 1) * (l - 1));
+  const pondCapOf = l => _q(Math.max(1, Math.min(RANCH.maxLv, l || 1)), 6, 4, 0.12);        // 1 级 6 条 → 100 级约 1580 条
+  const pastureCapOf = l => _q(Math.max(1, Math.min(RANCH.maxLv, l || 1)), 3, 3, 0.1);      // 1 级 3 只 → 100 级约 1280 只
+  const orchardCapOf = l => _q(Math.max(1, Math.min(RANCH.maxLv, l || 1)), 4, 2, 0.05);     // 1 级 4 棵 → 100 级约 690 棵
+  const ranchUpCost = (kind, l) => Math.round(({ pond: 600, pasture: 900, orchard: 1200 })[kind] * Math.pow(l, 1.9)); // 从 l 级升到 l+1 级
+  const ranchNeedLv = l => (l - 1) * RANCH.needLvPer;                                       // 升到 l 级需要的玩家等级
+  // 旧接口（按玩家等级的容量）保留给 1 级时使用
+  const pondCap = () => pondCapOf(1), pastureCap = () => pastureCapOf(1);
+  // 牧羊犬等级：最多 100 级。等级越高：一次牧羊时间越长、加速越多、一次能赶的羊越多
+  const herdOf = lv => ({ min: RANCH.herdMin + (lv - 1) * 2, boost: +(0.3 + 0.007 * lv).toFixed(3), cap: 30 + 12 * (lv - 1) });
+  // 一群羊攒了多少茬羊毛（可以是小数）。s = { t, n, last, acc }，herd = { from, until, boost, share }：牧羊期间速度 × (1 + boost × share)
   function sheepCycles(s, now, herd) {
     const def = SHEEP[s.t]; if (!def) return 0; const P = def.period * 1000, a = s.last || now, b = Math.max(a, now);
     let ov = 0; if (herd && herd.until > a) ov = Math.max(0, Math.min(b, herd.until) - Math.max(a, herd.from || 0));
-    return Math.min(RANCH.woolMax, (s.acc || 0) + ((b - a) + ov * RANCH.herdBoost) / P);
+    const k = herd ? (herd.boost !== undefined ? herd.boost : RANCH.herdBoost) * (herd.share !== undefined ? herd.share : 1) : 0;
+    return Math.min(RANCH.woolMax, (s.acc || 0) + ((b - a) + ov * k) / P);
   }
+  // 一批果树攒了多少茬果子：种下 grow 秒后开始结果
+  function treeCycles(r, now) { const d = TREES[r.t]; if (!d) return 0; const start = Math.max(r.last || 0, (r.at || now) + d.grow * 1000); if (now <= start) return Math.min(RANCH.fruitMax, r.acc || 0); return Math.min(RANCH.fruitMax, (r.acc || 0) + (now - start) / (d.period * 1000)); }
+  const treeGrowLeft = (r, now) => { const d = TREES[r.t]; return d ? Math.max(0, ((r.at || 0) + d.grow * 1000 - now) / 1000) : 0; };
   const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
   // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
-  function ranchItem(item) { const m = /^(fs|wl)(\d+)$/.exec(item || ''); if (!m) return null; const d = (m[1] === 'fs' ? FISH : SHEEP)[+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : { kind: 'wool', id: d.id, name: d.woolName, price: d.sell }; }
-  const VERSION = '2.9.2'; // 每次发布改这里；设置页和 /api/health 会显示
-  const CFG = { VERSION, COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
+  function ranchItem(item) { const m = /^(fs|wl|fr)(\d+)$/.exec(item || ''); if (!m) return null; const d = ({ fs: FISH, wl: SHEEP, fr: TREES })[m[1]][+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : m[1] === 'wl' ? { kind: 'wool', id: d.id, name: d.woolName, price: d.sell } : { kind: 'fruit', id: d.id, name: d.fruit, price: d.sell }; }
+  const VERSION = '3.0.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const CFG = { VERSION, COLS, ROWS, NPLOTS, FIELDS_MAX, MAX_PLOTS, fieldNeedLv, fieldCost, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
-    FISH, SHEEP, RANCH, pondCap, pastureCap, sheepCycles, fishLeft, ranchItem,
+    FISH, SHEEP, TREES, RANCH, pondCap, pastureCap, pondCapOf, pastureCapOf, orchardCapOf, ranchUpCost, ranchNeedLv, herdOf, sheepCycles, treeCycles, treeGrowLeft, fishLeft, ranchItem,
     expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };
   if (typeof module !== 'undefined' && module.exports) module.exports = CFG; else root.GAMECFG = CFG;
 })(typeof window !== 'undefined' ? window : globalThis);
