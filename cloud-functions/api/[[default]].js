@@ -69,6 +69,23 @@ __def("shared/config.js", function (module, exports, __req) {
     { id: 29, name: '琥珀南瓜', lv: 38, seed: 34000, time: 28800, yield: 132, price: 340, exp: 8800, seasons: 1, rarity: 4, art: { type: 'vine', kind: 'pumpkin', fruit: '#c8641a', hh: 64, is: 1.05 } },
     { id: 30, name: '紫晶茄子', lv: 41, seed: 42000, time: 25200, yield: 136, price: 400, exp: 10500, seasons: 2, rarity: 4, art: { type: 'bush', kind: 'egg', fruit: '#4a1a72', unripe: '#8fae6a', nf: 3, h: 56, hh: 80, is: 1.0 } },
     { id: 31, name: '黄金西瓜', lv: 44, seed: 60000, time: 36000, yield: 140, price: 560, exp: 14000, seasons: 2, rarity: 4, art: { type: 'vine', kind: 'melon', fruit: '#d8a81a', hh: 62, is: 1.0 } },
+    // v2.5 扩容：花卉、谷物和更多前期作物（Lv.1–40）
+    { id: 32, name: '小麦', lv: 2, seed: 50, time: 100, yield: 22, price: 4, exp: 17, seasons: 1, rarity: 1, art: { type: 'grain', kind: 'wheat', ear: '#e8c25a', stalk: '#c8b05a', hh: 96, is: 0.85 } },
+    { id: 33, name: '生菜', lv: 1, seed: 30, time: 60, yield: 14, price: 3, exp: 11, seasons: 1, rarity: 1, art: { type: 'cabbage', head: '#9ee86a', hh: 66, is: 1.15 } },
+    { id: 34, name: '郁金香', lv: 4, seed: 150, time: 280, yield: 28, price: 9, exp: 46, seasons: 1, rarity: 1, art: { type: 'flower', kind: 'tulip', petal: '#ff4a5e', hh: 84, is: 1.0 } },
+    { id: 35, name: '水稻', lv: 6, seed: 320, time: 560, yield: 44, price: 11, exp: 94, seasons: 1, rarity: 1, art: { type: 'grain', kind: 'rice', ear: '#e6d27a', stalk: '#8fbf4a', hh: 90, is: 0.9 } },
+    { id: 36, name: '樱桃萝卜', lv: 2, seed: 40, time: 75, yield: 18, price: 4, exp: 14, seasons: 1, rarity: 1, art: { type: 'root', shape: 'radish', leaf: '#62bc44', root: '#ff3a5a', blush: '#ffffff', hh: 70, is: 1.15 } },
+    { id: 37, name: '黄瓜', lv: 5, seed: 210, time: 380, yield: 36, price: 9, exp: 64, seasons: 2, rarity: 1, art: { type: 'bush', kind: 'chili', fruit: '#3f9a32', unripe: '#9ad070', nf: 4, h: 56, hh: 80, is: 1.0 } },
+    { id: 38, name: '薰衣草', lv: 8, seed: 600, time: 960, yield: 52, price: 17, exp: 170, seasons: 1, rarity: 2, art: { type: 'flower', kind: 'lavender', petal: '#9a6ae0', hh: 86, is: 1.0 } },
+    { id: 39, name: '青椒', lv: 4, seed: 120, time: 220, yield: 30, price: 7, exp: 40, seasons: 2, rarity: 1, art: { type: 'bush', kind: 'chili', fruit: '#2f9a2a', unripe: '#8fd060', nf: 5, h: 54, hh: 78, is: 1.0 } },
+    { id: 40, name: '玫瑰', lv: 12, seed: 1300, time: 1900, yield: 64, price: 26, exp: 350, seasons: 1, rarity: 2, art: { type: 'flower', kind: 'rose', petal: '#e0203a', hh: 86, is: 1.0 } },
+    { id: 41, name: '哈密瓜', lv: 14, seed: 1900, time: 2500, yield: 72, price: 33, exp: 500, seasons: 2, rarity: 2, art: { type: 'vine', kind: 'melon', fruit: '#e6d68a', hh: 62, is: 1.0 } },
+    { id: 42, name: '金麦穗', lv: 18, seed: 4000, time: 6300, yield: 90, price: 60, exp: 1150, seasons: 1, rarity: 3, art: { type: 'grain', kind: 'wheat', ear: '#ffcc2a', stalk: '#e0b040', hh: 96, is: 0.85 } },
+    { id: 43, name: '粉郁金香', lv: 20, seed: 5200, time: 9000, yield: 96, price: 78, exp: 1600, seasons: 1, rarity: 3, art: { type: 'flower', kind: 'tulip', petal: '#ff8ac8', hh: 84, is: 1.0 } },
+    { id: 44, name: '红薯', lv: 9, seed: 680, time: 1050, yield: 58, price: 17, exp: 185, seasons: 1, rarity: 1, art: { type: 'root', shape: 'carrot', leaf: '#5aa848', root: '#c8503a', hh: 74, is: 1.15 } },
+    { id: 45, name: '紫米', lv: 23, seed: 7600, time: 12600, yield: 104, price: 104, exp: 2400, seasons: 1, rarity: 3, art: { type: 'grain', kind: 'rice', ear: '#6a2a7a', stalk: '#7aa84a', hh: 90, is: 0.9 } },
+    { id: 46, name: '蓝色妖姬', lv: 33, seed: 19000, time: 19800, yield: 120, price: 215, exp: 5400, seasons: 1, rarity: 4, art: { type: 'flower', kind: 'rose', petal: '#2a5ae0', hh: 86, is: 1.0 } },
+    { id: 47, name: '彩虹郁金香', lv: 40, seed: 38000, time: 27000, yield: 134, price: 370, exp: 9800, seasons: 1, rarity: 4, art: { type: 'flower', kind: 'tulip', petal: 'rainbow', hh: 84, is: 1.0 } },
   ];
   const RARITY = ['', '普通', '稀有', '史诗', '传说'];
 
@@ -82,8 +99,8 @@ __def("shared/config.js", function (module, exports, __req) {
   ];
   // 看家狗：福旺、睿宝，可以都养；喂饱时各自独立判定能不能抓住来偷菜的人
   const DOGS = [
-    { id: 'fuwang', name: '福旺', col: 'dog', price: 400, lv: 3, bite: 5, base: 0.3, perLv: 0.03, max: 0.6, desc: '灰白色的狗狗，机灵亲人，咬一口 5 金币' },
-    { id: 'ruibao', name: '睿宝', col: 'dog2', price: 3000, lv: 10, bite: 15, base: 0.4, perLv: 0.03, max: 0.7, desc: '金色边牧，聪明敏捷，咬一口 15 金币' },
+    { id: 'fuwang', name: '福旺', col: 'dog', price: 400, lv: 3, bite: 5, base: 0.3, perLv: 0.03, max: 0.6, desc: '蓝陌边牧，灰白相间带黑斑，机灵亲人，咬一口 5 金币' },
+    { id: 'ruibao', name: '睿宝', col: 'dog2', price: 3000, lv: 10, bite: 15, base: 0.4, perLv: 0.03, max: 0.7, desc: '黄白边牧，金棕色被毛配白色毛领，聪明敏捷，咬一口 15 金币' },
   ];
 
   const RULES = {
@@ -155,7 +172,7 @@ __def("shared/config.js", function (module, exports, __req) {
     { id: 'a_g2', stat: 'golden_total', need: 20, tx: '点石成金', desc: '收获 20 次金色作物', gold: 5000, title: '点石成金' },
     { id: 'a_c1', stat: 'codex', need: 10, tx: '收藏家', desc: '图鉴收集 10 种', gold: 1000, title: '收藏家' },
     { id: 'a_c2', stat: 'codex', need: 24, tx: '博物学家', desc: '图鉴收集 24 种', gold: 6000, title: '博物学家' },
-    { id: 'a_c3', stat: 'codex', need: 32, tx: '万物有灵', desc: '图鉴收集全部 32 种普通作物', gold: 20000, title: '万物有灵' },
+    { id: 'a_c3', stat: 'codex', need: 48, tx: '万物有灵', desc: '图鉴收集全部 48 种普通作物', gold: 20000, title: '万物有灵' },
     { id: 'a_l1', stat: 'lv', need: 10, tx: '小有所成', desc: '达到 Lv.10', gold: 1000 },
     { id: 'a_l2', stat: 'lv', need: 20, tx: '远近闻名', desc: '达到 Lv.20', gold: 5000, title: '远近闻名' },
     { id: 'a_l3', stat: 'lv', need: 30, tx: '一方乡绅', desc: '达到 Lv.30', gold: 15000, title: '一方乡绅' },
@@ -1241,6 +1258,8 @@ class Game {
     const dogs = this.dogsOf(o).filter(d => d.own).map(d => ({ id: d.id, name: d.name, lv: d.lv, fed: d.fed }));
     return { owner: Object.assign(this.publicUser(o), { dog: dogs.some(d => d.fed), dogLv: o.dog_lv, dogs }), plots: list, steal, help, soon };
   }
+  // 定时刷新别人农场用：只读，不记访客、不发消息
+  async peekFarm(uid, owner) { const [o, plots, mine] = await all([this.canSee(uid, owner), this.plots(owner), this.myStealsMap(uid, owner)]); return this.viewOf(o, plots, mine); }
   async farmView(uid, owner) { const [o, plots, mine] = await all([this.user(owner), this.plots(owner), this.myStealsMap(uid, owner)]); return this.viewOf(o, plots, mine); }
   // 一次查出很多人的农场概况（附近的人、好友列表）：两条查询代替 2N 条
   async farmViews(uid, users) {
@@ -1920,6 +1939,14 @@ async function createCore(opts) {
   R('POST', '/api/cosmetics/buy', { auth: 1 }, async (c) => own(c.uid, await game.buyCosmetic(c.uid, String(c.body.kind), String(c.body.id))));
 
   // 社交
+  // 合并轮询：一次请求拿到 状态 +（可选）好友/附近 +（可选）正在逛的农场，减少云函数调用次数
+  R('GET', '/api/poll', { auth: 1 }, async (c) => {
+    const q = c.query, out = {};
+    const jobs = [st(c.uid).then(v => out.state = v)];
+    if (q.side) jobs.push(game.friends(c.uid).then(v => out.friends = v), game.neighbors(c.uid).then(v => out.neighbors = v));
+    if (q.visit) { const o = id(q.visit); jobs.push(game.peekFarm(c.uid, o).then(v => out.farm = v, e => { if (!e.status) throw e; out.farmErr = { status: e.status, error: e.message }; })); }
+    await all(jobs); out.now = game.now(); return out;
+  });
   R('GET', '/api/friends', { auth: 1 }, (c) => game.friends(c.uid));
   R('GET', '/api/friends/search', { auth: 1, searchLimit: 1 }, (c) => game.search(c.uid, c.query.q));
   R('POST', '/api/friends/request', { auth: 1 }, (c) => game.requestFriend(c.uid, id(c.body.id)));

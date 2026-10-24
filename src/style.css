@@ -292,3 +292,23 @@ input::placeholder{color:#7d6f58}select option{background:#2a2218}
   #log{left:52px;bottom:80px;max-width:64vw}
 }
 @media (max-height:520px){#side{flex-direction:row;flex-wrap:wrap;width:240px}#newbie{display:none!important}#log{display:none}}
+
+/* ---------- 漫游模式 ---------- */
+#joy,#jumpbtn,#actbtn,#actprompt{display:none}
+body.walk #actprompt{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);padding:8px 16px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:var(--text);font-size:14px;z-index:4;pointer-events:none;box-shadow:var(--sh)}
+#actprompt kbd{display:inline-block;min-width:22px;padding:1px 6px;margin-right:6px;border-radius:6px;background:linear-gradient(#f3d58a,#c99a3a);color:#2a1a08;font:700 13px/20px system-ui;text-align:center}
+@media (pointer:coarse){
+  body.walk #joy{display:block;position:fixed;left:22px;bottom:104px;width:124px;height:124px;border-radius:50%;background:radial-gradient(rgba(255,240,200,.10),rgba(20,14,8,.45));border:1.5px solid rgba(255,220,150,.35);z-index:4;touch-action:none}
+  body.walk #joy i{position:absolute;left:37px;top:37px;width:50px;height:50px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c8,#d9a441);box-shadow:0 4px 12px rgba(0,0,0,.4);transition:transform .05s}
+  body.walk #jumpbtn,body.walk #actbtn{display:flex;position:fixed;right:20px;align-items:center;justify-content:center;flex-direction:column;border-radius:50%;z-index:4;touch-action:none;color:#2a1a08;background:radial-gradient(circle at 35% 30%,#fff2c8,#d9a441);border:1.5px solid rgba(255,230,170,.6);box-shadow:0 6px 16px rgba(0,0,0,.45)}
+  body.walk #jumpbtn{bottom:106px;width:64px;height:64px}
+  body.walk #actbtn{bottom:182px;right:34px;width:76px;height:76px;font-size:12px;font-weight:700;opacity:.55;filter:grayscale(.6)}
+  body.walk #actbtn.ready{opacity:1;filter:none;animation:actpulse 1.2s ease-in-out infinite}
+  body.walk #actbtn span{max-width:66px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-top:1px}
+  body.walk #actbtn .ico,body.walk #jumpbtn .ico{width:24px;height:24px}
+  body.walk #friends{bottom:270px}
+}
+@keyframes actpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+body.walk #canvas,body.walk canvas{cursor:grab}
+
+.ri-ic.dogpic{width:64px;height:64px;flex:0 0 64px}.ri-ic.dogpic img{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(0,0,0,.35))}

@@ -104,12 +104,13 @@ async function api(path, body, opt) {
   } catch (e) {
     if (!opt.quiet) { toast(e.code === 'network' ? '网络不稳定，操作没有完成，请稍后再试' : e.message, 'warn'); sfx('err'); }
     if (e.code === 'network') return null;
-    if (e.status === 409 && !opt.noRefresh) { refreshState(); if (view.key !== 'home') visitRefresh(); }
+    if (e.status === 409 && !opt.noRefresh) poll(false);
     return null;
   }
 }
 async function refreshState() { try { const r = await NET.get('/api/state'); applyState(r); } catch (e) { } }
 function applyState(st) {
+  if (st && st.me && W3.ready) W3.setHero((() => { const a = st.me.avatar || {}, A = CFG.AVATAR_OPTS; return { skin: A.skin[a.skin | 0], hair: A.hair[a.hair | 0], shirt: A.shirt[a.shirt | 0], band: A.band[a.band | 0], hat: a.hat ? 1 : 0 }; })());
   const prevUnread = S ? S.badges.unread : 0;
   S = st; PREF = Object.assign({ sound: true, music: true, notify: false, tod: 'auto', tut: 0 }, S.me.settings || {});
   if (view.key === 'home') view.plots = S.plots;
@@ -217,11 +218,11 @@ async function visit(f) {
   if (!f) return; closeModal(); $('tip').style.display = 'none';
   try {
     const r = await NET.get('/api/farm/' + f.id);
-    view = { key: 'f' + f.id, friend: r.farm.owner, plots: r.farm.plots, farm: r.farm }; tool = 'auto'; hoverIdx = -1; sfx('open'); syncSide(r.farm);
+    view = { key: 'f' + f.id, friend: r.farm.owner, plots: r.farm.plots, farm: r.farm }; tool = 'auto'; hoverIdx = -1; sfx('open'); syncSide(r.farm); W3.resetHero();
     renderToolbar(); renderTitle(); renderFriends(); toast(`来到了 ${f.name} 的农场`); refreshState();
   } catch (e) { toast(e.message, 'warn'); }
 }
-function goHome() { if (!S) return; view = { key: 'home', friend: null, plots: S.plots, farm: null }; hoverIdx = -1; sfx('open'); renderToolbar(); renderTitle(); renderFriends(); refreshState(); }
+function goHome() { if (!S) return; W3.resetHero(); view = { key: 'home', friend: null, plots: S.plots, farm: null }; hoverIdx = -1; sfx('open'); renderToolbar(); renderTitle(); renderFriends(); refreshState(); }
 function stealFx(x) {
   if (x.blocked) { const who = x.dogs && x.dogs.length ? x.dogs.join('和') : '狗'; dogBarkUntil = Date.now() + 2500; sfx('bark'); FX.text(x.idx, x.bite ? `被${who}咬了 -${x.bite}金币` : `被${who}赶走了`, '#ff9a8a', 20); return; }
   FX.stars(x.idx, x.crit ? 18 : 8); FX.text(x.idx, `${x.crit ? '手气爆棚！' : ''}${CROPS[x.crop].name} ×${x.qty}`, x.crit ? '#ffd23a' : '#fff2c4', x.crit ? 24 : 22);
@@ -365,7 +366,48 @@ function frame(now) {
   const home = view.key === 'home';
   W3.setTheme(themeOf(home ? (S ? S.me.theme : 'classic') : view.friend.theme)); W3.setDog(dogMode()); W3.setEnv(curHour(), rainK);
   W3.setPlots(view.plots, home); W3.setHover(mouse.in || painting ? hoverIdx : -1); W3.render(dt);
-  updateTip(); requestAnimationFrame(frame);
+  updateTip(); updateWalkUi(); requestAnimationFrame(frame);
+}
+
+/* ============ 漫游模式：视角切换、键盘、虚拟摇杆、附近地块操作 ============ */
+const KEYS = new Set(); let walkHintShown = false;
+function heroLook() { const a = (S && S.me.avatar) || {}, A = CFG.AVATAR_OPTS; return { skin: A.skin[a.skin | 0], hair: A.hair[a.hair | 0], shirt: A.shirt[a.shirt | 0], band: A.band[a.band | 0], hat: a.hat ? 1 : 0 }; }
+function setViewMode(m, quiet) {
+  W3.setHero(heroLook()); W3.setMode(m); try { localStorage.setItem('hf_view', m); } catch (e) { }
+  document.body.classList.toggle('walk', m === 'walk'); $('btn-view').innerHTML = ICON(m === 'walk' ? 'eye' : 'walk'); $('btn-view').title = m === 'walk' ? '切换到俯视' : '切换到漫游';
+  painting = false; paintQ.length = 0; KEYS.clear(); W3.setInput({ x: 0, z: 0, run: false });
+  if (!quiet) { sfx('open'); toast(m === 'walk' ? (window.matchMedia('(pointer: coarse)').matches ? '漫游模式：左下摇杆移动，右下按钮跳跃和操作，拖动画面转镜头' : '漫游模式：WASD / 方向键移动，Shift 跑，空格跳，F 操作，拖动画面转镜头') : '俯视模式：点击土地直接操作'); }
+}
+function keyInput() { const x = (KEYS.has('d') || KEYS.has('arrowright') ? 1 : 0) - (KEYS.has('a') || KEYS.has('arrowleft') ? 1 : 0), z = (KEYS.has('s') || KEYS.has('arrowdown') ? 1 : 0) - (KEYS.has('w') || KEYS.has('arrowup') ? 1 : 0); if (!joy.on) W3.setInput({ x, z, run: KEYS.has('shift') }); }
+// 附近地块要做的事（与点击地块的逻辑一致），用于操作按钮上的文字
+function actionOf(i) {
+  if (i < 0 || !S || !view.plots[i]) return ''; const P = view.plots[i], home = view.key === 'home';
+  if (!home) { if (!P.u || P.c < 0) return ''; if (P.p >= 1) return P.mine ? '' : P.left > 0 && NET.now() >= P.protectUntil ? `摘取${CROPS[P.c].name}` : ''; return P.pr.d || P.pr.w || P.pr.b ? '帮忙打理' : ''; }
+  if (!P.u) return '开垦';
+  if (tool === 'shovel') return P.c >= 0 && P.p < 1 ? '铲除' : ''; if (tool === 'fert') return P.c >= 0 && P.p < 1 ? '施肥' : ''; if (tool === 'red') return CFG.SOILS[(P.soil | 0) + 1] ? '升级土地' : '';
+  if (P.c < 0) return `种${CROPS[S.me.seed].name}`; if (P.p >= 1) return `收获${CROPS[P.c].name}`; if (P.pr.d) return '浇水'; if (P.pr.w) return '除草'; if (P.pr.b) return '除虫'; return '';
+}
+const DOG_PET_LINES = { fuwang: ['福旺开心地蹭蹭你', '福旺：汪！再摸摸～', '福旺眯起了眼睛'], ruibao: ['睿宝把头埋进你手心', '睿宝：嗷呜～', '睿宝摇成了螺旋桨'] };
+function petAction() { const k = W3.nearDog; if (k < 0) return null; const d = CFG.DOGS[k]; return d ? { k, label: `摸摸${d.name}`, id: d.id } : null; }
+function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); } }
+function updateWalkUi() {
+  if (W3.mode !== 'walk') return; const i = W3.near, pa = petAction(), a = actionOf(i) || (pa ? pa.label : ''), el = $('actbtn'), pr = $('actprompt');
+  el.classList.toggle('ready', !!a); el.querySelector('span').textContent = a || '操作';
+  pr.style.display = a && !window.matchMedia('(pointer: coarse)').matches ? 'block' : 'none'; if (a) pr.innerHTML = `<kbd>F</kbd> ${esc(a)}`;
+}
+// 虚拟摇杆
+const joy = { on: false, id: -1, cx: 0, cy: 0 };
+function initWalkUi() {
+  const base = $('joy'), knob = base.querySelector('i'), R0 = 46;
+  const set = (x, y) => { let dx = x - joy.cx, dy = y - joy.cy; const d = Math.hypot(dx, dy); if (d > R0) { dx *= R0 / d; dy *= R0 / d; } knob.style.transform = `translate(${dx}px,${dy}px)`; W3.setInput({ x: dx / R0, z: dy / R0, run: d > R0 * 0.95 }); };
+  base.addEventListener('pointerdown', e => { e.preventDefault(); ac(); joy.on = true; joy.id = e.pointerId; const r = base.getBoundingClientRect(); joy.cx = r.left + r.width / 2; joy.cy = r.top + r.height / 2; set(e.clientX, e.clientY); try { base.setPointerCapture(e.pointerId); } catch (_) { } });
+  base.addEventListener('pointermove', e => { if (joy.on && e.pointerId === joy.id) set(e.clientX, e.clientY); });
+  const end = e => { if (e.pointerId !== joy.id) return; joy.on = false; knob.style.transform = ''; W3.setInput({ x: 0, z: 0, run: false }); };
+  base.addEventListener('pointerup', end); base.addEventListener('pointercancel', end);
+  $('jumpbtn').innerHTML = ICON('jump'); $('jumpbtn').addEventListener('pointerdown', e => { e.preventDefault(); W3.setInput({ jump: true }); sfx('click'); });
+  $('actbtn').innerHTML = ICON('sparkle') + '<span>操作</span>'; $('actbtn').addEventListener('pointerdown', e => { e.preventDefault(); doAct(); });
+  $('btn-view').onclick = () => { ac(); setViewMode(W3.mode === 'walk' ? 'top' : 'walk'); };
+  let m = 'top'; try { m = localStorage.getItem('hf_view') || 'top'; } catch (e) { } setViewMode(m, true);
 }
 
 /* ============ 指针 & 提示 ============ */
@@ -380,8 +422,13 @@ const touches = new Map(); let pinch0 = 0;
 cv.addEventListener('pointerdown', ev => { if (ev.pointerType === 'touch') { touches.set(ev.pointerId, ev); if (touches.size === 2) { painting = false; paintQ.length = 0; const [a, b] = [...touches.values()]; pinch0 = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); return; } } });
 cv.addEventListener('pointermove', ev => { if (ev.pointerType === 'touch' && touches.has(ev.pointerId)) { touches.set(ev.pointerId, ev); if (touches.size === 2 && pinch0) { const [a, b] = [...touches.values()], d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); W3.zoomBy(pinch0 / d); pinch0 = d; } } });
 ['pointerup', 'pointercancel'].forEach(n => cv.addEventListener(n, ev => { touches.delete(ev.pointerId); if (touches.size < 2) pinch0 = 0; }));
-cv.addEventListener('pointerdown', ev => { if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) return; painting = true; lastPaint = -1; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, true); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
-cv.addEventListener('pointermove', ev => { if (touches.size > 1) return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); if (painting) paintAt(ev, false); updateCursor(); });
+// 漫游模式：拖动转镜头，轻点地块直接操作
+const drag = { on: false, x: 0, y: 0, moved: 0, id: -1 };
+cv.addEventListener('pointerdown', ev => { if (W3.mode !== 'walk') return; if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) { drag.on = false; return; } drag.on = true; drag.x = ev.clientX; drag.y = ev.clientY; drag.moved = 0; drag.id = ev.pointerId; ac(); startMusic(); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
+cv.addEventListener('pointermove', ev => { if (W3.mode !== 'walk') return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); if (!drag.on || ev.pointerId !== drag.id || touches.size > 1) return; const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y; drag.moved += Math.abs(dx) + Math.abs(dy); drag.x = ev.clientX; drag.y = ev.clientY; W3.orbit(dx * 0.0065, dy * 0.0045); });
+cv.addEventListener('pointerup', ev => { if (W3.mode !== 'walk') return; if (drag.on && ev.pointerId === drag.id && drag.moved < 8 && touches.size < 2) { const i = W3.pick(ev.clientX, ev.clientY); if (i >= 0) clickPlot(i, true); } drag.on = false; if (ev.pointerType !== 'mouse') { mouse.in = false; hoverIdx = -1; } });
+cv.addEventListener('pointerdown', ev => { if (W3.mode === 'walk') return; if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) return; painting = true; lastPaint = -1; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, true); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
+cv.addEventListener('pointermove', ev => { if (W3.mode === 'walk') return; if (touches.size > 1) return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); if (painting) paintAt(ev, false); updateCursor(); });
 cv.addEventListener('pointerup', ev => { painting = false; lastPaint = -1; if (ev.pointerType !== 'mouse') { clearTimeout(tipTimer); tipTimer = setTimeout(() => { mouse.in = false; hoverIdx = -1; updateCursor(); }, 1600); } });
 cv.addEventListener('pointercancel', () => { painting = false; });
 cv.addEventListener('pointerleave', () => { if (painting) return; mouse.in = false; hoverIdx = -1; updateCursor(); });
@@ -434,11 +481,11 @@ function checkMigrate(fresh) {
   if (fresh || !PREF.tut) welcome();
 }
 async function boot() {
-  try { W3.init(cv); } catch (e) { $('loading').querySelector('p').innerHTML = '你的浏览器不支持 3D 画面（WebGL），请换用最新版 Chrome、Edge 或 Safari'; return; }
+  try { W3.init(cv); initWalkUi(); } catch (e) { $('loading').querySelector('p').innerHTML = '你的浏览器不支持 3D 画面（WebGL），请换用最新版 Chrome、Edge 或 Safari'; return; }
   window.addEventListener('resize', () => W3.resize()); requestAnimationFrame(frame);
   try { PREF = Object.assign(PREF, JSON.parse(localStorage.getItem('hf_pref') || '{}')); } catch (e) { }
   NET.onAuthLost(() => { if (started) { started = false; S = null; view = { key: 'home', friend: null, plots: blankPlots(), farm: null }; renderToolbar(); renderFriends(); toast('登录已失效，请重新登录', 'warn'); showLogin(); } });
-  NET.onOnline(() => { if (started) { refreshState(); loadFriends(); } });
+  NET.onOnline(() => { if (started) poll(true); });
   for (let i = 0; i < 3; i++) {
     try { const c = await NET.get('/api/config'); c.CROPS.forEach((x, k) => { if (CROPS[k]) ['seed', 'time', 'yield', 'price', 'exp', 'lv'].forEach(f => CROPS[k][f] = x[f]); }); Object.assign(RULES, c.RULES); CFG.setTz(c.TZ_MIN); break; }
     catch (e) { $('loading').querySelector('p').textContent = '正在连接服务器…（' + (i + 1) + '）'; await new Promise(r => setTimeout(r, 1500)); }
@@ -462,19 +509,34 @@ function bindGlobal() {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return; const k = e.key.toLowerCase();
     if (k === 'escape') { closeModal(); tool = 'auto'; renderToolbar(); updateCursor(); }
     else if ($('mback').classList.contains('show') || !S) return;
+    else if (k === 'v') setViewMode(W3.mode === 'walk' ? 'top' : 'walk');
+    else if (W3.mode === 'walk' && ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'].includes(k)) { e.preventDefault(); KEYS.add(k); keyInput(); }
+    else if (W3.mode === 'walk' && k === ' ') { e.preventDefault(); if (!e.repeat) { W3.setInput({ jump: true }); } }
+    else if (W3.mode === 'walk' && (k === 'f' || k === 'enter')) { if (!e.repeat) doAct(); }
     else if (k === '1') toolbarClick('auto'); else if (k === '2' && view.key === 'home') toolbarClick('shovel'); else if (k === '3' && view.key === 'home') toolbarClick('fert');
+    else if (W3.mode === 'walk') return;
     else if (k === 'q') (view.key === 'home' ? allHarvest : allSteal)(); else if (k === 'w') (view.key === 'home' ? allCare : allHelp)(); else if (k === 'e' && view.key === 'home') allPlant(); else if (k === 'h') goHome();
   });
+  document.addEventListener('keyup', e => { const k = e.key.toLowerCase(); if (KEYS.delete(k)) keyInput(); });
+  window.addEventListener('blur', () => { KEYS.clear(); keyInput(); });
   document.addEventListener('pointerdown', () => { ac(); startMusic(); }, { once: true });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && started) { refreshState(); loadFriends(); loadNeighbors(); if (view.key !== 'home') visitRefresh(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && started) poll(true); });
   setInterval(() => { if (started) tickView(); }, 500);
-  setInterval(() => { if (started && !document.hidden) refreshState(); }, 15000);
-  setInterval(() => { if (started && !document.hidden) { loadFriends(); loadNeighbors(); } }, 30000);
-  setInterval(() => { if (started && document.hidden && PREF.notify) refreshState(); }, 60000);
-  setInterval(() => { if (started && !document.hidden && view.key !== 'home') visitRefresh(); }, 10000);
+  // 合并轮询：页面在前台时每 15 秒一次（好友列表每 30 秒顺带一次）；后台且开了通知时每分钟一次
+  setInterval(() => { if (!started) return; pollN++; if (!document.hidden) poll(pollN % 2 === 0); else if (PREF.notify && pollN % 4 === 0) poll(false); }, 15000);
   setInterval(() => { if (started && !document.hidden) renderLog(); }, 30000);
   // 后台任务（虚拟玩家等）：无服务器部署时由在线页面顺手触发，服务器端有租约去重
-  setInterval(() => { if (started && !document.hidden) NET.post('/api/cron', {}).catch(() => { }); }, 60000 + Math.floor(Math.random() * 15000));
+  setInterval(() => { if (started && !document.hidden) NET.post('/api/cron', {}).catch(() => { }); }, 120000 + Math.floor(Math.random() * 30000));
+}
+let pollN = 0, polling = false;
+async function poll(side) {
+  if (polling) return; polling = true; const key = view.key, vid = key !== 'home' && view.friend ? view.friend.id : 0;
+  try {
+    const r = await NET.get('/api/poll' + (side || vid ? '?' : '') + [side ? 'side=1' : '', vid ? 'visit=' + vid : ''].filter(Boolean).join('&'));
+    if (r.friends) FR = r.friends; if (r.neighbors) NB = r.neighbors; if (r.friends || r.neighbors) renderFriends();
+    if (r.state) applyState(r.state);
+    if (vid && view.key === key) { if (r.farm) applyFarm(r.farm); else if (r.farmErr && r.farmErr.status === 403) { toast('无法再访问这个农场了', 'warn'); goHome(); } }
+  } catch (e) { } finally { polling = false; }
 }
 async function visitRefresh() { if (view.key === 'home') return; const key = view.key; try { const r = await NET.get('/api/farm/' + view.friend.id); if (view.key === key) applyFarm(r.farm); } catch (e) { if (e.status === 403) { toast('无法再访问这个农场了', 'warn'); goHome(); } } }
 window.addEventListener('DOMContentLoaded', () => { bindGlobal(); boot(); });

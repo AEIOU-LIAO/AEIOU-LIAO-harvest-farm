@@ -303,6 +303,26 @@ input::placeholder{color:#7d6f58}select option{background:#2a2218}
 }
 @media (max-height:520px){#side{flex-direction:row;flex-wrap:wrap;width:240px}#newbie{display:none!important}#log{display:none}}
 
+/* ---------- 漫游模式 ---------- */
+#joy,#jumpbtn,#actbtn,#actprompt{display:none}
+body.walk #actprompt{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);padding:8px 16px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:var(--text);font-size:14px;z-index:4;pointer-events:none;box-shadow:var(--sh)}
+#actprompt kbd{display:inline-block;min-width:22px;padding:1px 6px;margin-right:6px;border-radius:6px;background:linear-gradient(#f3d58a,#c99a3a);color:#2a1a08;font:700 13px/20px system-ui;text-align:center}
+@media (pointer:coarse){
+  body.walk #joy{display:block;position:fixed;left:22px;bottom:104px;width:124px;height:124px;border-radius:50%;background:radial-gradient(rgba(255,240,200,.10),rgba(20,14,8,.45));border:1.5px solid rgba(255,220,150,.35);z-index:4;touch-action:none}
+  body.walk #joy i{position:absolute;left:37px;top:37px;width:50px;height:50px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c8,#d9a441);box-shadow:0 4px 12px rgba(0,0,0,.4);transition:transform .05s}
+  body.walk #jumpbtn,body.walk #actbtn{display:flex;position:fixed;right:20px;align-items:center;justify-content:center;flex-direction:column;border-radius:50%;z-index:4;touch-action:none;color:#2a1a08;background:radial-gradient(circle at 35% 30%,#fff2c8,#d9a441);border:1.5px solid rgba(255,230,170,.6);box-shadow:0 6px 16px rgba(0,0,0,.45)}
+  body.walk #jumpbtn{bottom:106px;width:64px;height:64px}
+  body.walk #actbtn{bottom:182px;right:34px;width:76px;height:76px;font-size:12px;font-weight:700;opacity:.55;filter:grayscale(.6)}
+  body.walk #actbtn.ready{opacity:1;filter:none;animation:actpulse 1.2s ease-in-out infinite}
+  body.walk #actbtn span{max-width:66px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-top:1px}
+  body.walk #actbtn .ico,body.walk #jumpbtn .ico{width:24px;height:24px}
+  body.walk #friends{bottom:270px}
+}
+@keyframes actpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+body.walk #canvas,body.walk canvas{cursor:grab}
+
+.ri-ic.dogpic{width:64px;height:64px;flex:0 0 64px}.ri-ic.dogpic img{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(0,0,0,.35))}
+
 </style>
 </head>
 <body>
@@ -319,6 +339,7 @@ input::placeholder{color:#7d6f58}select option{background:#2a2218}
   </div>
   <div id="gold" class="pill"><span id="coinico" class="coin"></span><b id="goldnum">0</b></div>
   <div id="rightbtns">
+    <button id="btn-view" title="切换到漫游"></button>
     <button id="todbtn" title="时间（点击切换）"></button>
     <button id="btn-snd" title="声音"></button>
     <button id="btn-help" title="玩法与规则"></button>
@@ -334,6 +355,10 @@ input::placeholder{color:#7d6f58}select option{background:#2a2218}
 <div id="tip"></div>
 <div id="curtool"></div>
 <div id="toasts"></div>
+<div id="joy"><i></i></div>
+<button id="jumpbtn" title="跳跃"></button>
+<button id="actbtn" title="操作"></button>
+<div id="actprompt"></div>
 <div id="netbar">网络连接中断，正在重连…（操作会在恢复后重试，不会重复扣款）</div>
 <div id="loading"><div class="lt"><span>丰收农场</span><em>HARVEST FARM</em></div><div class="spin"></div><p>正在加载…</p></div>
 <div id="mback"><div id="modal"></div></div>
@@ -382,6 +407,23 @@ input::placeholder{color:#7d6f58}select option{background:#2a2218}
     { id: 29, name: '琥珀南瓜', lv: 38, seed: 34000, time: 28800, yield: 132, price: 340, exp: 8800, seasons: 1, rarity: 4, art: { type: 'vine', kind: 'pumpkin', fruit: '#c8641a', hh: 64, is: 1.05 } },
     { id: 30, name: '紫晶茄子', lv: 41, seed: 42000, time: 25200, yield: 136, price: 400, exp: 10500, seasons: 2, rarity: 4, art: { type: 'bush', kind: 'egg', fruit: '#4a1a72', unripe: '#8fae6a', nf: 3, h: 56, hh: 80, is: 1.0 } },
     { id: 31, name: '黄金西瓜', lv: 44, seed: 60000, time: 36000, yield: 140, price: 560, exp: 14000, seasons: 2, rarity: 4, art: { type: 'vine', kind: 'melon', fruit: '#d8a81a', hh: 62, is: 1.0 } },
+    // v2.5 扩容：花卉、谷物和更多前期作物（Lv.1–40）
+    { id: 32, name: '小麦', lv: 2, seed: 50, time: 100, yield: 22, price: 4, exp: 17, seasons: 1, rarity: 1, art: { type: 'grain', kind: 'wheat', ear: '#e8c25a', stalk: '#c8b05a', hh: 96, is: 0.85 } },
+    { id: 33, name: '生菜', lv: 1, seed: 30, time: 60, yield: 14, price: 3, exp: 11, seasons: 1, rarity: 1, art: { type: 'cabbage', head: '#9ee86a', hh: 66, is: 1.15 } },
+    { id: 34, name: '郁金香', lv: 4, seed: 150, time: 280, yield: 28, price: 9, exp: 46, seasons: 1, rarity: 1, art: { type: 'flower', kind: 'tulip', petal: '#ff4a5e', hh: 84, is: 1.0 } },
+    { id: 35, name: '水稻', lv: 6, seed: 320, time: 560, yield: 44, price: 11, exp: 94, seasons: 1, rarity: 1, art: { type: 'grain', kind: 'rice', ear: '#e6d27a', stalk: '#8fbf4a', hh: 90, is: 0.9 } },
+    { id: 36, name: '樱桃萝卜', lv: 2, seed: 40, time: 75, yield: 18, price: 4, exp: 14, seasons: 1, rarity: 1, art: { type: 'root', shape: 'radish', leaf: '#62bc44', root: '#ff3a5a', blush: '#ffffff', hh: 70, is: 1.15 } },
+    { id: 37, name: '黄瓜', lv: 5, seed: 210, time: 380, yield: 36, price: 9, exp: 64, seasons: 2, rarity: 1, art: { type: 'bush', kind: 'chili', fruit: '#3f9a32', unripe: '#9ad070', nf: 4, h: 56, hh: 80, is: 1.0 } },
+    { id: 38, name: '薰衣草', lv: 8, seed: 600, time: 960, yield: 52, price: 17, exp: 170, seasons: 1, rarity: 2, art: { type: 'flower', kind: 'lavender', petal: '#9a6ae0', hh: 86, is: 1.0 } },
+    { id: 39, name: '青椒', lv: 4, seed: 120, time: 220, yield: 30, price: 7, exp: 40, seasons: 2, rarity: 1, art: { type: 'bush', kind: 'chili', fruit: '#2f9a2a', unripe: '#8fd060', nf: 5, h: 54, hh: 78, is: 1.0 } },
+    { id: 40, name: '玫瑰', lv: 12, seed: 1300, time: 1900, yield: 64, price: 26, exp: 350, seasons: 1, rarity: 2, art: { type: 'flower', kind: 'rose', petal: '#e0203a', hh: 86, is: 1.0 } },
+    { id: 41, name: '哈密瓜', lv: 14, seed: 1900, time: 2500, yield: 72, price: 33, exp: 500, seasons: 2, rarity: 2, art: { type: 'vine', kind: 'melon', fruit: '#e6d68a', hh: 62, is: 1.0 } },
+    { id: 42, name: '金麦穗', lv: 18, seed: 4000, time: 6300, yield: 90, price: 60, exp: 1150, seasons: 1, rarity: 3, art: { type: 'grain', kind: 'wheat', ear: '#ffcc2a', stalk: '#e0b040', hh: 96, is: 0.85 } },
+    { id: 43, name: '粉郁金香', lv: 20, seed: 5200, time: 9000, yield: 96, price: 78, exp: 1600, seasons: 1, rarity: 3, art: { type: 'flower', kind: 'tulip', petal: '#ff8ac8', hh: 84, is: 1.0 } },
+    { id: 44, name: '红薯', lv: 9, seed: 680, time: 1050, yield: 58, price: 17, exp: 185, seasons: 1, rarity: 1, art: { type: 'root', shape: 'carrot', leaf: '#5aa848', root: '#c8503a', hh: 74, is: 1.15 } },
+    { id: 45, name: '紫米', lv: 23, seed: 7600, time: 12600, yield: 104, price: 104, exp: 2400, seasons: 1, rarity: 3, art: { type: 'grain', kind: 'rice', ear: '#6a2a7a', stalk: '#7aa84a', hh: 90, is: 0.9 } },
+    { id: 46, name: '蓝色妖姬', lv: 33, seed: 19000, time: 19800, yield: 120, price: 215, exp: 5400, seasons: 1, rarity: 4, art: { type: 'flower', kind: 'rose', petal: '#2a5ae0', hh: 86, is: 1.0 } },
+    { id: 47, name: '彩虹郁金香', lv: 40, seed: 38000, time: 27000, yield: 134, price: 370, exp: 9800, seasons: 1, rarity: 4, art: { type: 'flower', kind: 'tulip', petal: 'rainbow', hh: 84, is: 1.0 } },
   ];
   const RARITY = ['', '普通', '稀有', '史诗', '传说'];
 
@@ -395,8 +437,8 @@ input::placeholder{color:#7d6f58}select option{background:#2a2218}
   ];
   // 看家狗：福旺、睿宝，可以都养；喂饱时各自独立判定能不能抓住来偷菜的人
   const DOGS = [
-    { id: 'fuwang', name: '福旺', col: 'dog', price: 400, lv: 3, bite: 5, base: 0.3, perLv: 0.03, max: 0.6, desc: '灰白色的狗狗，机灵亲人，咬一口 5 金币' },
-    { id: 'ruibao', name: '睿宝', col: 'dog2', price: 3000, lv: 10, bite: 15, base: 0.4, perLv: 0.03, max: 0.7, desc: '金色边牧，聪明敏捷，咬一口 15 金币' },
+    { id: 'fuwang', name: '福旺', col: 'dog', price: 400, lv: 3, bite: 5, base: 0.3, perLv: 0.03, max: 0.6, desc: '蓝陌边牧，灰白相间带黑斑，机灵亲人，咬一口 5 金币' },
+    { id: 'ruibao', name: '睿宝', col: 'dog2', price: 3000, lv: 10, bite: 15, base: 0.4, perLv: 0.03, max: 0.7, desc: '黄白边牧，金棕色被毛配白色毛领，聪明敏捷，咬一口 15 金币' },
   ];
 
   const RULES = {
@@ -468,7 +510,7 @@ input::placeholder{color:#7d6f58}select option{background:#2a2218}
     { id: 'a_g2', stat: 'golden_total', need: 20, tx: '点石成金', desc: '收获 20 次金色作物', gold: 5000, title: '点石成金' },
     { id: 'a_c1', stat: 'codex', need: 10, tx: '收藏家', desc: '图鉴收集 10 种', gold: 1000, title: '收藏家' },
     { id: 'a_c2', stat: 'codex', need: 24, tx: '博物学家', desc: '图鉴收集 24 种', gold: 6000, title: '博物学家' },
-    { id: 'a_c3', stat: 'codex', need: 32, tx: '万物有灵', desc: '图鉴收集全部 32 种普通作物', gold: 20000, title: '万物有灵' },
+    { id: 'a_c3', stat: 'codex', need: 48, tx: '万物有灵', desc: '图鉴收集全部 48 种普通作物', gold: 20000, title: '万物有灵' },
     { id: 'a_l1', stat: 'lv', need: 10, tx: '小有所成', desc: '达到 Lv.10', gold: 1000 },
     { id: 'a_l2', stat: 'lv', need: 20, tx: '远近闻名', desc: '达到 Lv.20', gold: 5000, title: '远近闻名' },
     { id: 'a_l3', stat: 'lv', need: 30, tx: '一方乡绅', desc: '达到 Lv.30', gold: 15000, title: '一方乡绅' },
@@ -724,6 +766,9 @@ const ICON_PATHS = {
   copy: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1', copyC: '<rect x="9" y="9" width="13" height="13" rx="2"/>',
   search: 'M21 21l-4.3-4.3', searchC: '<circle cx="11" cy="11" r="8"/>',
   grid: 'M3 12h18M12 3v18', gridC: '<rect x="3" y="3" width="18" height="18" rx="2"/>',
+  walk: 'M13.5 5.5a1.5 1.5 0 1 0 0-.01M8 21l3-6 3 2v4M11 15l1-6-3.5 2-1 3M12 9l3 3.5 3 .5', walkC: '',
+  jump: 'M12 3v12M7 8l5-5 5 5M5 21h14', jumpC: '',
+  eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z', eyeC: '<circle cx="12" cy="12" r="3"/>',
   bolt: 'M13 2 3 14h9l-1 8 10-12h-9z',
   crown: 'M2 18h20M3 7l4 4 5-7 5 7 4-4-2 11H5z',
   chart: 'M3 3v18h18M7 16v-4M11 16V8M15 16v-6M19 16V6',
@@ -796,6 +841,1178 @@ function drawAvatar(cv, st) {
   if (st.hat) { ell(c, 32, 22, 27, 7, '#f0c860', '#8a6a1a', 2); c.beginPath(); c.ellipse(32, 20, 15, 12, 0, Math.PI, TAU); c.fillStyle = '#f6d878'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#8a6a1a'; c.stroke(); rrect(c, 17, 17, 30, 4, 1, st.band || '#d9553a'); }
   if (st.pig) { ell(c, 14, 34, 5, 12, st.hair, shade(st.hair, -0.4), 1.6); ell(c, 50, 34, 5, 12, st.hair, shade(st.hair, -0.4), 1.6); }
 }
+
+'use strict';
+/* three.js r149 examples/jsm/objects/MarchingCubes.js（MIT 许可，见 vendor/THREE-LICENSE.txt），改为全局变量形式，用于生成平滑的狗狗模型 */
+const MCUBES = (() => {
+const { BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, Mesh } = THREE;
+
+/**
+ * Port of http://webglsamples.org/blob/blob.html
+ */
+
+class MarchingCubes extends Mesh {
+
+	constructor( resolution, material, enableUvs = false, enableColors = false, maxPolyCount = 10000 ) {
+
+		const geometry = new BufferGeometry();
+
+		super( geometry, material );
+
+		this.isMarchingCubes = true;
+
+		const scope = this;
+
+		// temp buffers used in polygonize
+
+		const vlist = new Float32Array( 12 * 3 );
+		const nlist = new Float32Array( 12 * 3 );
+		const clist = new Float32Array( 12 * 3 );
+
+		this.enableUvs = enableUvs;
+		this.enableColors = enableColors;
+
+		// functions have to be object properties
+		// prototype functions kill performance
+		// (tested and it was 4x slower !!!)
+
+		this.init = function ( resolution ) {
+
+			this.resolution = resolution;
+
+			// parameters
+
+			this.isolation = 80.0;
+
+			// size of field, 32 is pushing it in Javascript :)
+
+			this.size = resolution;
+			this.size2 = this.size * this.size;
+			this.size3 = this.size2 * this.size;
+			this.halfsize = this.size / 2.0;
+
+			// deltas
+
+			this.delta = 2.0 / this.size;
+			this.yd = this.size;
+			this.zd = this.size2;
+
+			this.field = new Float32Array( this.size3 );
+			this.normal_cache = new Float32Array( this.size3 * 3 );
+			this.palette = new Float32Array( this.size3 * 3 );
+
+			//
+
+			this.count = 0;
+
+			const maxVertexCount = maxPolyCount * 3;
+
+			this.positionArray = new Float32Array( maxVertexCount * 3 );
+			const positionAttribute = new BufferAttribute( this.positionArray, 3 );
+			positionAttribute.setUsage( DynamicDrawUsage );
+			geometry.setAttribute( 'position', positionAttribute );
+
+			this.normalArray = new Float32Array( maxVertexCount * 3 );
+			const normalAttribute = new BufferAttribute( this.normalArray, 3 );
+			normalAttribute.setUsage( DynamicDrawUsage );
+			geometry.setAttribute( 'normal', normalAttribute );
+
+			if ( this.enableUvs ) {
+
+				this.uvArray = new Float32Array( maxVertexCount * 2 );
+				const uvAttribute = new BufferAttribute( this.uvArray, 2 );
+				uvAttribute.setUsage( DynamicDrawUsage );
+				geometry.setAttribute( 'uv', uvAttribute );
+
+			}
+
+			if ( this.enableColors ) {
+
+				this.colorArray = new Float32Array( maxVertexCount * 3 );
+				const colorAttribute = new BufferAttribute( this.colorArray, 3 );
+				colorAttribute.setUsage( DynamicDrawUsage );
+				geometry.setAttribute( 'color', colorAttribute );
+
+			}
+
+		};
+
+		///////////////////////
+		// Polygonization
+		///////////////////////
+
+		function lerp( a, b, t ) {
+
+			return a + ( b - a ) * t;
+
+		}
+
+		function VIntX( q, offset, isol, x, y, z, valp1, valp2, c_offset1, c_offset2 ) {
+
+			const mu = ( isol - valp1 ) / ( valp2 - valp1 ),
+				nc = scope.normal_cache;
+
+			vlist[ offset + 0 ] = x + mu * scope.delta;
+			vlist[ offset + 1 ] = y;
+			vlist[ offset + 2 ] = z;
+
+			nlist[ offset + 0 ] = lerp( nc[ q + 0 ], nc[ q + 3 ], mu );
+			nlist[ offset + 1 ] = lerp( nc[ q + 1 ], nc[ q + 4 ], mu );
+			nlist[ offset + 2 ] = lerp( nc[ q + 2 ], nc[ q + 5 ], mu );
+
+			clist[ offset + 0 ] = lerp( scope.palette[ c_offset1 * 3 + 0 ], scope.palette[ c_offset2 * 3 + 0 ], mu );
+			clist[ offset + 1 ] = lerp( scope.palette[ c_offset1 * 3 + 1 ], scope.palette[ c_offset2 * 3 + 1 ], mu );
+			clist[ offset + 2 ] = lerp( scope.palette[ c_offset1 * 3 + 2 ], scope.palette[ c_offset2 * 3 + 2 ], mu );
+
+		}
+
+		function VIntY( q, offset, isol, x, y, z, valp1, valp2, c_offset1, c_offset2 ) {
+
+			const mu = ( isol - valp1 ) / ( valp2 - valp1 ),
+				nc = scope.normal_cache;
+
+			vlist[ offset + 0 ] = x;
+			vlist[ offset + 1 ] = y + mu * scope.delta;
+			vlist[ offset + 2 ] = z;
+
+			const q2 = q + scope.yd * 3;
+
+			nlist[ offset + 0 ] = lerp( nc[ q + 0 ], nc[ q2 + 0 ], mu );
+			nlist[ offset + 1 ] = lerp( nc[ q + 1 ], nc[ q2 + 1 ], mu );
+			nlist[ offset + 2 ] = lerp( nc[ q + 2 ], nc[ q2 + 2 ], mu );
+
+			clist[ offset + 0 ] = lerp( scope.palette[ c_offset1 * 3 + 0 ], scope.palette[ c_offset2 * 3 + 0 ], mu );
+			clist[ offset + 1 ] = lerp( scope.palette[ c_offset1 * 3 + 1 ], scope.palette[ c_offset2 * 3 + 1 ], mu );
+			clist[ offset + 2 ] = lerp( scope.palette[ c_offset1 * 3 + 2 ], scope.palette[ c_offset2 * 3 + 2 ], mu );
+
+		}
+
+		function VIntZ( q, offset, isol, x, y, z, valp1, valp2, c_offset1, c_offset2 ) {
+
+			const mu = ( isol - valp1 ) / ( valp2 - valp1 ),
+				nc = scope.normal_cache;
+
+			vlist[ offset + 0 ] = x;
+			vlist[ offset + 1 ] = y;
+			vlist[ offset + 2 ] = z + mu * scope.delta;
+
+			const q2 = q + scope.zd * 3;
+
+			nlist[ offset + 0 ] = lerp( nc[ q + 0 ], nc[ q2 + 0 ], mu );
+			nlist[ offset + 1 ] = lerp( nc[ q + 1 ], nc[ q2 + 1 ], mu );
+			nlist[ offset + 2 ] = lerp( nc[ q + 2 ], nc[ q2 + 2 ], mu );
+
+			clist[ offset + 0 ] = lerp( scope.palette[ c_offset1 * 3 + 0 ], scope.palette[ c_offset2 * 3 + 0 ], mu );
+			clist[ offset + 1 ] = lerp( scope.palette[ c_offset1 * 3 + 1 ], scope.palette[ c_offset2 * 3 + 1 ], mu );
+			clist[ offset + 2 ] = lerp( scope.palette[ c_offset1 * 3 + 2 ], scope.palette[ c_offset2 * 3 + 2 ], mu );
+
+		}
+
+		function compNorm( q ) {
+
+			const q3 = q * 3;
+
+			if ( scope.normal_cache[ q3 ] === 0.0 ) {
+
+				scope.normal_cache[ q3 + 0 ] = scope.field[ q - 1 ] - scope.field[ q + 1 ];
+				scope.normal_cache[ q3 + 1 ] =
+					scope.field[ q - scope.yd ] - scope.field[ q + scope.yd ];
+				scope.normal_cache[ q3 + 2 ] =
+					scope.field[ q - scope.zd ] - scope.field[ q + scope.zd ];
+
+			}
+
+		}
+
+		// Returns total number of triangles. Fills triangles.
+		// (this is where most of time is spent - it's inner work of O(n3) loop )
+
+		function polygonize( fx, fy, fz, q, isol ) {
+
+			// cache indices
+			const q1 = q + 1,
+				qy = q + scope.yd,
+				qz = q + scope.zd,
+				q1y = q1 + scope.yd,
+				q1z = q1 + scope.zd,
+				qyz = q + scope.yd + scope.zd,
+				q1yz = q1 + scope.yd + scope.zd;
+
+			let cubeindex = 0;
+			const field0 = scope.field[ q ],
+				field1 = scope.field[ q1 ],
+				field2 = scope.field[ qy ],
+				field3 = scope.field[ q1y ],
+				field4 = scope.field[ qz ],
+				field5 = scope.field[ q1z ],
+				field6 = scope.field[ qyz ],
+				field7 = scope.field[ q1yz ];
+
+			if ( field0 < isol ) cubeindex |= 1;
+			if ( field1 < isol ) cubeindex |= 2;
+			if ( field2 < isol ) cubeindex |= 8;
+			if ( field3 < isol ) cubeindex |= 4;
+			if ( field4 < isol ) cubeindex |= 16;
+			if ( field5 < isol ) cubeindex |= 32;
+			if ( field6 < isol ) cubeindex |= 128;
+			if ( field7 < isol ) cubeindex |= 64;
+
+			// if cube is entirely in/out of the surface - bail, nothing to draw
+
+			const bits = edgeTable[ cubeindex ];
+			if ( bits === 0 ) return 0;
+
+			const d = scope.delta,
+				fx2 = fx + d,
+				fy2 = fy + d,
+				fz2 = fz + d;
+
+			// top of the cube
+
+			if ( bits & 1 ) {
+
+				compNorm( q );
+				compNorm( q1 );
+				VIntX( q * 3, 0, isol, fx, fy, fz, field0, field1, q, q1 );
+
+			}
+
+			if ( bits & 2 ) {
+
+				compNorm( q1 );
+				compNorm( q1y );
+				VIntY( q1 * 3, 3, isol, fx2, fy, fz, field1, field3, q1, q1y );
+
+			}
+
+			if ( bits & 4 ) {
+
+				compNorm( qy );
+				compNorm( q1y );
+				VIntX( qy * 3, 6, isol, fx, fy2, fz, field2, field3, qy, q1y );
+
+			}
+
+			if ( bits & 8 ) {
+
+				compNorm( q );
+				compNorm( qy );
+				VIntY( q * 3, 9, isol, fx, fy, fz, field0, field2, q, qy );
+
+			}
+
+			// bottom of the cube
+
+			if ( bits & 16 ) {
+
+				compNorm( qz );
+				compNorm( q1z );
+				VIntX( qz * 3, 12, isol, fx, fy, fz2, field4, field5, qz, q1z );
+
+			}
+
+			if ( bits & 32 ) {
+
+				compNorm( q1z );
+				compNorm( q1yz );
+				VIntY(
+					q1z * 3,
+					15,
+					isol,
+					fx2,
+					fy,
+					fz2,
+					field5,
+					field7,
+					q1z,
+					q1yz
+				);
+
+			}
+
+			if ( bits & 64 ) {
+
+				compNorm( qyz );
+				compNorm( q1yz );
+				VIntX(
+					qyz * 3,
+					18,
+					isol,
+					fx,
+					fy2,
+					fz2,
+					field6,
+					field7,
+					qyz,
+					q1yz
+				);
+
+			}
+
+			if ( bits & 128 ) {
+
+				compNorm( qz );
+				compNorm( qyz );
+				VIntY( qz * 3, 21, isol, fx, fy, fz2, field4, field6, qz, qyz );
+
+			}
+
+			// vertical lines of the cube
+			if ( bits & 256 ) {
+
+				compNorm( q );
+				compNorm( qz );
+				VIntZ( q * 3, 24, isol, fx, fy, fz, field0, field4, q, qz );
+
+			}
+
+			if ( bits & 512 ) {
+
+				compNorm( q1 );
+				compNorm( q1z );
+				VIntZ( q1 * 3, 27, isol, fx2, fy, fz, field1, field5, q1, q1z );
+
+			}
+
+			if ( bits & 1024 ) {
+
+				compNorm( q1y );
+				compNorm( q1yz );
+				VIntZ(
+					q1y * 3,
+					30,
+					isol,
+					fx2,
+					fy2,
+					fz,
+					field3,
+					field7,
+					q1y,
+					q1yz
+				);
+
+			}
+
+			if ( bits & 2048 ) {
+
+				compNorm( qy );
+				compNorm( qyz );
+				VIntZ( qy * 3, 33, isol, fx, fy2, fz, field2, field6, qy, qyz );
+
+			}
+
+			cubeindex <<= 4; // re-purpose cubeindex into an offset into triTable
+
+			let o1,
+				o2,
+				o3,
+				numtris = 0,
+				i = 0;
+
+			// here is where triangles are created
+
+			while ( triTable[ cubeindex + i ] != - 1 ) {
+
+				o1 = cubeindex + i;
+				o2 = o1 + 1;
+				o3 = o1 + 2;
+
+				posnormtriv(
+					vlist,
+					nlist,
+					clist,
+					3 * triTable[ o1 ],
+					3 * triTable[ o2 ],
+					3 * triTable[ o3 ]
+				);
+
+				i += 3;
+				numtris ++;
+
+			}
+
+			return numtris;
+
+		}
+
+		function posnormtriv( pos, norm, colors, o1, o2, o3 ) {
+
+			const c = scope.count * 3;
+
+			// positions
+
+			scope.positionArray[ c + 0 ] = pos[ o1 ];
+			scope.positionArray[ c + 1 ] = pos[ o1 + 1 ];
+			scope.positionArray[ c + 2 ] = pos[ o1 + 2 ];
+
+			scope.positionArray[ c + 3 ] = pos[ o2 ];
+			scope.positionArray[ c + 4 ] = pos[ o2 + 1 ];
+			scope.positionArray[ c + 5 ] = pos[ o2 + 2 ];
+
+			scope.positionArray[ c + 6 ] = pos[ o3 ];
+			scope.positionArray[ c + 7 ] = pos[ o3 + 1 ];
+			scope.positionArray[ c + 8 ] = pos[ o3 + 2 ];
+
+			// normals
+
+			if ( scope.material.flatShading === true ) {
+
+				const nx = ( norm[ o1 + 0 ] + norm[ o2 + 0 ] + norm[ o3 + 0 ] ) / 3;
+				const ny = ( norm[ o1 + 1 ] + norm[ o2 + 1 ] + norm[ o3 + 1 ] ) / 3;
+				const nz = ( norm[ o1 + 2 ] + norm[ o2 + 2 ] + norm[ o3 + 2 ] ) / 3;
+
+				scope.normalArray[ c + 0 ] = nx;
+				scope.normalArray[ c + 1 ] = ny;
+				scope.normalArray[ c + 2 ] = nz;
+
+				scope.normalArray[ c + 3 ] = nx;
+				scope.normalArray[ c + 4 ] = ny;
+				scope.normalArray[ c + 5 ] = nz;
+
+				scope.normalArray[ c + 6 ] = nx;
+				scope.normalArray[ c + 7 ] = ny;
+				scope.normalArray[ c + 8 ] = nz;
+
+			} else {
+
+				scope.normalArray[ c + 0 ] = norm[ o1 + 0 ];
+				scope.normalArray[ c + 1 ] = norm[ o1 + 1 ];
+				scope.normalArray[ c + 2 ] = norm[ o1 + 2 ];
+
+				scope.normalArray[ c + 3 ] = norm[ o2 + 0 ];
+				scope.normalArray[ c + 4 ] = norm[ o2 + 1 ];
+				scope.normalArray[ c + 5 ] = norm[ o2 + 2 ];
+
+				scope.normalArray[ c + 6 ] = norm[ o3 + 0 ];
+				scope.normalArray[ c + 7 ] = norm[ o3 + 1 ];
+				scope.normalArray[ c + 8 ] = norm[ o3 + 2 ];
+
+			}
+
+			// uvs
+
+			if ( scope.enableUvs ) {
+
+				const d = scope.count * 2;
+
+				scope.uvArray[ d + 0 ] = pos[ o1 + 0 ];
+				scope.uvArray[ d + 1 ] = pos[ o1 + 2 ];
+
+				scope.uvArray[ d + 2 ] = pos[ o2 + 0 ];
+				scope.uvArray[ d + 3 ] = pos[ o2 + 2 ];
+
+				scope.uvArray[ d + 4 ] = pos[ o3 + 0 ];
+				scope.uvArray[ d + 5 ] = pos[ o3 + 2 ];
+
+			}
+
+			// colors
+
+			if ( scope.enableColors ) {
+
+				scope.colorArray[ c + 0 ] = colors[ o1 + 0 ];
+				scope.colorArray[ c + 1 ] = colors[ o1 + 1 ];
+				scope.colorArray[ c + 2 ] = colors[ o1 + 2 ];
+
+				scope.colorArray[ c + 3 ] = colors[ o2 + 0 ];
+				scope.colorArray[ c + 4 ] = colors[ o2 + 1 ];
+				scope.colorArray[ c + 5 ] = colors[ o2 + 2 ];
+
+				scope.colorArray[ c + 6 ] = colors[ o3 + 0 ];
+				scope.colorArray[ c + 7 ] = colors[ o3 + 1 ];
+				scope.colorArray[ c + 8 ] = colors[ o3 + 2 ];
+
+			}
+
+			scope.count += 3;
+
+		}
+
+		/////////////////////////////////////
+		// Metaballs
+		/////////////////////////////////////
+
+		// Adds a reciprocal ball (nice and blobby) that, to be fast, fades to zero after
+		// a fixed distance, determined by strength and subtract.
+
+		this.addBall = function ( ballx, bally, ballz, strength, subtract, colors ) {
+
+			const sign = Math.sign( strength );
+			strength = Math.abs( strength );
+			const userDefineColor = ! ( colors === undefined || colors === null );
+			let ballColor = new Color( ballx, bally, ballz );
+
+			if ( userDefineColor ) {
+
+				try {
+
+					ballColor =
+						colors instanceof Color
+							? colors
+							: Array.isArray( colors )
+								? new Color(
+									Math.min( Math.abs( colors[ 0 ] ), 1 ),
+									Math.min( Math.abs( colors[ 1 ] ), 1 ),
+									Math.min( Math.abs( colors[ 2 ] ), 1 )
+							  )
+								: new Color( colors );
+
+				} catch ( err ) {
+
+					ballColor = new Color( ballx, bally, ballz );
+
+				}
+
+			}
+
+			// Let's solve the equation to find the radius:
+			// 1.0 / (0.000001 + radius^2) * strength - subtract = 0
+			// strength / (radius^2) = subtract
+			// strength = subtract * radius^2
+			// radius^2 = strength / subtract
+			// radius = sqrt(strength / subtract)
+
+			const radius = this.size * Math.sqrt( strength / subtract ),
+				zs = ballz * this.size,
+				ys = bally * this.size,
+				xs = ballx * this.size;
+
+			let min_z = Math.floor( zs - radius );
+			if ( min_z < 1 ) min_z = 1;
+			let max_z = Math.floor( zs + radius );
+			if ( max_z > this.size - 1 ) max_z = this.size - 1;
+			let min_y = Math.floor( ys - radius );
+			if ( min_y < 1 ) min_y = 1;
+			let max_y = Math.floor( ys + radius );
+			if ( max_y > this.size - 1 ) max_y = this.size - 1;
+			let min_x = Math.floor( xs - radius );
+			if ( min_x < 1 ) min_x = 1;
+			let max_x = Math.floor( xs + radius );
+			if ( max_x > this.size - 1 ) max_x = this.size - 1;
+
+			// Don't polygonize in the outer layer because normals aren't
+			// well-defined there.
+
+			let x, y, z, y_offset, z_offset, fx, fy, fz, fz2, fy2, val;
+
+			for ( z = min_z; z < max_z; z ++ ) {
+
+				z_offset = this.size2 * z;
+				fz = z / this.size - ballz;
+				fz2 = fz * fz;
+
+				for ( y = min_y; y < max_y; y ++ ) {
+
+					y_offset = z_offset + this.size * y;
+					fy = y / this.size - bally;
+					fy2 = fy * fy;
+
+					for ( x = min_x; x < max_x; x ++ ) {
+
+						fx = x / this.size - ballx;
+						val = strength / ( 0.000001 + fx * fx + fy2 + fz2 ) - subtract;
+						if ( val > 0.0 ) {
+
+							this.field[ y_offset + x ] += val * sign;
+
+							// optimization
+							// http://www.geisswerks.com/ryan/BLOBS/blobs.html
+							const ratio =
+								Math.sqrt( ( x - xs ) * ( x - xs ) + ( y - ys ) * ( y - ys ) + ( z - zs ) * ( z - zs ) ) / radius;
+							const contrib =
+								1 - ratio * ratio * ratio * ( ratio * ( ratio * 6 - 15 ) + 10 );
+							this.palette[ ( y_offset + x ) * 3 + 0 ] += ballColor.r * contrib;
+							this.palette[ ( y_offset + x ) * 3 + 1 ] += ballColor.g * contrib;
+							this.palette[ ( y_offset + x ) * 3 + 2 ] += ballColor.b * contrib;
+
+						}
+
+					}
+
+				}
+
+			}
+
+		};
+
+		this.addPlaneX = function ( strength, subtract ) {
+
+			// cache attribute lookups
+			const size = this.size,
+				yd = this.yd,
+				zd = this.zd,
+				field = this.field;
+
+			let x,
+				y,
+				z,
+				xx,
+				val,
+				xdiv,
+				cxy,
+				dist = size * Math.sqrt( strength / subtract );
+
+			if ( dist > size ) dist = size;
+
+			for ( x = 0; x < dist; x ++ ) {
+
+				xdiv = x / size;
+				xx = xdiv * xdiv;
+				val = strength / ( 0.0001 + xx ) - subtract;
+
+				if ( val > 0.0 ) {
+
+					for ( y = 0; y < size; y ++ ) {
+
+						cxy = x + y * yd;
+
+						for ( z = 0; z < size; z ++ ) {
+
+							field[ zd * z + cxy ] += val;
+
+						}
+
+					}
+
+				}
+
+			}
+
+		};
+
+		this.addPlaneY = function ( strength, subtract ) {
+
+			// cache attribute lookups
+			const size = this.size,
+				yd = this.yd,
+				zd = this.zd,
+				field = this.field;
+
+			let x,
+				y,
+				z,
+				yy,
+				val,
+				ydiv,
+				cy,
+				cxy,
+				dist = size * Math.sqrt( strength / subtract );
+
+			if ( dist > size ) dist = size;
+
+			for ( y = 0; y < dist; y ++ ) {
+
+				ydiv = y / size;
+				yy = ydiv * ydiv;
+				val = strength / ( 0.0001 + yy ) - subtract;
+
+				if ( val > 0.0 ) {
+
+					cy = y * yd;
+
+					for ( x = 0; x < size; x ++ ) {
+
+						cxy = cy + x;
+
+						for ( z = 0; z < size; z ++ ) field[ zd * z + cxy ] += val;
+
+					}
+
+				}
+
+			}
+
+		};
+
+		this.addPlaneZ = function ( strength, subtract ) {
+
+			// cache attribute lookups
+
+			const size = this.size,
+				yd = this.yd,
+				zd = this.zd,
+				field = this.field;
+
+			let x,
+				y,
+				z,
+				zz,
+				val,
+				zdiv,
+				cz,
+				cyz,
+				dist = size * Math.sqrt( strength / subtract );
+
+			if ( dist > size ) dist = size;
+
+			for ( z = 0; z < dist; z ++ ) {
+
+				zdiv = z / size;
+				zz = zdiv * zdiv;
+				val = strength / ( 0.0001 + zz ) - subtract;
+				if ( val > 0.0 ) {
+
+					cz = zd * z;
+
+					for ( y = 0; y < size; y ++ ) {
+
+						cyz = cz + y * yd;
+
+						for ( x = 0; x < size; x ++ ) field[ cyz + x ] += val;
+
+					}
+
+				}
+
+			}
+
+		};
+
+		/////////////////////////////////////
+		// Updates
+		/////////////////////////////////////
+
+		this.setCell = function ( x, y, z, value ) {
+
+			const index = this.size2 * z + this.size * y + x;
+			this.field[ index ] = value;
+
+		};
+
+		this.getCell = function ( x, y, z ) {
+
+			const index = this.size2 * z + this.size * y + x;
+			return this.field[ index ];
+
+		};
+
+		this.blur = function ( intensity = 1 ) {
+
+			const field = this.field;
+			const fieldCopy = field.slice();
+			const size = this.size;
+			const size2 = this.size2;
+			for ( let x = 0; x < size; x ++ ) {
+
+				for ( let y = 0; y < size; y ++ ) {
+
+					for ( let z = 0; z < size; z ++ ) {
+
+						const index = size2 * z + size * y + x;
+						let val = fieldCopy[ index ];
+						let count = 1;
+
+						for ( let x2 = - 1; x2 <= 1; x2 += 2 ) {
+
+							const x3 = x2 + x;
+							if ( x3 < 0 || x3 >= size ) continue;
+
+							for ( let y2 = - 1; y2 <= 1; y2 += 2 ) {
+
+								const y3 = y2 + y;
+								if ( y3 < 0 || y3 >= size ) continue;
+
+								for ( let z2 = - 1; z2 <= 1; z2 += 2 ) {
+
+									const z3 = z2 + z;
+									if ( z3 < 0 || z3 >= size ) continue;
+
+									const index2 = size2 * z3 + size * y3 + x3;
+									const val2 = fieldCopy[ index2 ];
+
+									count ++;
+									val += intensity * ( val2 - val ) / count;
+
+								}
+
+							}
+
+						}
+
+						field[ index ] = val;
+
+					}
+
+				}
+
+			}
+
+		};
+
+		this.reset = function () {
+
+			// wipe the normal cache
+
+			for ( let i = 0; i < this.size3; i ++ ) {
+
+				this.normal_cache[ i * 3 ] = 0.0;
+				this.field[ i ] = 0.0;
+				this.palette[ i * 3 ] = this.palette[ i * 3 + 1 ] = this.palette[
+					i * 3 + 2
+				] = 0.0;
+
+			}
+
+		};
+
+		this.update = function () {
+
+			this.count = 0;
+
+			// Triangulate. Yeah, this is slow.
+
+			const smin2 = this.size - 2;
+
+			for ( let z = 1; z < smin2; z ++ ) {
+
+				const z_offset = this.size2 * z;
+				const fz = ( z - this.halfsize ) / this.halfsize; //+ 1
+
+				for ( let y = 1; y < smin2; y ++ ) {
+
+					const y_offset = z_offset + this.size * y;
+					const fy = ( y - this.halfsize ) / this.halfsize; //+ 1
+
+					for ( let x = 1; x < smin2; x ++ ) {
+
+						const fx = ( x - this.halfsize ) / this.halfsize; //+ 1
+						const q = y_offset + x;
+
+						 polygonize( fx, fy, fz, q, this.isolation );
+
+					}
+
+				}
+
+			}
+
+			// set the draw range to only the processed triangles
+
+			this.geometry.setDrawRange( 0, this.count );
+
+			// update geometry data
+
+			geometry.getAttribute( 'position' ).needsUpdate = true;
+			geometry.getAttribute( 'normal' ).needsUpdate = true;
+
+			if ( this.enableUvs ) geometry.getAttribute( 'uv' ).needsUpdate = true;
+			if ( this.enableColors ) geometry.getAttribute( 'color' ).needsUpdate = true;
+
+			// safety check
+
+			if ( this.count / 3 > maxPolyCount ) console.warn( 'THREE.MarchingCubes: Geometry buffers too small for rendering. Please create an instance with a higher poly count.' );
+
+		};
+
+		this.init( resolution );
+
+	}
+
+}
+
+/////////////////////////////////////
+// Marching cubes lookup tables
+/////////////////////////////////////
+
+// These tables are straight from Paul Bourke's page:
+// http://paulbourke.net/geometry/polygonise/
+// who in turn got them from Cory Gene Bloyd.
+
+const edgeTable = new Int32Array( [
+	0x0, 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
+	0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
+	0x190, 0x99, 0x393, 0x29a, 0x596, 0x49f, 0x795, 0x69c,
+	0x99c, 0x895, 0xb9f, 0xa96, 0xd9a, 0xc93, 0xf99, 0xe90,
+	0x230, 0x339, 0x33, 0x13a, 0x636, 0x73f, 0x435, 0x53c,
+	0xa3c, 0xb35, 0x83f, 0x936, 0xe3a, 0xf33, 0xc39, 0xd30,
+	0x3a0, 0x2a9, 0x1a3, 0xaa, 0x7a6, 0x6af, 0x5a5, 0x4ac,
+	0xbac, 0xaa5, 0x9af, 0x8a6, 0xfaa, 0xea3, 0xda9, 0xca0,
+	0x460, 0x569, 0x663, 0x76a, 0x66, 0x16f, 0x265, 0x36c,
+	0xc6c, 0xd65, 0xe6f, 0xf66, 0x86a, 0x963, 0xa69, 0xb60,
+	0x5f0, 0x4f9, 0x7f3, 0x6fa, 0x1f6, 0xff, 0x3f5, 0x2fc,
+	0xdfc, 0xcf5, 0xfff, 0xef6, 0x9fa, 0x8f3, 0xbf9, 0xaf0,
+	0x650, 0x759, 0x453, 0x55a, 0x256, 0x35f, 0x55, 0x15c,
+	0xe5c, 0xf55, 0xc5f, 0xd56, 0xa5a, 0xb53, 0x859, 0x950,
+	0x7c0, 0x6c9, 0x5c3, 0x4ca, 0x3c6, 0x2cf, 0x1c5, 0xcc,
+	0xfcc, 0xec5, 0xdcf, 0xcc6, 0xbca, 0xac3, 0x9c9, 0x8c0,
+	0x8c0, 0x9c9, 0xac3, 0xbca, 0xcc6, 0xdcf, 0xec5, 0xfcc,
+	0xcc, 0x1c5, 0x2cf, 0x3c6, 0x4ca, 0x5c3, 0x6c9, 0x7c0,
+	0x950, 0x859, 0xb53, 0xa5a, 0xd56, 0xc5f, 0xf55, 0xe5c,
+	0x15c, 0x55, 0x35f, 0x256, 0x55a, 0x453, 0x759, 0x650,
+	0xaf0, 0xbf9, 0x8f3, 0x9fa, 0xef6, 0xfff, 0xcf5, 0xdfc,
+	0x2fc, 0x3f5, 0xff, 0x1f6, 0x6fa, 0x7f3, 0x4f9, 0x5f0,
+	0xb60, 0xa69, 0x963, 0x86a, 0xf66, 0xe6f, 0xd65, 0xc6c,
+	0x36c, 0x265, 0x16f, 0x66, 0x76a, 0x663, 0x569, 0x460,
+	0xca0, 0xda9, 0xea3, 0xfaa, 0x8a6, 0x9af, 0xaa5, 0xbac,
+	0x4ac, 0x5a5, 0x6af, 0x7a6, 0xaa, 0x1a3, 0x2a9, 0x3a0,
+	0xd30, 0xc39, 0xf33, 0xe3a, 0x936, 0x83f, 0xb35, 0xa3c,
+	0x53c, 0x435, 0x73f, 0x636, 0x13a, 0x33, 0x339, 0x230,
+	0xe90, 0xf99, 0xc93, 0xd9a, 0xa96, 0xb9f, 0x895, 0x99c,
+	0x69c, 0x795, 0x49f, 0x596, 0x29a, 0x393, 0x99, 0x190,
+	0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
+	0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0 ] );
+
+const triTable = new Int32Array( [
+	- 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 8, 3, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 1, 9, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 8, 3, 9, 8, 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 2, 10, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 8, 3, 1, 2, 10, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 2, 10, 0, 2, 9, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	2, 8, 3, 2, 10, 8, 10, 9, 8, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 11, 2, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 11, 2, 8, 11, 0, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 9, 0, 2, 3, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 11, 2, 1, 9, 11, 9, 8, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 10, 1, 11, 10, 3, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 10, 1, 0, 8, 10, 8, 11, 10, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 9, 0, 3, 11, 9, 11, 10, 9, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 8, 10, 10, 8, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	4, 7, 8, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	4, 3, 0, 7, 3, 4, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 1, 9, 8, 4, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	4, 1, 9, 4, 7, 1, 7, 3, 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 2, 10, 8, 4, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 4, 7, 3, 0, 4, 1, 2, 10, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 2, 10, 9, 0, 2, 8, 4, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	2, 10, 9, 2, 9, 7, 2, 7, 3, 7, 9, 4, - 1, - 1, - 1, - 1,
+	8, 4, 7, 3, 11, 2, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	11, 4, 7, 11, 2, 4, 2, 0, 4, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 0, 1, 8, 4, 7, 2, 3, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	4, 7, 11, 9, 4, 11, 9, 11, 2, 9, 2, 1, - 1, - 1, - 1, - 1,
+	3, 10, 1, 3, 11, 10, 7, 8, 4, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 11, 10, 1, 4, 11, 1, 0, 4, 7, 11, 4, - 1, - 1, - 1, - 1,
+	4, 7, 8, 9, 0, 11, 9, 11, 10, 11, 0, 3, - 1, - 1, - 1, - 1,
+	4, 7, 11, 4, 11, 9, 9, 11, 10, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 5, 4, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 5, 4, 0, 8, 3, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 5, 4, 1, 5, 0, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	8, 5, 4, 8, 3, 5, 3, 1, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 2, 10, 9, 5, 4, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 0, 8, 1, 2, 10, 4, 9, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	5, 2, 10, 5, 4, 2, 4, 0, 2, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	2, 10, 5, 3, 2, 5, 3, 5, 4, 3, 4, 8, - 1, - 1, - 1, - 1,
+	9, 5, 4, 2, 3, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 11, 2, 0, 8, 11, 4, 9, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 5, 4, 0, 1, 5, 2, 3, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	2, 1, 5, 2, 5, 8, 2, 8, 11, 4, 8, 5, - 1, - 1, - 1, - 1,
+	10, 3, 11, 10, 1, 3, 9, 5, 4, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	4, 9, 5, 0, 8, 1, 8, 10, 1, 8, 11, 10, - 1, - 1, - 1, - 1,
+	5, 4, 0, 5, 0, 11, 5, 11, 10, 11, 0, 3, - 1, - 1, - 1, - 1,
+	5, 4, 8, 5, 8, 10, 10, 8, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 7, 8, 5, 7, 9, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 3, 0, 9, 5, 3, 5, 7, 3, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 7, 8, 0, 1, 7, 1, 5, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 5, 3, 3, 5, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 7, 8, 9, 5, 7, 10, 1, 2, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	10, 1, 2, 9, 5, 0, 5, 3, 0, 5, 7, 3, - 1, - 1, - 1, - 1,
+	8, 0, 2, 8, 2, 5, 8, 5, 7, 10, 5, 2, - 1, - 1, - 1, - 1,
+	2, 10, 5, 2, 5, 3, 3, 5, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	7, 9, 5, 7, 8, 9, 3, 11, 2, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 5, 7, 9, 7, 2, 9, 2, 0, 2, 7, 11, - 1, - 1, - 1, - 1,
+	2, 3, 11, 0, 1, 8, 1, 7, 8, 1, 5, 7, - 1, - 1, - 1, - 1,
+	11, 2, 1, 11, 1, 7, 7, 1, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 5, 8, 8, 5, 7, 10, 1, 3, 10, 3, 11, - 1, - 1, - 1, - 1,
+	5, 7, 0, 5, 0, 9, 7, 11, 0, 1, 0, 10, 11, 10, 0, - 1,
+	11, 10, 0, 11, 0, 3, 10, 5, 0, 8, 0, 7, 5, 7, 0, - 1,
+	11, 10, 5, 7, 11, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	10, 6, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 8, 3, 5, 10, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 0, 1, 5, 10, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 8, 3, 1, 9, 8, 5, 10, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 6, 5, 2, 6, 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 6, 5, 1, 2, 6, 3, 0, 8, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 6, 5, 9, 0, 6, 0, 2, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	5, 9, 8, 5, 8, 2, 5, 2, 6, 3, 2, 8, - 1, - 1, - 1, - 1,
+	2, 3, 11, 10, 6, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	11, 0, 8, 11, 2, 0, 10, 6, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 1, 9, 2, 3, 11, 5, 10, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	5, 10, 6, 1, 9, 2, 9, 11, 2, 9, 8, 11, - 1, - 1, - 1, - 1,
+	6, 3, 11, 6, 5, 3, 5, 1, 3, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 8, 11, 0, 11, 5, 0, 5, 1, 5, 11, 6, - 1, - 1, - 1, - 1,
+	3, 11, 6, 0, 3, 6, 0, 6, 5, 0, 5, 9, - 1, - 1, - 1, - 1,
+	6, 5, 9, 6, 9, 11, 11, 9, 8, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	5, 10, 6, 4, 7, 8, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	4, 3, 0, 4, 7, 3, 6, 5, 10, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 9, 0, 5, 10, 6, 8, 4, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	10, 6, 5, 1, 9, 7, 1, 7, 3, 7, 9, 4, - 1, - 1, - 1, - 1,
+	6, 1, 2, 6, 5, 1, 4, 7, 8, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 2, 5, 5, 2, 6, 3, 0, 4, 3, 4, 7, - 1, - 1, - 1, - 1,
+	8, 4, 7, 9, 0, 5, 0, 6, 5, 0, 2, 6, - 1, - 1, - 1, - 1,
+	7, 3, 9, 7, 9, 4, 3, 2, 9, 5, 9, 6, 2, 6, 9, - 1,
+	3, 11, 2, 7, 8, 4, 10, 6, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	5, 10, 6, 4, 7, 2, 4, 2, 0, 2, 7, 11, - 1, - 1, - 1, - 1,
+	0, 1, 9, 4, 7, 8, 2, 3, 11, 5, 10, 6, - 1, - 1, - 1, - 1,
+	9, 2, 1, 9, 11, 2, 9, 4, 11, 7, 11, 4, 5, 10, 6, - 1,
+	8, 4, 7, 3, 11, 5, 3, 5, 1, 5, 11, 6, - 1, - 1, - 1, - 1,
+	5, 1, 11, 5, 11, 6, 1, 0, 11, 7, 11, 4, 0, 4, 11, - 1,
+	0, 5, 9, 0, 6, 5, 0, 3, 6, 11, 6, 3, 8, 4, 7, - 1,
+	6, 5, 9, 6, 9, 11, 4, 7, 9, 7, 11, 9, - 1, - 1, - 1, - 1,
+	10, 4, 9, 6, 4, 10, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	4, 10, 6, 4, 9, 10, 0, 8, 3, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	10, 0, 1, 10, 6, 0, 6, 4, 0, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	8, 3, 1, 8, 1, 6, 8, 6, 4, 6, 1, 10, - 1, - 1, - 1, - 1,
+	1, 4, 9, 1, 2, 4, 2, 6, 4, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 0, 8, 1, 2, 9, 2, 4, 9, 2, 6, 4, - 1, - 1, - 1, - 1,
+	0, 2, 4, 4, 2, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	8, 3, 2, 8, 2, 4, 4, 2, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	10, 4, 9, 10, 6, 4, 11, 2, 3, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 8, 2, 2, 8, 11, 4, 9, 10, 4, 10, 6, - 1, - 1, - 1, - 1,
+	3, 11, 2, 0, 1, 6, 0, 6, 4, 6, 1, 10, - 1, - 1, - 1, - 1,
+	6, 4, 1, 6, 1, 10, 4, 8, 1, 2, 1, 11, 8, 11, 1, - 1,
+	9, 6, 4, 9, 3, 6, 9, 1, 3, 11, 6, 3, - 1, - 1, - 1, - 1,
+	8, 11, 1, 8, 1, 0, 11, 6, 1, 9, 1, 4, 6, 4, 1, - 1,
+	3, 11, 6, 3, 6, 0, 0, 6, 4, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	6, 4, 8, 11, 6, 8, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	7, 10, 6, 7, 8, 10, 8, 9, 10, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 7, 3, 0, 10, 7, 0, 9, 10, 6, 7, 10, - 1, - 1, - 1, - 1,
+	10, 6, 7, 1, 10, 7, 1, 7, 8, 1, 8, 0, - 1, - 1, - 1, - 1,
+	10, 6, 7, 10, 7, 1, 1, 7, 3, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 2, 6, 1, 6, 8, 1, 8, 9, 8, 6, 7, - 1, - 1, - 1, - 1,
+	2, 6, 9, 2, 9, 1, 6, 7, 9, 0, 9, 3, 7, 3, 9, - 1,
+	7, 8, 0, 7, 0, 6, 6, 0, 2, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	7, 3, 2, 6, 7, 2, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	2, 3, 11, 10, 6, 8, 10, 8, 9, 8, 6, 7, - 1, - 1, - 1, - 1,
+	2, 0, 7, 2, 7, 11, 0, 9, 7, 6, 7, 10, 9, 10, 7, - 1,
+	1, 8, 0, 1, 7, 8, 1, 10, 7, 6, 7, 10, 2, 3, 11, - 1,
+	11, 2, 1, 11, 1, 7, 10, 6, 1, 6, 7, 1, - 1, - 1, - 1, - 1,
+	8, 9, 6, 8, 6, 7, 9, 1, 6, 11, 6, 3, 1, 3, 6, - 1,
+	0, 9, 1, 11, 6, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	7, 8, 0, 7, 0, 6, 3, 11, 0, 11, 6, 0, - 1, - 1, - 1, - 1,
+	7, 11, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	7, 6, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 0, 8, 11, 7, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 1, 9, 11, 7, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	8, 1, 9, 8, 3, 1, 11, 7, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	10, 1, 2, 6, 11, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 2, 10, 3, 0, 8, 6, 11, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	2, 9, 0, 2, 10, 9, 6, 11, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	6, 11, 7, 2, 10, 3, 10, 8, 3, 10, 9, 8, - 1, - 1, - 1, - 1,
+	7, 2, 3, 6, 2, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	7, 0, 8, 7, 6, 0, 6, 2, 0, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	2, 7, 6, 2, 3, 7, 0, 1, 9, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 6, 2, 1, 8, 6, 1, 9, 8, 8, 7, 6, - 1, - 1, - 1, - 1,
+	10, 7, 6, 10, 1, 7, 1, 3, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	10, 7, 6, 1, 7, 10, 1, 8, 7, 1, 0, 8, - 1, - 1, - 1, - 1,
+	0, 3, 7, 0, 7, 10, 0, 10, 9, 6, 10, 7, - 1, - 1, - 1, - 1,
+	7, 6, 10, 7, 10, 8, 8, 10, 9, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	6, 8, 4, 11, 8, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 6, 11, 3, 0, 6, 0, 4, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	8, 6, 11, 8, 4, 6, 9, 0, 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 4, 6, 9, 6, 3, 9, 3, 1, 11, 3, 6, - 1, - 1, - 1, - 1,
+	6, 8, 4, 6, 11, 8, 2, 10, 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 2, 10, 3, 0, 11, 0, 6, 11, 0, 4, 6, - 1, - 1, - 1, - 1,
+	4, 11, 8, 4, 6, 11, 0, 2, 9, 2, 10, 9, - 1, - 1, - 1, - 1,
+	10, 9, 3, 10, 3, 2, 9, 4, 3, 11, 3, 6, 4, 6, 3, - 1,
+	8, 2, 3, 8, 4, 2, 4, 6, 2, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 4, 2, 4, 6, 2, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 9, 0, 2, 3, 4, 2, 4, 6, 4, 3, 8, - 1, - 1, - 1, - 1,
+	1, 9, 4, 1, 4, 2, 2, 4, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	8, 1, 3, 8, 6, 1, 8, 4, 6, 6, 10, 1, - 1, - 1, - 1, - 1,
+	10, 1, 0, 10, 0, 6, 6, 0, 4, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	4, 6, 3, 4, 3, 8, 6, 10, 3, 0, 3, 9, 10, 9, 3, - 1,
+	10, 9, 4, 6, 10, 4, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	4, 9, 5, 7, 6, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 8, 3, 4, 9, 5, 11, 7, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	5, 0, 1, 5, 4, 0, 7, 6, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	11, 7, 6, 8, 3, 4, 3, 5, 4, 3, 1, 5, - 1, - 1, - 1, - 1,
+	9, 5, 4, 10, 1, 2, 7, 6, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	6, 11, 7, 1, 2, 10, 0, 8, 3, 4, 9, 5, - 1, - 1, - 1, - 1,
+	7, 6, 11, 5, 4, 10, 4, 2, 10, 4, 0, 2, - 1, - 1, - 1, - 1,
+	3, 4, 8, 3, 5, 4, 3, 2, 5, 10, 5, 2, 11, 7, 6, - 1,
+	7, 2, 3, 7, 6, 2, 5, 4, 9, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 5, 4, 0, 8, 6, 0, 6, 2, 6, 8, 7, - 1, - 1, - 1, - 1,
+	3, 6, 2, 3, 7, 6, 1, 5, 0, 5, 4, 0, - 1, - 1, - 1, - 1,
+	6, 2, 8, 6, 8, 7, 2, 1, 8, 4, 8, 5, 1, 5, 8, - 1,
+	9, 5, 4, 10, 1, 6, 1, 7, 6, 1, 3, 7, - 1, - 1, - 1, - 1,
+	1, 6, 10, 1, 7, 6, 1, 0, 7, 8, 7, 0, 9, 5, 4, - 1,
+	4, 0, 10, 4, 10, 5, 0, 3, 10, 6, 10, 7, 3, 7, 10, - 1,
+	7, 6, 10, 7, 10, 8, 5, 4, 10, 4, 8, 10, - 1, - 1, - 1, - 1,
+	6, 9, 5, 6, 11, 9, 11, 8, 9, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 6, 11, 0, 6, 3, 0, 5, 6, 0, 9, 5, - 1, - 1, - 1, - 1,
+	0, 11, 8, 0, 5, 11, 0, 1, 5, 5, 6, 11, - 1, - 1, - 1, - 1,
+	6, 11, 3, 6, 3, 5, 5, 3, 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 2, 10, 9, 5, 11, 9, 11, 8, 11, 5, 6, - 1, - 1, - 1, - 1,
+	0, 11, 3, 0, 6, 11, 0, 9, 6, 5, 6, 9, 1, 2, 10, - 1,
+	11, 8, 5, 11, 5, 6, 8, 0, 5, 10, 5, 2, 0, 2, 5, - 1,
+	6, 11, 3, 6, 3, 5, 2, 10, 3, 10, 5, 3, - 1, - 1, - 1, - 1,
+	5, 8, 9, 5, 2, 8, 5, 6, 2, 3, 8, 2, - 1, - 1, - 1, - 1,
+	9, 5, 6, 9, 6, 0, 0, 6, 2, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 5, 8, 1, 8, 0, 5, 6, 8, 3, 8, 2, 6, 2, 8, - 1,
+	1, 5, 6, 2, 1, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 3, 6, 1, 6, 10, 3, 8, 6, 5, 6, 9, 8, 9, 6, - 1,
+	10, 1, 0, 10, 0, 6, 9, 5, 0, 5, 6, 0, - 1, - 1, - 1, - 1,
+	0, 3, 8, 5, 6, 10, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	10, 5, 6, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	11, 5, 10, 7, 5, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	11, 5, 10, 11, 7, 5, 8, 3, 0, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	5, 11, 7, 5, 10, 11, 1, 9, 0, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	10, 7, 5, 10, 11, 7, 9, 8, 1, 8, 3, 1, - 1, - 1, - 1, - 1,
+	11, 1, 2, 11, 7, 1, 7, 5, 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 8, 3, 1, 2, 7, 1, 7, 5, 7, 2, 11, - 1, - 1, - 1, - 1,
+	9, 7, 5, 9, 2, 7, 9, 0, 2, 2, 11, 7, - 1, - 1, - 1, - 1,
+	7, 5, 2, 7, 2, 11, 5, 9, 2, 3, 2, 8, 9, 8, 2, - 1,
+	2, 5, 10, 2, 3, 5, 3, 7, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	8, 2, 0, 8, 5, 2, 8, 7, 5, 10, 2, 5, - 1, - 1, - 1, - 1,
+	9, 0, 1, 5, 10, 3, 5, 3, 7, 3, 10, 2, - 1, - 1, - 1, - 1,
+	9, 8, 2, 9, 2, 1, 8, 7, 2, 10, 2, 5, 7, 5, 2, - 1,
+	1, 3, 5, 3, 7, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 8, 7, 0, 7, 1, 1, 7, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 0, 3, 9, 3, 5, 5, 3, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 8, 7, 5, 9, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	5, 8, 4, 5, 10, 8, 10, 11, 8, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	5, 0, 4, 5, 11, 0, 5, 10, 11, 11, 3, 0, - 1, - 1, - 1, - 1,
+	0, 1, 9, 8, 4, 10, 8, 10, 11, 10, 4, 5, - 1, - 1, - 1, - 1,
+	10, 11, 4, 10, 4, 5, 11, 3, 4, 9, 4, 1, 3, 1, 4, - 1,
+	2, 5, 1, 2, 8, 5, 2, 11, 8, 4, 5, 8, - 1, - 1, - 1, - 1,
+	0, 4, 11, 0, 11, 3, 4, 5, 11, 2, 11, 1, 5, 1, 11, - 1,
+	0, 2, 5, 0, 5, 9, 2, 11, 5, 4, 5, 8, 11, 8, 5, - 1,
+	9, 4, 5, 2, 11, 3, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	2, 5, 10, 3, 5, 2, 3, 4, 5, 3, 8, 4, - 1, - 1, - 1, - 1,
+	5, 10, 2, 5, 2, 4, 4, 2, 0, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 10, 2, 3, 5, 10, 3, 8, 5, 4, 5, 8, 0, 1, 9, - 1,
+	5, 10, 2, 5, 2, 4, 1, 9, 2, 9, 4, 2, - 1, - 1, - 1, - 1,
+	8, 4, 5, 8, 5, 3, 3, 5, 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 4, 5, 1, 0, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	8, 4, 5, 8, 5, 3, 9, 0, 5, 0, 3, 5, - 1, - 1, - 1, - 1,
+	9, 4, 5, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	4, 11, 7, 4, 9, 11, 9, 10, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 8, 3, 4, 9, 7, 9, 11, 7, 9, 10, 11, - 1, - 1, - 1, - 1,
+	1, 10, 11, 1, 11, 4, 1, 4, 0, 7, 4, 11, - 1, - 1, - 1, - 1,
+	3, 1, 4, 3, 4, 8, 1, 10, 4, 7, 4, 11, 10, 11, 4, - 1,
+	4, 11, 7, 9, 11, 4, 9, 2, 11, 9, 1, 2, - 1, - 1, - 1, - 1,
+	9, 7, 4, 9, 11, 7, 9, 1, 11, 2, 11, 1, 0, 8, 3, - 1,
+	11, 7, 4, 11, 4, 2, 2, 4, 0, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	11, 7, 4, 11, 4, 2, 8, 3, 4, 3, 2, 4, - 1, - 1, - 1, - 1,
+	2, 9, 10, 2, 7, 9, 2, 3, 7, 7, 4, 9, - 1, - 1, - 1, - 1,
+	9, 10, 7, 9, 7, 4, 10, 2, 7, 8, 7, 0, 2, 0, 7, - 1,
+	3, 7, 10, 3, 10, 2, 7, 4, 10, 1, 10, 0, 4, 0, 10, - 1,
+	1, 10, 2, 8, 7, 4, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	4, 9, 1, 4, 1, 7, 7, 1, 3, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	4, 9, 1, 4, 1, 7, 0, 8, 1, 8, 7, 1, - 1, - 1, - 1, - 1,
+	4, 0, 3, 7, 4, 3, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	4, 8, 7, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 10, 8, 10, 11, 8, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 0, 9, 3, 9, 11, 11, 9, 10, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 1, 10, 0, 10, 8, 8, 10, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 1, 10, 11, 3, 10, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 2, 11, 1, 11, 9, 9, 11, 8, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 0, 9, 3, 9, 11, 1, 2, 9, 2, 11, 9, - 1, - 1, - 1, - 1,
+	0, 2, 11, 8, 0, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	3, 2, 11, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	2, 3, 8, 2, 8, 10, 10, 8, 9, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	9, 10, 2, 0, 9, 2, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	2, 3, 8, 2, 8, 10, 0, 1, 8, 1, 10, 8, - 1, - 1, - 1, - 1,
+	1, 10, 2, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	1, 3, 8, 9, 1, 8, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 9, 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	0, 3, 8, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1,
+	- 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1, - 1 ] );
+
+
+return MarchingCubes;
+})();
 
 'use strict';
 /* =====================================================
@@ -970,6 +2187,49 @@ const W3 = (() => {
       else { const sm2 = new T.MeshPhysicalMaterial({ color: new T.Color('#ffffff'), map: stripeTex(ripe ? a.fruit : '#a8d080', ripe ? new T.Color(a.fruit).multiplyScalar(0.45).getStyle() : '#6fa850', 9), roughness: 0.3, clearcoat: 0.6 }); const f = mesh(sphereG(32, 22), sm2, 0, 0.32 * s, 0); f.scale.set(0.5 * s, 0.37 * s, 0.4 * s); f.rotation.y = 0.5; g.add(f); }
     }
   }
+  // 花卉：郁金香 / 玫瑰 / 薰衣草（一丛几枝，成熟时开花）
+  const RAINBOW = ['#ff4a5e', '#ffb21a', '#ffe23a', '#5ad04a', '#3aa8ff', '#a86aff'];
+  function buildFlower(g, a, k, ripe) {
+    const sm = mat('#4f9a36', { p: { roughness: 0.6 } }), lm = leafMat('#5aac40'), r = CFG3.rng(a.petal.length * 7 + 3);
+    const lav = a.kind === 'lavender', n = lav ? 7 : k > 0.7 ? 5 : 3;
+    for (let s = 0; s < n; s++) {
+      const ang = s / n * Math.PI * 2 + r() * 0.5, rad = s === 0 && !lav ? 0 : 0.12 + r() * 0.14, x = Math.cos(ang) * rad, z = Math.sin(ang) * rad;
+      const h = (lav ? 0.85 : 0.75) * k * (0.85 + r() * 0.3), lean = lav ? 0.12 : 0.06, top = v3(x * (1 + lean * 4), h, z * (1 + lean * 4));
+      g.add(tube([v3(x, 0, z), v3(x * 1.1, h * 0.5, z * 1.1), top], lav ? 0.014 : 0.02, 0.014, sm, 6));
+      if (!lav) for (let i = 0; i < 2; i++) addLeaf(g, leafGeo(0.36 * k + 0.08, 0.07, 0.8, 0.5, 'blade'), lm, x, 0.02, z, ang + i * 2.6, 0.45);
+      else addLeaf(g, leafGeo(0.3 * k + 0.06, 0.018, 0.6, 0.2, 'thin'), lm, x, 0.02, z, ang, 0.5);
+      const col = a.petal === 'rainbow' ? RAINBOW[s % RAINBOW.length] : a.petal;
+      if (k < 0.75) { g.add(blob(leafMat('#6cb048'), top.x, top.y, top.z, 0.035, 0.05, 0.035, 10)); continue; }
+      const pm = new T.MeshPhysicalMaterial({ color: new T.Color(col).convertSRGBToLinear ? new T.Color(col) : new T.Color(col), roughness: 0.5, sheen: 0.2, sheenColor: new T.Color(col).lerp(new T.Color('#ffffff'), 0.4), side: T.DoubleSide });
+      const head = new T.Group(); head.position.copy(top); head.rotation.set(x * 1.5, 0, -z * 1.5); if (!lav) head.scale.setScalar(1.35); g.add(head);
+      if (lav) { // 穗状小花
+        const L = ripe ? 0.28 : 0.16; for (let i = 0; i < 9; i++) { const y = i / 8 * L, rr = 0.028 * (1 - i / 12); for (let j = 0; j < 3; j++) { const aa = j / 3 * Math.PI * 2 + i; head.add(blob(pm, Math.cos(aa) * rr, y, Math.sin(aa) * rr, 0.022, 0.026, 0.022, 8)); } }
+      } else if (a.kind === 'tulip') { // 杯状花苞：几片勺形花瓣
+        const S = ripe ? 1 : 0.7, open = ripe ? 0.22 : 0.06;
+        for (let i = 0; i < 6; i++) { const pt = mesh(lathe([[0, 0], [0.05, 0.03], [0.065, 0.09], [0.05, 0.15], [0, 0.17]], 10), pm); pt.scale.set(0.75 * S, S, 0.32 * S); const aa = i / 6 * Math.PI * 2 + (i % 2) * 0.3; pt.position.set(Math.cos(aa) * 0.02, 0, Math.sin(aa) * 0.02); pt.rotation.set(0, -aa, 0); const o = new T.Group(); o.add(pt); pt.position.set(0.035 * S, 0, 0); pt.rotation.z = -open - (i % 2) * 0.08; o.rotation.y = -aa; head.add(o); }
+        head.add(blob(mat('#ffe68a'), 0, 0.05 * S, 0, 0.02, 0.03, 0.02, 8));
+      } else { // 玫瑰：一圈圈包起来的花瓣
+        const S = ripe ? 1 : 0.65; head.add(blob(pm, 0, 0.06 * S, 0, 0.04 * S, 0.05 * S, 0.04 * S, 12));
+        [[5, 0.045, 0.1], [7, 0.075, 0.3], [9, 0.1, 0.55]].forEach(([m, R, op], ring) => { if (!ripe && ring > 1) return; for (let i = 0; i < m; i++) { const aa = i / m * Math.PI * 2 + ring * 0.6, pt = mesh(sphereG(10, 7), pm); pt.scale.set(0.05 * S, 0.06 * S, 0.012 * S); const o = new T.Group(); pt.position.set(R * S, 0.06 * S, 0); pt.rotation.set(0, Math.PI / 2, op); o.add(pt); o.rotation.y = aa; head.add(o); } });
+        const cm = leafMat('#3f8a2a'); for (let i = 0; i < 5; i++) addLeaf(head, leafGeo(0.07, 0.025, 0.5, 0.2, 'leaf'), cm, 0, 0.0, 0, i * 1.256, 2.2);
+      }
+    }
+  }
+  // 谷物：小麦 / 水稻（一片细秆，成熟时麦穗金黄下垂）
+  function buildGrain(g, a, k, ripe) {
+    const r = CFG3.rng(a.ear.length * 13 + (a.kind === 'rice' ? 5 : 1)), rice = a.kind === 'rice';
+    const sm = mat(ripe ? a.stalk : '#7cb84a', { p: { roughness: 0.65 } }), em = mat(ripe ? a.ear : '#9cc860', { p: { roughness: 0.5, map: dotsTex(ripe ? a.ear : '#a8d070', '#ffffff', 60, 1.4) } }), lm = leafMat(rice ? '#7cbc4a' : '#86b84a');
+    const n = k > 0.7 ? 11 : 7;
+    for (let s = 0; s < n; s++) {
+      const ang = r() * Math.PI * 2, rad = Math.sqrt(r()) * 0.34, x = Math.cos(ang) * rad, z = Math.sin(ang) * rad, h = 1.05 * k * (0.85 + r() * 0.25);
+      const droop = ripe ? (rice ? 0.22 : 0.1) : 0.02, dx = Math.cos(ang + 1) * droop, dz = Math.sin(ang + 1) * droop, top = v3(x + dx, h - droop * 0.6, z + dz);
+      g.add(tube([v3(x, 0, z), v3(x, h * 0.6, z), v3(x + dx * 0.4, h * 0.9, z + dz * 0.4), top], 0.012, 0.009, sm, 6));
+      addLeaf(g, leafGeo(0.45 * k + 0.1, 0.03, 1.2, 0.3, 'blade'), lm, x, h * 0.2, z, ang + 0.5, 0.55);
+      if (k < 0.7) continue;
+      if (rice) { for (let i = 0; i < 7; i++) { const t = i / 6; g.add(blob(em, top.x - dx * t * 0.8, top.y + 0.02 - t * 0.12, top.z - dz * t * 0.8 + (i % 2 ? 0.02 : -0.02), 0.018, 0.028, 0.018, 8)); } }
+      else { const ear = mesh(new T.CapsuleGeometry(0.03, 0.14, 4, 8), em); ear.position.copy(top).add(v3(0, 0.06, 0)); ear.rotation.set(dz * 3, 0, -dx * 3); g.add(ear); for (let i = 0; i < 4; i++) addLeaf(g, leafGeo(0.1, 0.004, 0.2, 0, 'thin'), mat(ripe ? a.ear : '#a8d070', { ds: 1 }), top.x, top.y + 0.12, top.z, i * 1.6, 0.2); }
+    }
+  }
   function buildSunflower(g, a, k, ripe) {
     const H = 1.55 * k, sm = mat('#5f9a3a'); const top = v3(0.06, H, 0.06);
     g.add(tube([v3(0, 0, 0), v3(0.02, H * 0.5, 0.01), top], 0.045, 0.03, sm, 8));
@@ -993,7 +2253,7 @@ const W3 = (() => {
     const key = c + ':' + stage; if (CROP_CACHE.has(key)) return CROP_CACHE.get(key);
     const cr = CFG3.CROPS[c], a = cr.art, g = new T.Group();
     if (stage === 0) seedMound(g); else if (stage === 1) sprout(g, 1);
-    else { const k = stage === 2 ? 0.55 : stage === 3 ? 0.82 : 1, ripe = stage === 4; ({ root: buildRoot, cabbage: buildCabbage, bush: buildBush, corn: buildCorn, vine: buildVine, sunflower: buildSunflower, pine: buildPine })[a.type](g, a, k, ripe); }
+    else { const k = stage === 2 ? 0.55 : stage === 3 ? 0.82 : 1, ripe = stage === 4; ({ root: buildRoot, cabbage: buildCabbage, bush: buildBush, corn: buildCorn, vine: buildVine, sunflower: buildSunflower, pine: buildPine, flower: buildFlower, grain: buildGrain })[a.type](g, a, k, ripe); }
     const m = merge(g); m.traverse(o => { if (o.isMesh) o.castShadow = true; });
     const box = new T.Box3().setFromObject(m); m.userData.h = Math.max(0.25, box.max.y);
     CROP_CACHE.set(key, m); return m;
@@ -1067,18 +2327,171 @@ const W3 = (() => {
     x.strokeStyle = col; x.lineWidth = 4; x.stroke(); x.fillStyle = '#fff4d8'; x.font = 'bold 50px "PingFang SC","Microsoft YaHei",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, 128, 50);
     const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; const sp = new T.Sprite(new T.SpriteMaterial({ map: t, depthTest: false, transparent: true })); sp.scale.set(0.95, 0.36, 1); sp.renderOrder = 10; return sp;
   }
-  // 两只看家狗：福旺（灰白色）、睿宝（金色边牧，体型稍大）
-  const DOG_LOOK = { fuwang: { fur: '#9a9aa2', white: '#f4f3ef', ear: '#6e6e78', s: 1, tag: '#c8d2e0', name: '福旺' }, ruibao: { fur: '#d9a441', white: '#fbf3e2', ear: '#a8742a', s: 1.18, tag: '#ffcf5a', name: '睿宝' } };
+  /* =====================================================
+     看家狗：按主人提供的照片建模（两只都是边牧）
+     - 形体：用有向距离函数（SDF）描述胸、腰、臀、颈部毛领、头、吻部、耳朵、尾巴，平滑融合后生成曲面
+     - 毛色：按部位逐点上色（白胸、白颈圈、白腿、白色鼻梁纹、尾尖白），福旺的蓝陌斑块用 3D 噪声生成
+     - 质感：毛领、尾巴、后腿做蓬松毛边；材质带“绒毛光泽”（sheen）
+       福旺：蓝陌（灰底黑斑），头偏深色，青绿色胸背带（红边）
+       睿宝：黄白（金棕色），完整的白色毛领，青绿色项圈
+     ===================================================== */
+  const DOG_LOOK = {
+    fuwang: { name: '福旺', tag: '#c8d2e0', s: 1.04, coat: 'merle', harness: '#1f9e9a', trim: '#c8442e', ruffRing: false, eye: '#3a2412' },
+    ruibao: { name: '睿宝', tag: '#ffcf5a', s: 1.0, coat: 'gold', harness: '#1f9e9a', trim: null, ruffRing: true, eye: '#2a1608' },
+  };
+  const n3 = (x, y, z, s) => (vnoise(x, y, s, 0) + vnoise(y + 3.1, z, s + 1, 0) + vnoise(z + 7.7, x, s + 2, 0)) / 3;
+  const sst = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const smin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; };
+  const smax = (a, b, k) => -smin(-a, -b, k);
+  function sEll(px, py, pz, c, r, inv) {
+    let x = px - c[0], y = py - c[1], z = pz - c[2];
+    if (inv) { const e = inv.elements, X = e[0] * x + e[4] * y + e[8] * z, Y = e[1] * x + e[5] * y + e[9] * z, Z = e[2] * x + e[6] * y + e[10] * z; x = X; y = Y; z = Z; }
+    const k0 = Math.hypot(x / r[0], y / r[1], z / r[2]), k1 = Math.hypot(x / (r[0] * r[0]), y / (r[1] * r[1]), z / (r[2] * r[2]));
+    return k1 > 1e-9 ? k0 * (k0 - 1) / k1 : -Math.min(r[0], r[1], r[2]);
+  }
+  function sCap(px, py, pz, a, b, ra, rb) {
+    const pax = px - a[0], pay = py - a[1], paz = pz - a[2], bax = b[0] - a[0], bay = b[1] - a[1], baz = b[2] - a[2];
+    const h = Math.max(0, Math.min(1, (pax * bax + pay * bay + paz * baz) / (bax * bax + bay * bay + baz * baz)));
+    return Math.hypot(pax - bax * h, pay - bay * h, paz - baz * h) - (ra + (rb - ra) * h);
+  }
+  const rotInv = (x, y, z) => new T.Matrix4().makeRotationFromEuler(new T.Euler(x, y, z)).invert();
+  // 把 SDF 变成平滑网格，并按 colorFn 逐顶点上色
+  function sdfMesh(fn, cx, cy, cz, B, res, colorFn) {
+    const mc = new MCUBES(res, new T.MeshBasicMaterial(), false, false, 90000), N = mc.size, half = N / 2, K = 80 / (B * 0.05);
+    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const wx = cx + (x - half) / half * B, wy = cy + (y - half) / half * B, wz = cz + (z - half) / half * B;
+      mc.field[x + y * N + z * N * N] = Math.max(-2000, Math.min(2000, 80 - fn(wx, wy, wz) * K));
+    }
+    mc.isolation = 80; mc.update();
+    const n = mc.count, pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3), tc = new T.Color();
+    for (let i = 0; i < n; i++) {
+      const x = mc.positionArray[i * 3] * B + cx, y = mc.positionArray[i * 3 + 1] * B + cy, z = mc.positionArray[i * 3 + 2] * B + cz;
+      pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
+      nor[i * 3] = mc.normalArray[i * 3]; nor[i * 3 + 1] = mc.normalArray[i * 3 + 1]; nor[i * 3 + 2] = mc.normalArray[i * 3 + 2];
+      colorFn(x, y, z, tc); col[i * 3] = tc.r; col[i * 3 + 1] = tc.g; col[i * 3 + 2] = tc.b;
+    }
+    mc.geometry.dispose();
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('normal', new T.BufferAttribute(nor, 3)); g.setAttribute('color', new T.BufferAttribute(col, 3));
+    g.computeBoundingSphere(); return g;
+  }
+  // 毛色
+  const C_WHITE = new T.Color('#f4f1ea'), C_MGREY = new T.Color('#7d8590'), C_MLIGHT = new T.Color('#a9b0b8'), C_MBLACK = new T.Color('#1c1c22'), C_GOLD = new T.Color('#c27326'), C_GOLDL = new T.Color('#dca266'), C_GOLDD = new T.Color('#9a5418');
+  function coatAt(L, x, y, z, out, darkHead) {
+    const fine = n3(x * 40, y * 40, z * 40, 5);
+    if (L.coat === 'merle') {
+      const big = n3(x * 4.2 + 11, y * 4.2, z * 4.2 + 3, 61), mid = n3(x * 8 + 2, y * 8, z * 8, 77);
+      out.copy(C_MGREY).multiplyScalar(0.8 + fine * 0.35);
+      if (mid > 0.64) out.copy(C_MLIGHT).multiplyScalar(0.9 + fine * 0.18);              // 浅灰斑
+      out.lerp(C_MBLACK, sst(0.53, 0.57, big));                                          // 黑色斑块
+      if (darkHead) out.lerp(C_MBLACK, darkHead);
+    } else {
+      out.copy(C_GOLD).multiplyScalar(0.84 + fine * 0.3);                                 // 金棕色
+      out.lerp(C_GOLDL, sst(0.62, 0.45, y) * 0.4);                                       // 下侧偏浅
+      out.lerp(C_GOLDD, sst(0.66, 0.76, y) * sst(-0.2, 0.2, x) * 0.35);                  // 背脊偏深
+    }
+    return out;
+  }
+  const DOG_GEO = {}, DOG_BASE_Y = -0.095; // 整体放低（腿短一些，更接近边牧的比例）
+  function dogGeometry(kind) {
+    if (DOG_GEO[kind]) return DOG_GEO[kind]; const L = DOG_LOOK[kind], merle = L.coat === 'merle';
+    // ---- 身体（含脖子、毛领、后腿上段）----
+    const torso = (x, y, z) => {
+      let d = sEll(x, y, z, [0.26, 0.6, 0], [0.2, 0.2, 0.165]);
+      d = smin(d, sCap(x, y, z, [0.22, 0.6, 0], [-0.27, 0.615, 0], 0.152, 0.148), 0.1);
+      d = smin(d, sEll(x, y, z, [-0.3, 0.6, 0], [0.17, 0.165, 0.155]), 0.08);
+      d = smin(d, Math.min(sEll(x, y, z, [-0.31, 0.47, 0.085], [0.1, 0.15, 0.072]), sEll(x, y, z, [-0.31, 0.47, -0.085], [0.1, 0.15, 0.072])), 0.06);
+      d = smin(d, sCap(x, y, z, [0.3, 0.68, 0], [0.43, 0.85, 0], 0.118, 0.098), 0.08);
+      d = smin(d, sEll(x, y, z, [0.37, 0.73, 0], [0.105, 0.12, 0.15]), 0.05);
+      d = smax(d, -sEll(x, y, z, [0.0, 0.36, 0], [0.32, 0.09, 0.3]), 0.07);             // 收腰
+      const fl = Math.max(sst(0.22, 0.05, Math.hypot(x - 0.37, y - 0.72, z * 0.8)), sst(0.2, 0.02, Math.hypot(x + 0.31, y - 0.46, (Math.abs(z) - 0.08) * 1.4)) * 0.8, sst(0.5, 0.42, y) * sst(0.1, 0.3, x) * 0.6);
+      return d - (n3(x * 26, y * 26, z * 26, 9) - 0.5) * 0.045 * fl;                    // 毛领、后腿、前胸下的蓬毛
+    };
+    const torsoCol = (x, y, z, out) => {
+      coatAt(L, x, y, z, out);
+      let w = sst(0.24, 0.33, x) * (1 - sst(0.8, 0.88, y));                              // 白胸
+      const ring = 1 - sst(0.12, 0.17, Math.hypot(x - 0.36, y - 0.74)); w = Math.max(w, L.ruffRing ? ring : ring * (1 - sst(0.78, 0.84, y)) * sst(0.25, 0.33, x)); // 颈圈
+      w = Math.max(w, (1 - sst(0.44, 0.5, y)) * sst(-0.22, -0.1, x));                    // 肚皮
+      out.lerp(C_WHITE, w); return out;
+    };
+    // ---- 头（以颈顶为原点）----
+    const eL = rotInv(0.62, 0, -0.2), eR = rotInv(-0.62, 0, -0.2), tL = rotInv(0.62, 0, 1.15), tR = rotInv(-0.62, 0, 1.15);
+    const head = (x, y, z) => {
+      let d = sEll(x, y, z, [0, 0.02, 0], [0.125, 0.115, 0.115]);
+      d = smin(d, Math.min(sEll(x, y, z, [0.05, -0.035, 0.05], [0.085, 0.075, 0.065]), sEll(x, y, z, [0.05, -0.035, -0.05], [0.085, 0.075, 0.065])), 0.05);
+      d = smin(d, sCap(x, y, z, [0.07, -0.025, 0], [0.19, -0.045, 0], 0.066, 0.046), 0.05);
+      d = smin(d, sEll(x, y, z, [0.11, -0.075, 0], [0.08, 0.034, 0.05]), 0.04);
+      const ears = Math.min(sEll(x, y, z, [-0.03, 0.12, 0.085], [0.058, 0.06, 0.021], eL), sEll(x, y, z, [-0.03, 0.12, -0.085], [0.058, 0.06, 0.021], eR));
+      const tips = Math.min(sEll(x, y, z, [-0.005, 0.172, 0.112], [0.032, 0.026, 0.013], tL), sEll(x, y, z, [-0.005, 0.172, -0.112], [0.032, 0.026, 0.013], tR));
+      d = smin(d, smin(ears, tips, 0.02), 0.03);
+      return d - (n3(x * 30, y * 30, z * 30, 4) - 0.5) * 0.012 * sst(0.05, -0.08, x);
+    };
+    const headCol = (x, y, z, out) => {
+      const earZone = sst(0.09, 0.13, y);
+      coatAt(L, x + 0.46, y + 0.88, z, out, merle ? 0.55 + earZone * 0.3 : 0);
+      if (!merle && earZone > 0 && Math.abs(z) < 0.07 && x > -0.01) out.lerp(new T.Color('#f2d2b0'), earZone * 0.5);       // 耳朵内侧
+      const blaze = (1 - sst(0.016 + Math.max(0, x) * 0.16, 0.03 + Math.max(0, x) * 0.2, Math.abs(z))) * sst(-0.07, -0.03, x) * (1 - sst(0.1, 0.13, y));
+      const muzzle = sst(0.1, 0.14, x) + (1 - sst(-0.07, -0.05, y)) * sst(0.02, 0.06, x);
+      out.lerp(C_WHITE, Math.min(1, Math.max(blaze, muzzle))); return out;
+    };
+    // ---- 尾巴（以尾根为原点）----
+    const TP = [[0, 0, 0], [-0.09, -0.07, 0], [-0.15, -0.18, 0], [-0.17, -0.29, 0], [-0.13, -0.37, 0]], TR = [0.04, 0.055, 0.066, 0.064, 0.045];
+    const tail = (x, y, z) => { let d = 1; for (let i = 0; i < 4; i++) d = smin(d, sCap(x, y, z, TP[i], TP[i + 1], TR[i], TR[i + 1]), 0.04); return d - (n3(x * 24, y * 24, z * 24, 8) - 0.5) * 0.035; };
+    const tailCol = (x, y, z, out) => { coatAt(L, x - 0.44, y + 0.64, z, out); return out.lerp(C_WHITE, sst(-0.28, -0.33, y)); };
+    // ---- 腿：前腿全白；后腿上段毛色、下段白 ----
+    const legGeo = front => { const g = new T.LatheGeometry([[0, -0.37], [0.036, -0.36], [0.042, -0.31], [0.04, -0.25], [front ? 0.047 : 0.045, -0.18], [front ? 0.06 : 0.066, -0.08], [front ? 0.068 : 0.078, 0], [0.05, 0.05], [0, 0.07]].map(([r, y]) => new T.Vector2(r, y)), 18); g.computeVertexNormals(); const p = g.attributes.position, c = new Float32Array(p.count * 3), tc = new T.Color(); for (let i = 0; i < p.count; i++) { const y = p.getY(i); if (front) tc.copy(C_WHITE); else { coatAt(L, -0.3, 0.46 + y, 0.1, tc); tc.lerp(C_WHITE, sst(-0.12, -0.2, y)); } c.set([tc.r, tc.g, tc.b], i * 3); } g.setAttribute('color', new T.BufferAttribute(c, 3)); return g; };
+    DOG_GEO[kind] = {
+      torso: sdfMesh(torso, -0.02, 0.6, 0, 0.6, 54, torsoCol),
+      head: sdfMesh(head, 0.06, 0.04, 0, 0.27, 46, headCol),
+      tail: sdfMesh(tail, -0.12, -0.18, 0, 0.27, 36, tailCol),
+      legF: legGeo(true), legH: legGeo(false),
+    };
+    return DOG_GEO[kind];
+  }
+  function furMat() { return new T.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.86, sheen: 0.35, sheenRoughness: 0.5, sheenColor: new T.Color('#fff4e0') }); }
   function buildDog(kind) {
-    const L = DOG_LOOK[kind || 'fuwang'];
-    const g = new T.Group(), fur = mat(L.fur, { p: { roughness: 0.9 } }), white = mat(L.white, { p: { roughness: 0.9 } }), dark = mat('#2a1a10');
-    const body = blob(fur, 0, 0.42, 0, 0.42, 0.28, 0.26); g.add(body); g.add(blob(white, 0.18, 0.36, 0, 0.22, 0.2, 0.2));
-    const head = new T.Group(); head.position.set(0.45, 0.75, 0); head.add(blob(fur, 0, 0, 0, 0.24)); head.add(blob(white, 0.18, -0.06, 0, 0.13, 0.1, 0.12)); head.add(blob(dark, 0.3, -0.02, 0, 0.04)); [-0.1, 0.1].forEach(z => { head.add(blob(dark, 0.18, 0.06, z, 0.03)); const ear = blob(mat(L.ear), -0.05, 0.12, z * 1.8, 0.07, 0.16, 0.05); ear.rotation.x = z * 3; head.add(ear); }); g.add(head);
-    [[0.25, 0.14], [0.25, -0.14], [-0.25, 0.14], [-0.25, -0.14]].forEach(([x, z]) => g.add(mesh(new T.CapsuleGeometry(0.06, 0.25, 4, 8), fur, x, 0.18, z)));
-    const tail = mesh(new T.CapsuleGeometry(0.04, 0.3, 4, 8), fur, -0.45, 0.58, 0); tail.rotation.z = 0.9; g.add(tail);
-    g.traverse(o => { if (o.isMesh) o.castShadow = true; }); g.scale.setScalar(L.s);
-    const tag = nameTag(L.name, L.tag); tag.position.set(0.1, 1.35, 0); g.add(tag);
-    const d = { g, head, tail, body, tag, kind }; anim.dogs.push(d); return g;
+    const L = DOG_LOOK[kind || 'fuwang'], G = dogGeometry(kind || 'fuwang'), fur = furMat();
+    const g = new T.Group(), torso = new T.Group(); torso.position.y = DOG_BASE_Y; g.add(torso);
+    const body = new T.Mesh(G.torso, fur); body.castShadow = true; torso.add(body);
+    // 胸背带 / 项圈
+    const harness = mat(L.harness, { p: { roughness: 0.55 } });
+    const ring = (x, y, sy, sz, rz, w, m) => { const o = mesh(new T.TorusGeometry(1, w, 8, 40), m, x, y, 0); o.rotation.set(0, Math.PI / 2, rz || 0); o.scale.set(sz, sy, 0.2); torso.add(o); return o; };
+    if (L.trim) { const band = new T.Mesh(new T.CylinderGeometry(1, 1, 0.075, 40, 1, true), harness); band.rotation.z = Math.PI / 2; band.position.set(0.14, 0.6, 0); band.scale.set(0.196, 1, 0.168); band.material = band.material.clone(); band.material.side = T.DoubleSide; torso.add(band); ring(0.178, 0.6, 0.198, 0.17, 0, 0.06, mat(L.trim)); }   // 福旺：胸背带（红边）
+    ring(0.39, 0.78, 0.112, 0.118, -0.55, 0.14, harness);                                                              // 项圈
+    torso.add(mesh(new T.SphereGeometry(0.019, 12, 10), mat('#e8c060', { p: { metalness: 0.85, roughness: 0.28 } }), 0.47, 0.705, 0));  // 小铃铛
+    // 头
+    const head = new T.Group(); head.position.set(0.47, 0.92, 0); head.scale.setScalar(1.22); torso.add(head); // 头大一点更可爱
+    const hm = new T.Mesh(G.head, fur); hm.castShadow = true; head.add(hm);
+    const eyeM = new T.MeshPhysicalMaterial({ color: new T.Color(L.eye), roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.05 });
+    const glint = new T.MeshBasicMaterial({ color: 0xffffff });
+    [-1, 1].forEach(sd => { const e = new T.Mesh(new T.SphereGeometry(0.029, 18, 14), eyeM); e.position.set(0.094, 0.036, sd * 0.06); e.scale.set(0.78, 1, 1); head.add(e); const s1 = new T.Mesh(new T.SphereGeometry(0.0095, 10, 8), glint); s1.position.set(0.114, 0.049, sd * 0.067); head.add(s1); const s2 = new T.Mesh(new T.SphereGeometry(0.0048, 8, 6), glint); s2.position.set(0.116, 0.026, sd * 0.056); head.add(s2); });
+    const nose = new T.Mesh(new T.SphereGeometry(1, 16, 12), new T.MeshPhysicalMaterial({ color: new T.Color('#141010'), roughness: 0.25, clearcoat: 0.8 })); nose.position.set(0.198, -0.043, 0); nose.scale.set(0.026, 0.021, 0.031); head.add(nose);
+    const tongue = new T.Mesh(new T.SphereGeometry(1, 14, 10), new T.MeshPhysicalMaterial({ color: new T.Color('#e8707c'), roughness: 0.35, clearcoat: 0.6 })); tongue.position.set(0.14, -0.105, 0); tongue.scale.set(0.028, 0.048, 0.023); tongue.rotation.z = 0.35; head.add(tongue);
+    // 腿
+    const legs = []; const lm = furMat();
+    [[0.27, 0.11, 1], [0.27, -0.11, 1], [-0.3, 0.1, 0], [-0.3, -0.1, 0]].forEach(([x, z, front]) => { const lg = new T.Group(); lg.position.set(x, 0.45, z); lg.scale.set(1.3, 0.92, 1.3); const m = new T.Mesh(front ? G.legF : G.legH, lm); m.castShadow = true; lg.add(m); const paw = new T.Mesh(new T.SphereGeometry(1, 12, 8), lm); paw.geometry = new T.SphereGeometry(1, 12, 8); paw.position.set(0.022, -0.355, 0); paw.scale.set(0.06, 0.03, 0.05); paw.material = new T.MeshPhysicalMaterial({ color: C_WHITE, roughness: 0.86, sheen: 0.35, sheenColor: new T.Color('#fff4e0') }); lg.add(paw); torso.add(lg); legs.push(lg); });
+    // 尾巴
+    const tail = new T.Group(); tail.position.set(-0.44, 0.64, 0); torso.add(tail); const tm = new T.Mesh(G.tail, fur); tm.castShadow = true; tail.add(tm); tail.scale.setScalar(0.88);
+    g.scale.setScalar(L.s);
+    const tag = nameTag(L.name, L.tag); tag.position.set(0.1, 1.42, 0); g.add(tag);
+    const d = { g, torso, head, tail, legs, tongue, tag, kind, home: null, ang: Math.random() * 6.28, pet: 0 }; anim.dogs.push(d); return g;
+  }
+  // 调试：大尺寸渲染某个角度的狗（只在测试中用）
+  function dogShot(kind, size, yaw, pitch) {
+    const c = document.createElement('canvas'); c.width = c.height = size || 512; const r = new T.WebGLRenderer({ canvas: c, antialias: true, preserveDrawingBuffer: true }); r.outputEncoding = T.sRGBEncoding; r.toneMapping = T.ACESFilmicToneMapping; r.setClearColor(0x8fb070, 1);
+    const sc = new T.Scene(); sc.add(new T.HemisphereLight(0xffffff, 0x6a7a4a, 0.9)); const dl = new T.DirectionalLight(0xfff4e0, 2.2); dl.position.set(3, 5, 4); sc.add(dl);
+    const n = anim.dogs.length, m = buildDog(kind); anim.dogs.length = n; m.remove(m.children.find(o => o.isSprite)); m.rotation.y = yaw || 0; sc.add(m);
+    const box = new T.Box3().setFromObject(m), ctr = box.getCenter(new T.Vector3()), rad = box.getSize(new T.Vector3()).length() * 0.55, cam2 = new T.PerspectiveCamera(30, 1, 0.05, 50);
+    cam2.position.set(ctr.x, ctr.y + Math.sin(pitch || 0.25) * rad * 3, ctr.z + Math.cos(pitch || 0.25) * rad * 3); cam2.lookAt(ctr); r.render(sc, cam2); const u = c.toDataURL(); r.dispose(); return u;
+  }
+  // 狗狗预览图（商店里用）：离屏渲染
+  function dogPortrait(kind) {
+    const key = 'dog:' + kind; if (ICONS[key]) return ICONS[key];
+    try {
+      ensureIconRenderer(); const n = anim.dogs.length, m = buildDog(kind); anim.dogs.length = n; m.remove(m.children.find(c => c.isSprite)); m.rotation.y = -0.65;
+      IS.add(m); const box = new T.Box3().setFromObject(m), c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3()), r = Math.max(sz.x, sz.y, sz.z) * 0.6;
+      IC.position.set(c.x + r * 1.4, c.y + r * 0.7, c.z + r * 2.5); IC.lookAt(c); IC.updateProjectionMatrix(); IR.render(IS, IC); ICONS[key] = IR.domElement.toDataURL(); IS.remove(m);
+    } catch (e) { console.error(e); ICONS[key] = ''; }
+    return ICONS[key];
   }
   function buildChicken() { const g = new T.Group(); g.add(blob(mat('#fbf6ec', { p: { roughness: 0.9 } }), 0, 0.3, 0, 0.22, 0.2, 0.18)); g.add(blob(mat('#fbf6ec'), -0.2, 0.38, 0, 0.1, 0.14, 0.08)); const h = blob(mat('#fbf6ec'), 0.16, 0.5, 0, 0.12); g.add(h); g.add(blob(mat('#e0302a'), 0.18, 0.62, 0, 0.05, 0.06, 0.03)); const bk = mesh(new T.ConeGeometry(0.035, 0.09, 6), mat('#f0a020'), 0.29, 0.5, 0); bk.rotation.z = -Math.PI / 2; g.add(bk); g.add(blob(mat('#1a1008'), 0.23, 0.53, 0.07, 0.018)); g.add(blob(mat('#1a1008'), 0.23, 0.53, -0.07, 0.018)); [0.06, -0.06].forEach(z => g.add(mesh(new T.CylinderGeometry(0.012, 0.012, 0.16, 4), mat('#e0a020'), 0, 0.08, z))); const m = merge(g); m.scale.setScalar(0.9); return m; }
   function buildButterfly(col) { const g = new T.Group(), wm = mat(col, { ds: 1, p: { roughness: 0.6 } }); const wg = new T.CircleGeometry(0.12, 10); const l = mesh(wg, wm, -0.08, 0, 0), r = mesh(wg, wm, 0.08, 0, 0); l.castShadow = r.castShadow = false; const lp = new T.Group(), rp = new T.Group(); lp.add(l); rp.add(r); g.add(lp, rp); g.add(blob(mat('#2a1a10'), 0, 0, 0, 0.015, 0.015, 0.08)); return { g, lp, rp }; }
@@ -1158,6 +2571,9 @@ const W3 = (() => {
   function spawn(kind, pos, vel, life, size, grav, spin) { const s = new T.Sprite(new T.SpriteMaterial({ map: FXT[kind], transparent: true, depthWrite: false, blending: kind === 'star' ? T.AdditiveBlending : T.NormalBlending })); s.position.copy(pos); s.scale.setScalar(size); s.renderOrder = 20; scene.add(s); parts.push({ s, v: vel, t: 0, life, g: grav, size, spin: spin || 0 }); }
   const P0 = (i, y) => { const [x, z] = plotXZ(i); return v3(x, (y || 0) + BED_H + (plots[i] ? plots[i].cropH * 0.6 : 0), z); };
   const rv = (a, b) => a + Math.random() * (b - a);
+  function heartTex() { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.translate(32, 34); g.fillStyle = '#ff5d7a'; g.strokeStyle = '#fff'; g.lineWidth = 4; g.beginPath(); g.moveTo(0, 18); g.bezierCurveTo(-30, -2, -18, -28, 0, -12); g.bezierCurveTo(18, -28, 30, -2, 0, 18); g.closePath(); g.fill(); g.stroke(); g.fillStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.ellipse(-9, -9, 5, 3, -0.6, 0, 7); g.fill(); const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; return t; }
+  function petDog(k) { const dg = anim.dogs[k]; if (!dg || !dg.g.visible) return false; dg.pet = 2.4; const p = dg.g.position.clone(); p.y += 1.1;
+    for (let n = 0; n < 7; n++) setTimeout(() => spawn('heart', p.clone().add(v3(rv(-0.3, 0.3), rv(0, 0.3), rv(-0.3, 0.3))), v3(rv(-0.4, 0.4), rv(1.2, 2), rv(-0.4, 0.4)), 1.4, rv(0.22, 0.34), 0), n * 120); return true; }
   const fx = {
     coins(i, n) { for (let k = 0; k < n; k++) spawn('coin', P0(i, 0.3), v3(rv(-1.8, 1.8), rv(3.5, 5.5), rv(-1.8, 1.8)), rv(0.9, 1.2), 0.34, -11); },
     stars(i, n, col) { for (let k = 0; k < n; k++) spawn('star', P0(i, 0.4), v3(rv(-1.6, 1.6), rv(0.5, 2.5), rv(-1.6, 1.6)), rv(0.6, 1), rv(0.25, 0.45), -1); },
@@ -1196,11 +2612,111 @@ const W3 = (() => {
   function resize() {
     W = window.innerWidth; H = window.innerHeight; const mob = W < 820;
     const port = H > W * 1.15; Object.assign(safe, port ? { l: 46, r: 58, t: 120, b: 96 } : mob ? { l: 54, r: 64, t: 70, b: 92 } : { l: 84, r: 104, t: 84, b: 112 });
-    applyQuality(); fit();
+    applyQuality(); if (viewMode === 'walk') { cam.aspect = W / H; cam.updateProjectionMatrix(); } else fit();
   }
   function perfTick(dt) { if (quality <= 1) return; perf.acc += dt; perf.n++; if (perf.acc > 2.5) { const avg = perf.acc / perf.n; perf.acc = 0; perf.n = 0; if (avg > 0.045) { quality--; applyQuality(); } } }
   let theme = null;
   function setTheme(th) { if (!anim.house || !th) return; if (theme === th.roof + th.wall) return; theme = th.roof + th.wall; anim.house.roofM.color.set(th.roof); anim.house.wallM.color.set(th.wall).lerp(new T.Color('#ffffff'), 0.25); }
+  /* =====================================================
+     漫游模式：可操控的 3D 人物（走 / 跑 / 跳），第三人称镜头跟随
+     - 移动方向相对于镜头；田埂可以踩上去；房子、风车、树、池塘会挡路；篱笆挡路但能跳过去
+     ===================================================== */
+  const OBST = []; // 圆形障碍物 [x, z, 半径]
+  const FENCE_X = 8.2, FENCE_Z = 6.0, GATE = 1.6;
+  const FENCE = [[-FENCE_X, -FENCE_Z, FENCE_X, -FENCE_Z], [FENCE_X, -FENCE_Z, FENCE_X, FENCE_Z], [-FENCE_X, -FENCE_Z, -FENCE_X, FENCE_Z], [-FENCE_X, FENCE_Z, -GATE, FENCE_Z], [GATE, FENCE_Z, FENCE_X, FENCE_Z]];
+  const HERO = { g: null, p: null, pos: v3(0, 0, 8.6), y: 0, vy: 0, face: Math.PI, phase: 0, spd: 0, ground: true, lookKey: '' };
+  let viewMode = 'top', camYaw = 0, camPitch = 0.38, camDistW = 7.5, nearIdx = -1, nearDog = -1;
+  const camFocus = v3(0, 1, 9.5), input = { x: 0, z: 0, run: false, jump: false };
+  function buildHero(look) {
+    look = Object.assign({ skin: '#f2c89a', hair: '#2a1a10', shirt: '#4a8fd8', band: '#d9553a', hat: 1, pants: '#3a4660' }, look || {});
+    const g = new T.Group(), skin = mat(look.skin, { p: { roughness: 0.75 } }), shirt = mat(look.shirt, { p: { roughness: 0.85 } }), pants = mat(look.pants, { p: { roughness: 0.9 } });
+    const shoe = mat('#3a2818', { p: { roughness: 0.8 } }), hair = mat(look.hair, { p: { roughness: 0.7 } }), dark = mat('#20140c');
+    const body = new T.Group(); body.position.y = 0.92; g.add(body);
+    // 躯干与背带裤
+    body.add(mesh(new T.CapsuleGeometry(0.2, 0.36, 6, 14), shirt, 0, 0.3, 0)); body.children[0].scale.set(1.05, 1, 0.78);
+    const bib = mesh(new T.CapsuleGeometry(0.205, 0.16, 6, 14), pants, 0, 0.12, 0); bib.scale.set(1.06, 1, 0.8); body.add(bib);
+    [-0.1, 0.1].forEach(x => { const s = mesh(new T.BoxGeometry(0.05, 0.36, 0.02), pants, x, 0.38, 0.16); s.rotation.x = -0.12; body.add(s); });
+    // 腿（以胯为轴摆动）
+    const leg = x => { const L = new T.Group(); L.position.set(x, 0, 0); L.add(mesh(new T.CapsuleGeometry(0.085, 0.62, 4, 10), pants, 0, -0.42, 0)); const sh = blob(shoe, 0, -0.83, 0.05, 0.1, 0.07, 0.16); L.add(sh); body.add(L); return L; };
+    const legL = leg(-0.1), legR = leg(0.1);
+    // 手臂（以肩为轴摆动）
+    const arm = x => { const A = new T.Group(); A.position.set(x, 0.5, 0); A.add(mesh(new T.CapsuleGeometry(0.065, 0.42, 4, 10), shirt, 0, -0.24, 0)); A.add(blob(skin, 0, -0.52, 0, 0.065)); body.add(A); return A; };
+    const armL = arm(-0.27), armR = arm(0.27);
+    // 头、头发、草帽
+    const head = new T.Group(); head.position.set(0, 0.86, 0); body.add(head);
+    head.add(mesh(new T.CylinderGeometry(0.06, 0.07, 0.1, 10), skin, 0, -0.1, 0));
+    head.add(blob(skin, 0, 0.06, 0, 0.16, 0.185, 0.165));
+    head.add(blob(hair, 0, 0.12, -0.03, 0.172, 0.15, 0.165));
+    [-0.06, 0.06].forEach(x => head.add(blob(dark, x, 0.07, 0.15, 0.018, 0.024, 0.012)));
+    head.add(blob(mat('#e0a080'), 0, 0.02, 0.165, 0.022, 0.02, 0.02));
+    if (look.hat) { const straw = mat('#e2c27a', { p: { roughness: 0.9 } }); head.add(mesh(new T.CylinderGeometry(0.34, 0.36, 0.025, 24), straw, 0, 0.2, 0)); head.add(mesh(new T.CylinderGeometry(0.16, 0.18, 0.15, 20), straw, 0, 0.28, 0)); head.add(mesh(new T.CylinderGeometry(0.182, 0.182, 0.04, 20), mat(look.band), 0, 0.23, 0)); }
+    g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+    // 脚下的光圈：漫游时方便找到自己
+    const ring = new T.Mesh(new T.RingGeometry(0.34, 0.42, 32), new T.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.55, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02; g.add(ring);
+    HERO.p = { body, legL, legR, armL, armR, head, ring };
+    return g;
+  }
+  function setHero(look) {
+    const k = JSON.stringify(look || {}); if (HERO.lookKey === k && HERO.g) return; HERO.lookKey = k;
+    const was = HERO.g; HERO.g = buildHero(look); HERO.g.visible = viewMode === 'walk'; if (was) { scene.remove(was); } scene.add(HERO.g);
+  }
+  function resetHero() { HERO.pos.set(0, 0, 8.6); HERO.y = 0; HERO.vy = 0; HERO.face = Math.PI; camYaw = 0; camFocus.set(0, 1, 8.6); }
+  function groundAt(x, z) { for (let i = 0; i < 24; i++) { const [px, pz] = plotXZ(i); if (Math.abs(x - px) < PLOT / 2 - 0.04 && Math.abs(z - pz) < PLOT / 2 - 0.04) return BED_H; } return 0; }
+  function collide(p, y) {
+    const R0 = 0.32;
+    OBST.forEach(([ox, oz, r]) => { const dx = p.x - ox, dz = p.z - oz, d = Math.hypot(dx, dz), m = r + R0; if (d < m && d > 1e-4) { p.x = ox + dx / d * m; p.z = oz + dz / d * m; } });
+    { const dx = (p.x + 5.5) / 1.25, dz = p.z - 13.5, d = Math.hypot(dx, dz); if (d < 3.3) { const k = 3.3 / Math.max(d, 1e-4); p.x = -5.5 + dx * k * 1.25; p.z = 13.5 + dz * k; } } // 池塘
+    if (y < 0.8) FENCE.forEach(([x0, z0, x1, z1]) => { const vx = x1 - x0, vz = z1 - z0, L2 = vx * vx + vz * vz, t = Math.max(0, Math.min(1, ((p.x - x0) * vx + (p.z - z0) * vz) / L2)), cx = x0 + vx * t, cz = z0 + vz * t, dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz); if (d < 0.28) { const nx = d > 1e-4 ? dx / d : -vz / Math.sqrt(L2), nz = d > 1e-4 ? dz / d : vx / Math.sqrt(L2); p.x = cx + nx * 0.28; p.z = cz + nz * 0.28; } });
+    const rr = Math.hypot(p.x, p.z); if (rr > 34) { p.x *= 34 / rr; p.z *= 34 / rr; }
+  }
+  function updateHero(dt) {
+    if (!HERO.g) return; const P = HERO.p;
+    // 输入方向（相对镜头）
+    let ix = input.x, iz = input.z; const mag = Math.min(1, Math.hypot(ix, iz)); if (mag > 1e-3) { ix /= Math.max(1, Math.hypot(ix, iz)); iz /= Math.max(1, Math.hypot(ix, iz)); }
+    const sy = Math.sin(camYaw), cy = Math.cos(camYaw);
+    const mx = ix * cy + iz * sy, mz = -ix * sy + iz * cy; // 镜头前方为 -z（屏幕上方）
+    const want = mag > 0.05 ? (input.run || mag > 0.92 ? 6.2 : 3.4) * Math.max(0.35, mag) : 0;
+    HERO.spd += (want - HERO.spd) * Math.min(1, dt * 10);
+    if (mag > 0.05) { const f = Math.atan2(mx, mz); let d = f - HERO.face; d = Math.atan2(Math.sin(d), Math.cos(d)); HERO.face += d * Math.min(1, dt * 12); }
+    if (mag > 0.05) { // 分小步移动，低帧率时也不会穿过篱笆
+      const l = Math.hypot(mx, mz) || 1, dist = HERO.spd * dt, n = Math.max(1, Math.ceil(dist / 0.12));
+      for (let k = 0; k < n; k++) { HERO.pos.x += mx / l * dist / n; HERO.pos.z += mz / l * dist / n; collide(HERO.pos, HERO.y); }
+    } else collide(HERO.pos, HERO.y);
+    // 跳跃与重力
+    const gY = groundAt(HERO.pos.x, HERO.pos.z);
+    if (input.jump && HERO.ground) { HERO.vy = 7.4; HERO.ground = false; }
+    input.jump = false;
+    HERO.vy -= 21 * dt; HERO.y += HERO.vy * dt;
+    if (HERO.y <= gY) { if (!HERO.ground && HERO.vy < -4) HERO.land = 0.18; HERO.y = gY; HERO.vy = 0; HERO.ground = true; } else if (HERO.y > gY + 0.05) HERO.ground = false;
+    HERO.g.position.set(HERO.pos.x, HERO.y, HERO.pos.z); HERO.g.rotation.y = HERO.face;
+    // 动作
+    const run = HERO.spd > 4.6, moving = HERO.spd > 0.3;
+    HERO.phase += dt * (run ? 11 : 7.5) * (moving ? 1 : 0);
+    const amp = moving ? (run ? 0.95 : 0.6) * Math.min(1, HERO.spd / 3) : 0, s = Math.sin(HERO.phase);
+    if (!HERO.ground) { P.legL.rotation.x = -0.6; P.legR.rotation.x = 0.35; P.armL.rotation.x = -2.4; P.armR.rotation.x = -2.2; P.armL.rotation.z = 0.25; P.armR.rotation.z = -0.25; P.body.rotation.x = 0.08; }
+    else { P.legL.rotation.x = s * amp; P.legR.rotation.x = -s * amp; P.armL.rotation.x = -s * amp * 0.85; P.armR.rotation.x = s * amp * 0.85; P.armL.rotation.z = 0.06; P.armR.rotation.z = -0.06; P.body.rotation.x = run ? 0.18 : moving ? 0.06 : 0; }
+    HERO.land = Math.max(0, (HERO.land || 0) - dt);
+    P.body.position.y = 0.92 + (HERO.ground ? Math.abs(s) * 0.045 * amp - HERO.land * 0.6 : 0) + (!moving && HERO.ground ? Math.sin(tNow * 2) * 0.008 : 0);
+    P.head.rotation.y = !moving ? Math.sin(tNow * 0.5) * 0.25 : 0;
+    P.ring.material.opacity = 0.35 + Math.sin(tNow * 3) * 0.15; P.ring.position.y = gY - HERO.y + 0.02;
+    // 附近的地块（优先面前的）
+    let best = -1, bd = 1e9; const fx = Math.sin(HERO.face), fz = Math.cos(HERO.face);
+    for (let i = 0; i < 24; i++) { const [px, pz] = plotXZ(i), dx = px - HERO.pos.x, dz = pz - HERO.pos.z, d = Math.hypot(dx, dz); if (d > 1.9) continue; const sc = d - (d > 0.05 ? (dx * fx + dz * fz) / d * 0.5 : 0.5); if (sc < bd) { bd = sc; best = i; } }
+    nearIdx = best;
+    let nd = -1, ndd = 1.7; anim.dogs.forEach((dg, k) => { if (!dg.g.visible) return; const d = Math.hypot(dg.g.position.x - HERO.pos.x, dg.g.position.z - HERO.pos.z); if (d < ndd) { ndd = d; nd = k; } }); nearDog = nd;
+  }
+  function updateWalkCam(dt) {
+    const want = v3(HERO.pos.x, HERO.y * 0.6 + 1.15, HERO.pos.z); camFocus.lerp(want, 1 - Math.exp(-dt * 9));
+    const cp = Math.cos(camPitch), off = v3(Math.sin(camYaw) * cp, Math.sin(camPitch), Math.cos(camYaw) * cp).multiplyScalar(camDistW);
+    cam.position.copy(camFocus).add(off); if (cam.position.y < 0.6) cam.position.y = 0.6; cam.lookAt(camFocus); target.copy(camFocus); if (sun) sun.target.position.copy(camFocus);
+  }
+  function setMode(m) {
+    viewMode = m === 'walk' ? 'walk' : 'top'; if (HERO.g) HERO.g.visible = viewMode === 'walk';
+    if (viewMode === 'walk') { cam.fov = 52; cam.clearViewOffset(); cam.near = 0.1; cam.updateProjectionMatrix(); camYaw = 0; updateWalkCam(1); }
+    else { cam.fov = 30; cam.near = 1; target.set(0, 0, 0.4); fit(); }
+  }
+  function orbit(dx, dy) { camYaw -= dx; camPitch = Math.max(0.08, Math.min(1.25, camPitch + dy)); }
+  function setInput(o) { Object.assign(input, o); }
   function init(cv) {
     canvasEl = cv;
     R = new T.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
@@ -1208,7 +2724,7 @@ const W3 = (() => {
     scene = new T.Scene(); cam = new T.PerspectiveCamera(30, 1, 1, 900);
     scene.fog = new T.Fog(new T.Color('#cfe8ff'), 70, 230);
     buildTextures();
-    FXT = { coin: coinTex(), star: starTex(), drop: dropTex(), leaf: leafSpriteTex('#5cb83c'), soil: leafSpriteTex('#7a5232'), puff: glowTex('rgba(255,255,255,0.85)', 1) };
+    FXT = { coin: coinTex(), star: starTex(), drop: dropTex(), leaf: leafSpriteTex('#5cb83c'), soil: leafSpriteTex('#7a5232'), puff: glowTex('rgba(255,255,255,0.85)', 1), heart: heartTex() };
     fxLayer = document.getElementById('fx3d');
     buildSky();
     hemi = new T.HemisphereLight(0xcfe8ff, 0x4a6a2a, 0.7); scene.add(hemi);
@@ -1230,16 +2746,18 @@ const W3 = (() => {
     fenceLine(fg, -X, -Z, X, -Z, wm); fenceLine(fg, X, -Z, X, Z, wm); fenceLine(fg, -X, -Z, -X, Z, wm); fenceLine(fg, -X, Z, -1.6, Z, wm); fenceLine(fg, 1.6, Z, X, Z, wm);
     scene.add(merge(fg));
     // 建筑与装饰
+    OBST.length = 0; OBST.push([-13, -2.5, 3.3], [3.5, -15, 1.9], [11.2, -3.8, 0.9], [-10.5, 6.5, 0.35]);
     const house = buildHouse(); house.position.set(-13, 0, -2.5); house.rotation.y = 0.15; scene.add(house); doorLamp.position.set(-13 + 0.6, 2.8, -2.5 + 2.6);
     const wmill = buildWindmill(); wmill.position.set(3.5, 0, -15); wmill.rotation.y = -0.2; scene.add(wmill);
     scene.add(buildPond(-5.5, 13.5));
     const scare = buildScarecrow(); scare.position.set(-10.5, 0, 6.5); scene.add(scare);
     const dh = buildDoghouse(); dh.position.set(11.2, 0, -3.8); dh.rotation.y = -0.6; scene.add(dh);
-    const dog = buildDog('fuwang'); dog.position.set(9.6, 0, 1.0); dog.rotation.y = -2.9; dog.visible = false; scene.add(dog);
-    const dog2 = buildDog('ruibao'); dog2.position.set(9.4, 0, -0.6); dog2.rotation.y = -2.6; dog2.visible = false; scene.add(dog2);
-    [[-17, -10, 1.2, '#4f9a3a', 1], [-20, 2, 1.1, '#5aa840', 0], [-9, -14, 1.0, '#4a9238', 1], [12, -13, 1.25, '#4f9a3a', 0], [17, -6, 1.05, '#5aa840', 1], [24, 4, 1.2, '#4a9238', 0], [17, 15, 1.0, '#5aa840', 1], [-24, 16, 1.15, '#4f9a3a', 0], [9, 22, 0.9, '#5aa840', 0], [-24, -5, 1.3, '#467f36', 0], [24, 0, 1.25, '#467f36', 1], [-2, -20, 1.2, '#4f9a3a', 0], [26, 18, 1.1, '#4a9238', 0]].forEach(([x, z, s, c, ap]) => scene.add(tree(x, z, s, c, ap)));
-    [[-9.6, -6.5, 0.9], [9.4, 7.2, 1], [-15.5, 3.5, 0.8], [14, 3, 0.9], [7, -8, 0.7], [-7, -8.2, 0.8], [0, 9.5, 0.6], [15, -10, 1]].forEach(([x, z, s]) => scene.add(bushAt(x, z, s, '#4f9a3a')));
-    [[-9.2, 9.8, 0.5], [10.5, 9.5, 0.4], [-2.2, 10.8, 0.3], [14.5, -1, 0.35], [-16, -6, 0.45], [6, 11, 0.3]].forEach(([x, z, s]) => scene.add(rock(x, z, s)));
+    // 狗狗模型计算量较大：画面出来后再生成，避免打开游戏时卡顿
+    setTimeout(() => { const dog = buildDog('fuwang'); dog.position.set(10.4, 0, 1.2); dog.rotation.y = -2.9; dog.visible = false; scene.add(dog);
+      setTimeout(() => { const dog2 = buildDog('ruibao'); dog2.position.set(10.6, 0, -1.4); dog2.rotation.y = -2.6; dog2.visible = false; scene.add(dog2); }, 60); }, 400);
+    [[-17, -10, 1.2, '#4f9a3a', 1], [-20, 2, 1.1, '#5aa840', 0], [-9, -14, 1.0, '#4a9238', 1], [12, -13, 1.25, '#4f9a3a', 0], [17, -6, 1.05, '#5aa840', 1], [24, 4, 1.2, '#4a9238', 0], [17, 15, 1.0, '#5aa840', 1], [-24, 16, 1.15, '#4f9a3a', 0], [9, 22, 0.9, '#5aa840', 0], [-24, -5, 1.3, '#467f36', 0], [24, 0, 1.25, '#467f36', 1], [-2, -20, 1.2, '#4f9a3a', 0], [26, 18, 1.1, '#4a9238', 0]].forEach(([x, z, s, c, ap]) => { scene.add(tree(x, z, s, c, ap)); OBST.push([x, z, 0.55 * s]); });
+    [[-9.6, -6.5, 0.9], [9.4, 7.2, 1], [-15.5, 3.5, 0.8], [14, 3, 0.9], [7, -8, 0.7], [-7, -8.2, 0.8], [3.4, 9.8, 0.6], [15, -10, 1]].forEach(([x, z, s]) => { scene.add(bushAt(x, z, s, '#4f9a3a')); OBST.push([x, z, 0.75 * s]); });
+    [[-9.2, 9.8, 0.5], [10.5, 9.5, 0.4], [-2.2, 10.8, 0.3], [14.5, -1, 0.35], [-16, -6, 0.45], [6, 11, 0.3]].forEach(([x, z, s]) => { scene.add(rock(x, z, s)); OBST.push([x, z, 1.1 * s]); });
     const avoid = (x, z) => (Math.abs(x) < 8.6 && Math.abs(z) < 6.4) || (Math.hypot((x + 5.5) / 1.25, z - 13.5) < 3.8) || (Math.abs(x + 13) < 3.2 && Math.abs(z + 2.5) < 2.8) || Math.hypot(x - 3.5, z + 15) < 2;
     grassMesh = grassField(window.innerWidth < 820 ? 5000 : 11000, avoid); scene.add(grassMesh); scene.add(flowers(420, avoid)); scene.add(hills());
     for (let i = 0; i < 4; i++) { const c = buildChicken(); c.position.set([-6, 7, 12, -11][i], 0, [8.2, -8, 6, -6.5][i]); scene.add(c); anim.chickens.push({ m: c, tx: c.position.x, tz: c.position.z, pk: 0, home: c.position.clone() }); }
@@ -1249,7 +2767,8 @@ const W3 = (() => {
     const smokeM = () => new T.SpriteMaterial({ map: FXT.puff, transparent: true, depthWrite: false, opacity: 0.5 }); for (let i = 0; i < 8; i++) { const s = new T.Sprite(smokeM()); s.userData.ph = i / 8; scene.add(s); anim.smoke.push(s); }
     { const n = 60, g = new T.BufferGeometry(), p = new Float32Array(n * 3), r = CFG3.rng(3); for (let i = 0; i < n; i++) { p[i * 3] = (r() - 0.5) * 34; p[i * 3 + 1] = 0.5 + r() * 2.5; p[i * 3 + 2] = (r() - 0.5) * 28; } g.setAttribute('position', new T.BufferAttribute(p, 3)); anim.fireflies = new T.Points(g, new T.PointsMaterial({ size: 0.35, map: glowTex('rgba(220,255,140,1)'), transparent: true, depthWrite: false, blending: T.AdditiveBlending, color: 0xd8ff8a })); anim.fireflies.visible = false; scene.add(anim.fireflies); }
     { const n = 1600, g = new T.BufferGeometry(), p = new Float32Array(n * 6); for (let i = 0; i < n; i++) { const x = (Math.random() - 0.5) * 50, y = Math.random() * 30, z = (Math.random() - 0.5) * 50; p.set([x, y, z, x - 0.05, y - 0.6, z - 0.05], i * 6); } g.setAttribute('position', new T.BufferAttribute(p, 3)); anim.rain = new T.LineSegments(g, new T.LineBasicMaterial({ color: 0xc8dcff, transparent: true, opacity: 0.45 })); anim.rain.visible = false; scene.add(anim.rain); }
-    window.addEventListener('wheel', e => { if (e.target !== canvasEl) return; zoom = Math.max(0.7, Math.min(1.25, zoom * (e.deltaY > 0 ? 1.06 : 0.94))); applyCam(); }, { passive: true });
+    window.addEventListener('wheel', e => { if (e.target !== canvasEl) return; if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * (e.deltaY > 0 ? 1.08 : 0.93))); return; } zoom = Math.max(0.7, Math.min(1.25, zoom * (e.deltaY > 0 ? 1.06 : 0.94))); applyCam(); }, { passive: true });
+    setHero(null);
     resize(); ready = true;
   }
 
@@ -1264,6 +2783,7 @@ const W3 = (() => {
   function screenOf(i, y) { const v = P0(i, y || 0.6).project(cam); return { x: (v.x * 0.5 + 0.5) * W, y: (-v.y * 0.5 + 0.5) * H }; }
   function render(dt) {
     if (!ready) return; tNow += dt; const t = tNow; perfTick(dt);
+    if (viewMode === 'walk') { updateHero(dt); updateWalkCam(dt); }
     const E = envAt(envState.hour), rk = envState.rain;
     const grey = new T.Color('#8a96a8');
     skyU.top.value.copy(E.top).lerp(grey.clone().multiplyScalar(0.7), rk * 0.7); skyU.hor.value.copy(E.hor).lerp(grey, rk * 0.6); skyU.night.value = E.night * (1 - rk);
@@ -1284,8 +2804,25 @@ const W3 = (() => {
     anim.chickens.forEach(c => { c.pk -= dt; const m = c.m; if (c.pk > 0) { m.rotation.z = Math.sin(t * 12) * 0.05; return; } const dx = c.tx - m.position.x, dz = c.tz - m.position.z, d = Math.hypot(dx, dz); if (d < 0.1) { if (Math.random() < 0.5) c.pk = 1 + Math.random() * 2.5; else { c.tx = c.home.x + (Math.random() - 0.5) * 5; c.tz = c.home.z + (Math.random() - 0.5) * 3; } } else { const s = Math.min(d, dt * 0.9); m.position.x += dx / d * s; m.position.z += dz / d * s; m.rotation.y = Math.atan2(-dz, dx); m.position.y = Math.abs(Math.sin(t * 10)) * 0.04; } });
     anim.butterflies.forEach(b => { const p = b.ph; b.g.position.set(Math.sin(t * 0.3 + p) * 9, 1.2 + Math.sin(t * 1.3 + p) * 0.4, Math.cos(t * 0.23 + p * 2) * 6.5); b.g.rotation.y = t * 0.3 + p; const f = Math.sin(t * 18 + p) * 1.1; b.lp.rotation.y = f; b.rp.rotation.y = -f; });
     anim.dogs.forEach((dg, k) => { const m = dogMode[k] || 'none'; dg.g.visible = m !== 'none'; if (!dg.g.visible) return; const ph = t + k * 1.7;
-      if (m === 'sleep') { dg.g.rotation.z = 0; dg.g.position.y = 0; dg.body.scale.y = 0.24 + Math.sin(ph * 2) * 0.01; dg.head.position.y = 0.45; dg.head.rotation.z = -0.3; dg.tail.rotation.z = 1.4; }
-      else { dg.head.position.y = 0.75; dg.body.scale.y = 0.28; dg.head.rotation.y = Math.sin(ph * 0.8) * 0.5; dg.tail.rotation.z = 0.9 + Math.sin(ph * (m === 'bark' ? 30 : 10)) * 0.35; dg.g.position.y = m === 'bark' ? Math.abs(Math.sin(ph * 14)) * 0.15 : 0; dg.head.rotation.z = m === 'bark' ? Math.sin(ph * 20) * 0.15 : 0; } });
+      if (!dg.home) dg.home = dg.g.position.clone();
+      if (dg.pet > 0) { // 被摸头：面向主人、抬头眯眼、狂摇尾巴、开心地蹦
+        dg.pet -= dt; if (m === 'sleep' && dg.g.position.distanceTo(dg.home) < 0.01) dg.g.position.copy(dg.home);
+        dg.legs.forEach(l => { l.visible = true; l.rotation.z = 0; }); dg.torso.scale.y = 1; dg.tongue.visible = true; dg.head.position.y = 0.94;
+        const want = Math.atan2(HERO.pos.x - dg.g.position.x, HERO.pos.z - dg.g.position.z) - Math.PI / 2; let da = want - dg.g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); dg.g.rotation.y += da * Math.min(1, dt * 8);
+        dg.torso.position.y = DOG_BASE_Y + Math.abs(Math.sin(ph * 8)) * 0.06; dg.head.rotation.set(Math.sin(ph * 6) * 0.18, 0, 0.32); dg.tail.rotation.set(0, Math.sin(ph * 34) * 0.7, 0.3); dg.tongue.scale.y = 0.048 * 1.25;
+        return; }
+      if (m === 'sleep') { // 趴下睡觉
+        dg.g.position.copy(dg.home); dg.torso.position.y = DOG_BASE_Y - 0.24; dg.legs.forEach(l => l.visible = false); dg.head.rotation.set(0, 0.3, -0.35); dg.head.position.y = 0.86; dg.tail.rotation.set(0, 0.9, 0); dg.torso.scale.y = 1 + Math.sin(ph * 1.8) * 0.02; dg.tongue.visible = false;
+      } else { // 看家：在狗窝附近来回巡逻、摇尾巴、吐舌头
+        dg.legs.forEach(l => l.visible = true); dg.torso.scale.y = 1; dg.tongue.visible = true; dg.head.position.y = 0.94;
+        const bark = m === 'bark', walk = !bark && Math.sin(ph * 0.21) > -0.2;
+        if (walk) { dg.ang += dt * 0.42 * (k ? -1 : 1); const R1 = 1.1 + k * 0.3; dg.g.position.set(dg.home.x + Math.cos(dg.ang) * R1, 0, dg.home.z + Math.sin(dg.ang) * R1); dg.g.rotation.y = k ? -dg.ang + Math.PI / 2 : -dg.ang - Math.PI / 2; }
+        const sw = walk ? Math.sin(ph * 9) * 0.5 : 0; dg.legs.forEach((l, j) => l.rotation.z = (j === 0 || j === 3 ? sw : -sw));
+        dg.torso.position.y = DOG_BASE_Y + (bark ? Math.abs(Math.sin(ph * 14)) * 0.12 : walk ? Math.abs(Math.sin(ph * 9)) * 0.02 : 0);
+        dg.head.rotation.set(0, walk ? 0 : Math.sin(ph * 0.8) * 0.5, bark ? Math.sin(ph * 20) * 0.15 : 0.05);
+        dg.tail.rotation.set(0, Math.sin(ph * (bark ? 26 : 9)) * 0.55, 0.15);
+        dg.tongue.scale.y = 0.048 * (1 + Math.sin(ph * 7) * 0.15);
+      } });
     // 农田动态
     plots.forEach((pl, i) => {
       if (pl.crop) { pl.crop.rotation.z = Math.sin(t * 1.4 + pl.sway) * 0.025; pl.crop.rotation.x = Math.cos(t * 1.1 + pl.sway) * 0.02; }
@@ -1293,25 +2830,27 @@ const W3 = (() => {
       pl.sparks.forEach(s => { const k = (t * 0.6 + s.userData.ph) % 1, a = s.userData.ph * 6.28 + t * 0.5; s.position.set(Math.cos(a) * s.userData.r, BED_H + 0.2 + k * (pl.cropH + 0.4), Math.sin(a) * s.userData.r); s.material.opacity = Math.sin(k * Math.PI); s.scale.setScalar(0.18 + 0.22 * Math.sin(k * Math.PI)); });
       if (pl.bug) { const a = t * 1.2 + i; pl.bug.position.set(Math.cos(a) * 0.35, BED_H + pl.cropH * 0.45 + Math.sin(t * 2.3) * 0.05, Math.sin(a) * 0.35); pl.bug.rotation.y = -a; }
     });
-    if (hoverIdx >= 0) { const [x, z] = plotXZ(hoverIdx); hoverFrame.visible = true; hoverFrame.position.set(x, BED_H + 0.09, z); hoverFrame.material.opacity = 0.65 + Math.sin(t * 6) * 0.3; } else hoverFrame.visible = false;
+    const hi = hoverIdx >= 0 ? hoverIdx : viewMode === 'walk' ? nearIdx : -1;
+    if (hi >= 0) { const [x, z] = plotXZ(hi); hoverFrame.visible = true; hoverFrame.position.set(x, BED_H + 0.09, z); hoverFrame.material.opacity = 0.65 + Math.sin(t * 6) * 0.3; } else hoverFrame.visible = false;
     updateFx(dt);
     R.render(scene, cam);
   }
 
   /* ---------------- 作物图标（离屏渲染 3D 模型） ---------------- */
   let IR, IS, IC; const ICONS = {};
+  function ensureIconRenderer() { if (IR) return; const c = document.createElement('canvas'); c.width = c.height = 160; IR = new T.WebGLRenderer({ canvas: c, antialias: true, alpha: true, preserveDrawingBuffer: true }); IR.outputEncoding = T.sRGBEncoding; IR.toneMapping = T.ACESFilmicToneMapping; IR.setClearColor(0x000000, 0); IS = new T.Scene(); IS.add(new T.HemisphereLight(0xffffff, 0x6a7a4a, 0.9)); const d = new T.DirectionalLight(0xfff4e0, 2.2); d.position.set(3, 5, 4); IS.add(d); IC = new T.PerspectiveCamera(28, 1, 0.1, 50); if (!TX.soil) buildTextures(); }
   function cropIcon(id, golden) {
     const key = id + (golden ? 'g' : ''); if (ICONS[key]) return ICONS[key];
     try {
-      if (!IR) { const c = document.createElement('canvas'); c.width = c.height = 160; IR = new T.WebGLRenderer({ canvas: c, antialias: true, alpha: true, preserveDrawingBuffer: true }); IR.outputEncoding = T.sRGBEncoding; IR.toneMapping = T.ACESFilmicToneMapping; IR.setClearColor(0x000000, 0); IS = new T.Scene(); IS.add(new T.HemisphereLight(0xffffff, 0x6a7a4a, 0.9)); const d = new T.DirectionalLight(0xfff4e0, 2.2); d.position.set(3, 5, 4); IS.add(d); IC = new T.PerspectiveCamera(28, 1, 0.1, 50); if (!TX.soil) buildTextures(); }
+      ensureIconRenderer();
       const m = cropModel(id, 4).clone(); if (golden) { const gm = new T.MeshStandardMaterial({ color: new T.Color('#ffcc33'), metalness: 0.85, roughness: 0.28, emissive: new T.Color('#6a4400'), emissiveIntensity: 0.3 }); m.traverse(o => { if (o.isMesh) o.material = gm; }); }
       IS.add(m); const box = new T.Box3().setFromObject(m), c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3()), r = Math.max(sz.x, sz.y, sz.z) * 0.68;
       IC.position.set(c.x + r * 2.2, c.y + r * 1.4, c.z + r * 2.4); IC.lookAt(c); IC.updateProjectionMatrix(); IR.render(IS, IC); ICONS[key] = IR.domElement.toDataURL(); IS.remove(m);
     } catch (e) { ICONS[key] = ''; }
     return ICONS[key];
   }
-  function zoomBy(f) { zoom = Math.max(0.6, Math.min(1.3, zoom * f)); applyCam(); }
-  return { zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality }), get quality() { return quality; }, init, resize, render, setPlots, setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, get ready() { return ready; } };
+  function zoomBy(f) { if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * f)); return; } zoom = Math.max(0.6, Math.min(1.3, zoom * f)); applyCam(); }
+  return { zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, get ready() { return ready; } };
 })();
 
 'use strict';
@@ -1420,12 +2959,13 @@ async function api(path, body, opt) {
   } catch (e) {
     if (!opt.quiet) { toast(e.code === 'network' ? '网络不稳定，操作没有完成，请稍后再试' : e.message, 'warn'); sfx('err'); }
     if (e.code === 'network') return null;
-    if (e.status === 409 && !opt.noRefresh) { refreshState(); if (view.key !== 'home') visitRefresh(); }
+    if (e.status === 409 && !opt.noRefresh) poll(false);
     return null;
   }
 }
 async function refreshState() { try { const r = await NET.get('/api/state'); applyState(r); } catch (e) { } }
 function applyState(st) {
+  if (st && st.me && W3.ready) W3.setHero((() => { const a = st.me.avatar || {}, A = CFG.AVATAR_OPTS; return { skin: A.skin[a.skin | 0], hair: A.hair[a.hair | 0], shirt: A.shirt[a.shirt | 0], band: A.band[a.band | 0], hat: a.hat ? 1 : 0 }; })());
   const prevUnread = S ? S.badges.unread : 0;
   S = st; PREF = Object.assign({ sound: true, music: true, notify: false, tod: 'auto', tut: 0 }, S.me.settings || {});
   if (view.key === 'home') view.plots = S.plots;
@@ -1533,11 +3073,11 @@ async function visit(f) {
   if (!f) return; closeModal(); $('tip').style.display = 'none';
   try {
     const r = await NET.get('/api/farm/' + f.id);
-    view = { key: 'f' + f.id, friend: r.farm.owner, plots: r.farm.plots, farm: r.farm }; tool = 'auto'; hoverIdx = -1; sfx('open'); syncSide(r.farm);
+    view = { key: 'f' + f.id, friend: r.farm.owner, plots: r.farm.plots, farm: r.farm }; tool = 'auto'; hoverIdx = -1; sfx('open'); syncSide(r.farm); W3.resetHero();
     renderToolbar(); renderTitle(); renderFriends(); toast(`来到了 ${f.name} 的农场`); refreshState();
   } catch (e) { toast(e.message, 'warn'); }
 }
-function goHome() { if (!S) return; view = { key: 'home', friend: null, plots: S.plots, farm: null }; hoverIdx = -1; sfx('open'); renderToolbar(); renderTitle(); renderFriends(); refreshState(); }
+function goHome() { if (!S) return; W3.resetHero(); view = { key: 'home', friend: null, plots: S.plots, farm: null }; hoverIdx = -1; sfx('open'); renderToolbar(); renderTitle(); renderFriends(); refreshState(); }
 function stealFx(x) {
   if (x.blocked) { const who = x.dogs && x.dogs.length ? x.dogs.join('和') : '狗'; dogBarkUntil = Date.now() + 2500; sfx('bark'); FX.text(x.idx, x.bite ? `被${who}咬了 -${x.bite}金币` : `被${who}赶走了`, '#ff9a8a', 20); return; }
   FX.stars(x.idx, x.crit ? 18 : 8); FX.text(x.idx, `${x.crit ? '手气爆棚！' : ''}${CROPS[x.crop].name} ×${x.qty}`, x.crit ? '#ffd23a' : '#fff2c4', x.crit ? 24 : 22);
@@ -1681,7 +3221,48 @@ function frame(now) {
   const home = view.key === 'home';
   W3.setTheme(themeOf(home ? (S ? S.me.theme : 'classic') : view.friend.theme)); W3.setDog(dogMode()); W3.setEnv(curHour(), rainK);
   W3.setPlots(view.plots, home); W3.setHover(mouse.in || painting ? hoverIdx : -1); W3.render(dt);
-  updateTip(); requestAnimationFrame(frame);
+  updateTip(); updateWalkUi(); requestAnimationFrame(frame);
+}
+
+/* ============ 漫游模式：视角切换、键盘、虚拟摇杆、附近地块操作 ============ */
+const KEYS = new Set(); let walkHintShown = false;
+function heroLook() { const a = (S && S.me.avatar) || {}, A = CFG.AVATAR_OPTS; return { skin: A.skin[a.skin | 0], hair: A.hair[a.hair | 0], shirt: A.shirt[a.shirt | 0], band: A.band[a.band | 0], hat: a.hat ? 1 : 0 }; }
+function setViewMode(m, quiet) {
+  W3.setHero(heroLook()); W3.setMode(m); try { localStorage.setItem('hf_view', m); } catch (e) { }
+  document.body.classList.toggle('walk', m === 'walk'); $('btn-view').innerHTML = ICON(m === 'walk' ? 'eye' : 'walk'); $('btn-view').title = m === 'walk' ? '切换到俯视' : '切换到漫游';
+  painting = false; paintQ.length = 0; KEYS.clear(); W3.setInput({ x: 0, z: 0, run: false });
+  if (!quiet) { sfx('open'); toast(m === 'walk' ? (window.matchMedia('(pointer: coarse)').matches ? '漫游模式：左下摇杆移动，右下按钮跳跃和操作，拖动画面转镜头' : '漫游模式：WASD / 方向键移动，Shift 跑，空格跳，F 操作，拖动画面转镜头') : '俯视模式：点击土地直接操作'); }
+}
+function keyInput() { const x = (KEYS.has('d') || KEYS.has('arrowright') ? 1 : 0) - (KEYS.has('a') || KEYS.has('arrowleft') ? 1 : 0), z = (KEYS.has('s') || KEYS.has('arrowdown') ? 1 : 0) - (KEYS.has('w') || KEYS.has('arrowup') ? 1 : 0); if (!joy.on) W3.setInput({ x, z, run: KEYS.has('shift') }); }
+// 附近地块要做的事（与点击地块的逻辑一致），用于操作按钮上的文字
+function actionOf(i) {
+  if (i < 0 || !S || !view.plots[i]) return ''; const P = view.plots[i], home = view.key === 'home';
+  if (!home) { if (!P.u || P.c < 0) return ''; if (P.p >= 1) return P.mine ? '' : P.left > 0 && NET.now() >= P.protectUntil ? `摘取${CROPS[P.c].name}` : ''; return P.pr.d || P.pr.w || P.pr.b ? '帮忙打理' : ''; }
+  if (!P.u) return '开垦';
+  if (tool === 'shovel') return P.c >= 0 && P.p < 1 ? '铲除' : ''; if (tool === 'fert') return P.c >= 0 && P.p < 1 ? '施肥' : ''; if (tool === 'red') return CFG.SOILS[(P.soil | 0) + 1] ? '升级土地' : '';
+  if (P.c < 0) return `种${CROPS[S.me.seed].name}`; if (P.p >= 1) return `收获${CROPS[P.c].name}`; if (P.pr.d) return '浇水'; if (P.pr.w) return '除草'; if (P.pr.b) return '除虫'; return '';
+}
+const DOG_PET_LINES = { fuwang: ['福旺开心地蹭蹭你', '福旺：汪！再摸摸～', '福旺眯起了眼睛'], ruibao: ['睿宝把头埋进你手心', '睿宝：嗷呜～', '睿宝摇成了螺旋桨'] };
+function petAction() { const k = W3.nearDog; if (k < 0) return null; const d = CFG.DOGS[k]; return d ? { k, label: `摸摸${d.name}`, id: d.id } : null; }
+function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); } }
+function updateWalkUi() {
+  if (W3.mode !== 'walk') return; const i = W3.near, pa = petAction(), a = actionOf(i) || (pa ? pa.label : ''), el = $('actbtn'), pr = $('actprompt');
+  el.classList.toggle('ready', !!a); el.querySelector('span').textContent = a || '操作';
+  pr.style.display = a && !window.matchMedia('(pointer: coarse)').matches ? 'block' : 'none'; if (a) pr.innerHTML = `<kbd>F</kbd> ${esc(a)}`;
+}
+// 虚拟摇杆
+const joy = { on: false, id: -1, cx: 0, cy: 0 };
+function initWalkUi() {
+  const base = $('joy'), knob = base.querySelector('i'), R0 = 46;
+  const set = (x, y) => { let dx = x - joy.cx, dy = y - joy.cy; const d = Math.hypot(dx, dy); if (d > R0) { dx *= R0 / d; dy *= R0 / d; } knob.style.transform = `translate(${dx}px,${dy}px)`; W3.setInput({ x: dx / R0, z: dy / R0, run: d > R0 * 0.95 }); };
+  base.addEventListener('pointerdown', e => { e.preventDefault(); ac(); joy.on = true; joy.id = e.pointerId; const r = base.getBoundingClientRect(); joy.cx = r.left + r.width / 2; joy.cy = r.top + r.height / 2; set(e.clientX, e.clientY); try { base.setPointerCapture(e.pointerId); } catch (_) { } });
+  base.addEventListener('pointermove', e => { if (joy.on && e.pointerId === joy.id) set(e.clientX, e.clientY); });
+  const end = e => { if (e.pointerId !== joy.id) return; joy.on = false; knob.style.transform = ''; W3.setInput({ x: 0, z: 0, run: false }); };
+  base.addEventListener('pointerup', end); base.addEventListener('pointercancel', end);
+  $('jumpbtn').innerHTML = ICON('jump'); $('jumpbtn').addEventListener('pointerdown', e => { e.preventDefault(); W3.setInput({ jump: true }); sfx('click'); });
+  $('actbtn').innerHTML = ICON('sparkle') + '<span>操作</span>'; $('actbtn').addEventListener('pointerdown', e => { e.preventDefault(); doAct(); });
+  $('btn-view').onclick = () => { ac(); setViewMode(W3.mode === 'walk' ? 'top' : 'walk'); };
+  let m = 'top'; try { m = localStorage.getItem('hf_view') || 'top'; } catch (e) { } setViewMode(m, true);
 }
 
 /* ============ 指针 & 提示 ============ */
@@ -1696,8 +3277,13 @@ const touches = new Map(); let pinch0 = 0;
 cv.addEventListener('pointerdown', ev => { if (ev.pointerType === 'touch') { touches.set(ev.pointerId, ev); if (touches.size === 2) { painting = false; paintQ.length = 0; const [a, b] = [...touches.values()]; pinch0 = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); return; } } });
 cv.addEventListener('pointermove', ev => { if (ev.pointerType === 'touch' && touches.has(ev.pointerId)) { touches.set(ev.pointerId, ev); if (touches.size === 2 && pinch0) { const [a, b] = [...touches.values()], d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); W3.zoomBy(pinch0 / d); pinch0 = d; } } });
 ['pointerup', 'pointercancel'].forEach(n => cv.addEventListener(n, ev => { touches.delete(ev.pointerId); if (touches.size < 2) pinch0 = 0; }));
-cv.addEventListener('pointerdown', ev => { if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) return; painting = true; lastPaint = -1; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, true); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
-cv.addEventListener('pointermove', ev => { if (touches.size > 1) return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); if (painting) paintAt(ev, false); updateCursor(); });
+// 漫游模式：拖动转镜头，轻点地块直接操作
+const drag = { on: false, x: 0, y: 0, moved: 0, id: -1 };
+cv.addEventListener('pointerdown', ev => { if (W3.mode !== 'walk') return; if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) { drag.on = false; return; } drag.on = true; drag.x = ev.clientX; drag.y = ev.clientY; drag.moved = 0; drag.id = ev.pointerId; ac(); startMusic(); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
+cv.addEventListener('pointermove', ev => { if (W3.mode !== 'walk') return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); if (!drag.on || ev.pointerId !== drag.id || touches.size > 1) return; const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y; drag.moved += Math.abs(dx) + Math.abs(dy); drag.x = ev.clientX; drag.y = ev.clientY; W3.orbit(dx * 0.0065, dy * 0.0045); });
+cv.addEventListener('pointerup', ev => { if (W3.mode !== 'walk') return; if (drag.on && ev.pointerId === drag.id && drag.moved < 8 && touches.size < 2) { const i = W3.pick(ev.clientX, ev.clientY); if (i >= 0) clickPlot(i, true); } drag.on = false; if (ev.pointerType !== 'mouse') { mouse.in = false; hoverIdx = -1; } });
+cv.addEventListener('pointerdown', ev => { if (W3.mode === 'walk') return; if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) return; painting = true; lastPaint = -1; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, true); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
+cv.addEventListener('pointermove', ev => { if (W3.mode === 'walk') return; if (touches.size > 1) return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); if (painting) paintAt(ev, false); updateCursor(); });
 cv.addEventListener('pointerup', ev => { painting = false; lastPaint = -1; if (ev.pointerType !== 'mouse') { clearTimeout(tipTimer); tipTimer = setTimeout(() => { mouse.in = false; hoverIdx = -1; updateCursor(); }, 1600); } });
 cv.addEventListener('pointercancel', () => { painting = false; });
 cv.addEventListener('pointerleave', () => { if (painting) return; mouse.in = false; hoverIdx = -1; updateCursor(); });
@@ -1750,11 +3336,11 @@ function checkMigrate(fresh) {
   if (fresh || !PREF.tut) welcome();
 }
 async function boot() {
-  try { W3.init(cv); } catch (e) { $('loading').querySelector('p').innerHTML = '你的浏览器不支持 3D 画面（WebGL），请换用最新版 Chrome、Edge 或 Safari'; return; }
+  try { W3.init(cv); initWalkUi(); } catch (e) { $('loading').querySelector('p').innerHTML = '你的浏览器不支持 3D 画面（WebGL），请换用最新版 Chrome、Edge 或 Safari'; return; }
   window.addEventListener('resize', () => W3.resize()); requestAnimationFrame(frame);
   try { PREF = Object.assign(PREF, JSON.parse(localStorage.getItem('hf_pref') || '{}')); } catch (e) { }
   NET.onAuthLost(() => { if (started) { started = false; S = null; view = { key: 'home', friend: null, plots: blankPlots(), farm: null }; renderToolbar(); renderFriends(); toast('登录已失效，请重新登录', 'warn'); showLogin(); } });
-  NET.onOnline(() => { if (started) { refreshState(); loadFriends(); } });
+  NET.onOnline(() => { if (started) poll(true); });
   for (let i = 0; i < 3; i++) {
     try { const c = await NET.get('/api/config'); c.CROPS.forEach((x, k) => { if (CROPS[k]) ['seed', 'time', 'yield', 'price', 'exp', 'lv'].forEach(f => CROPS[k][f] = x[f]); }); Object.assign(RULES, c.RULES); CFG.setTz(c.TZ_MIN); break; }
     catch (e) { $('loading').querySelector('p').textContent = '正在连接服务器…（' + (i + 1) + '）'; await new Promise(r => setTimeout(r, 1500)); }
@@ -1778,19 +3364,34 @@ function bindGlobal() {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return; const k = e.key.toLowerCase();
     if (k === 'escape') { closeModal(); tool = 'auto'; renderToolbar(); updateCursor(); }
     else if ($('mback').classList.contains('show') || !S) return;
+    else if (k === 'v') setViewMode(W3.mode === 'walk' ? 'top' : 'walk');
+    else if (W3.mode === 'walk' && ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'].includes(k)) { e.preventDefault(); KEYS.add(k); keyInput(); }
+    else if (W3.mode === 'walk' && k === ' ') { e.preventDefault(); if (!e.repeat) { W3.setInput({ jump: true }); } }
+    else if (W3.mode === 'walk' && (k === 'f' || k === 'enter')) { if (!e.repeat) doAct(); }
     else if (k === '1') toolbarClick('auto'); else if (k === '2' && view.key === 'home') toolbarClick('shovel'); else if (k === '3' && view.key === 'home') toolbarClick('fert');
+    else if (W3.mode === 'walk') return;
     else if (k === 'q') (view.key === 'home' ? allHarvest : allSteal)(); else if (k === 'w') (view.key === 'home' ? allCare : allHelp)(); else if (k === 'e' && view.key === 'home') allPlant(); else if (k === 'h') goHome();
   });
+  document.addEventListener('keyup', e => { const k = e.key.toLowerCase(); if (KEYS.delete(k)) keyInput(); });
+  window.addEventListener('blur', () => { KEYS.clear(); keyInput(); });
   document.addEventListener('pointerdown', () => { ac(); startMusic(); }, { once: true });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && started) { refreshState(); loadFriends(); loadNeighbors(); if (view.key !== 'home') visitRefresh(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && started) poll(true); });
   setInterval(() => { if (started) tickView(); }, 500);
-  setInterval(() => { if (started && !document.hidden) refreshState(); }, 15000);
-  setInterval(() => { if (started && !document.hidden) { loadFriends(); loadNeighbors(); } }, 30000);
-  setInterval(() => { if (started && document.hidden && PREF.notify) refreshState(); }, 60000);
-  setInterval(() => { if (started && !document.hidden && view.key !== 'home') visitRefresh(); }, 10000);
+  // 合并轮询：页面在前台时每 15 秒一次（好友列表每 30 秒顺带一次）；后台且开了通知时每分钟一次
+  setInterval(() => { if (!started) return; pollN++; if (!document.hidden) poll(pollN % 2 === 0); else if (PREF.notify && pollN % 4 === 0) poll(false); }, 15000);
   setInterval(() => { if (started && !document.hidden) renderLog(); }, 30000);
   // 后台任务（虚拟玩家等）：无服务器部署时由在线页面顺手触发，服务器端有租约去重
-  setInterval(() => { if (started && !document.hidden) NET.post('/api/cron', {}).catch(() => { }); }, 60000 + Math.floor(Math.random() * 15000));
+  setInterval(() => { if (started && !document.hidden) NET.post('/api/cron', {}).catch(() => { }); }, 120000 + Math.floor(Math.random() * 30000));
+}
+let pollN = 0, polling = false;
+async function poll(side) {
+  if (polling) return; polling = true; const key = view.key, vid = key !== 'home' && view.friend ? view.friend.id : 0;
+  try {
+    const r = await NET.get('/api/poll' + (side || vid ? '?' : '') + [side ? 'side=1' : '', vid ? 'visit=' + vid : ''].filter(Boolean).join('&'));
+    if (r.friends) FR = r.friends; if (r.neighbors) NB = r.neighbors; if (r.friends || r.neighbors) renderFriends();
+    if (r.state) applyState(r.state);
+    if (vid && view.key === key) { if (r.farm) applyFarm(r.farm); else if (r.farmErr && r.farmErr.status === 403) { toast('无法再访问这个农场了', 'warn'); goHome(); } }
+  } catch (e) { } finally { polling = false; }
 }
 async function visitRefresh() { if (view.key === 'home') return; const key = view.key; try { const r = await NET.get('/api/farm/' + view.friend.id); if (view.key === key) applyFarm(r.farm); } catch (e) { if (e.status === 403) { toast('无法再访问这个农场了', 'warn'); goHome(); } } }
 window.addEventListener('DOMContentLoaded', () => { bindGlobal(); boot(); });
@@ -1929,7 +3530,7 @@ function openShop(tab) {
     <p class="fine">土地可以一级一级升级：普通土地 → 红土地 → 黑土地 → 金土地。选好等级后点击农场里要升级的那块地。</p>${tiers}`;
   } else {
     body = (S.me.dogs || []).map(d => { const def = CFG.DOGS.find(x => x.id === d.id), lock = !d.own && S.me.lv < def.lv;
-      return `<div class="row-item"><div class="ri-ic"><span class="ii emo dog-${d.id}">${ICON('paw')}</span></div><div class="ri-main"><b>${d.name}${d.own ? ` Lv.${d.lv}` : ''}</b><small>${def.desc}。喂饱后看家，拦截率 ${Math.round(d.chance * 100)}%（喂得越多等级越高、拦截率越高）${lock ? ` · 需要 Lv.${def.lv}` : ''}</small></div><div class="price">${d.own ? '' : G(def.price)}</div><button class="btn sm primary" data-dog="${d.id}" ${d.own || lock ? 'disabled' : ''}>${d.own ? '已领养' : lock ? `Lv.${def.lv}` : '领养'}</button></div>`; }).join('') + `<p class="fine">两只狗可以都养。喂饱的狗会各自判定能不能抓住来摘菜的人，两只一起抓住时两口都要咬。</p>`;
+      return `<div class="row-item"><div class="ri-ic dogpic">${(() => { const u = W3.dogPortrait(d.id); return u ? `<img src="${u}" alt="${d.name}">` : `<span class="ii emo dog-${d.id}">${ICON('paw')}</span>`; })()}</div><div class="ri-main"><b>${d.name}${d.own ? ` Lv.${d.lv}` : ''}</b><small>${def.desc}。喂饱后看家，拦截率 ${Math.round(d.chance * 100)}%（喂得越多等级越高、拦截率越高）${lock ? ` · 需要 Lv.${def.lv}` : ''}</small></div><div class="price">${d.own ? '' : G(def.price)}</div><button class="btn sm primary" data-dog="${d.id}" ${d.own || lock ? 'disabled' : ''}>${d.own ? '已领养' : lock ? `Lv.${def.lv}` : '领养'}</button></div>`; }).join('') + `<p class="fine">两只狗可以都养。喂饱的狗会各自判定能不能抓住来摘菜的人，两只一起抓住时两口都要咬。</p>`;
   }
   openModal(`${H2('store', '商店')}${tabsHtml([['item', '道具'], ['land', '土地'], ['dog', '宠物']], tab)}<div class="mygold">我的金币 ${G(S.me.gold)}</div><div class="list">${body}</div>`, {
     wide: true, mount: () => {

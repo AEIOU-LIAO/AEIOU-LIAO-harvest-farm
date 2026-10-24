@@ -156,6 +156,14 @@ async function createCore(opts) {
   R('POST', '/api/cosmetics/buy', { auth: 1 }, async (c) => own(c.uid, await game.buyCosmetic(c.uid, String(c.body.kind), String(c.body.id))));
 
   // 社交
+  // 合并轮询：一次请求拿到 状态 +（可选）好友/附近 +（可选）正在逛的农场，减少云函数调用次数
+  R('GET', '/api/poll', { auth: 1 }, async (c) => {
+    const q = c.query, out = {};
+    const jobs = [st(c.uid).then(v => out.state = v)];
+    if (q.side) jobs.push(game.friends(c.uid).then(v => out.friends = v), game.neighbors(c.uid).then(v => out.neighbors = v));
+    if (q.visit) { const o = id(q.visit); jobs.push(game.peekFarm(c.uid, o).then(v => out.farm = v, e => { if (!e.status) throw e; out.farmErr = { status: e.status, error: e.message }; })); }
+    await all(jobs); out.now = game.now(); return out;
+  });
   R('GET', '/api/friends', { auth: 1 }, (c) => game.friends(c.uid));
   R('GET', '/api/friends/search', { auth: 1, searchLimit: 1 }, (c) => game.search(c.uid, c.query.q));
   R('POST', '/api/friends/request', { auth: 1 }, (c) => game.requestFriend(c.uid, id(c.body.id)));

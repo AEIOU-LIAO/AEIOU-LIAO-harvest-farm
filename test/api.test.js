@@ -277,7 +277,7 @@ test('v2.3 玩法：软上限、手气爆棚、大丰收、帮忙加速、订单
     for (let i = 0; i < CFG.RULES.orderRefresh; i++) assert.ok((await t.call('POST', '/api/orders/refresh', { slot: 4 }, a.token)).ok);
     assert.equal((await t.call('POST', '/api/orders/refresh', { slot: 4 }, a.token)).code, 'limit');
     // 6. 后期作物与等级上限
-    assert.equal(CFG.CROPS.length, 32); assert.equal(CFG.RULES.maxLv, 45);
+    assert.equal(CFG.CROPS.length, 48); assert.equal(CFG.RULES.maxLv, 45);
     await t.app.db.run('UPDATE users SET lv=44 WHERE id=?', a.id); await t.call('POST', '/api/farm/harvest-all', null, a.token);
     const pl = await t.call('POST', '/api/farm/plant', { idx: CFG.UNLOCK_ORDER[4], crop: 31 }, a.token); assert.ok(pl.ok, pl.error);
   } finally { Object.assign(CFG.RULES, keep); await t.close(); }
@@ -325,6 +325,20 @@ test('v2.4：开垦、土地四级升级、福旺和睿宝两只狗、NPC 养狗
     for (const u of nb.list) { const f = (await t.call('GET', '/api/farm/' + u.id, null, b.token)).farm; if (f.owner.dogs) { dogs += f.owner.dogs.length; fed += f.owner.dogs.filter(d => d.fed).length; } }
     assert.ok(dogs > 0 && fed === dogs, `NPC 的狗：${dogs} 只，喂饱 ${fed} 只`);
   } finally { CFG.DOGS.forEach((d, i) => Object.assign(d, keep[i])); await t.close(); }
+});
+
+test('v2.5 合并轮询：一次请求返回状态、好友、附近和正在逛的农场；只读不记访客；拉黑返回 403', async () => {
+  const t = await start();
+  try {
+    const a = await t.guest('A'), b = await t.guest('B'); await t.friends(a, b);
+    const p0 = await t.call('GET', '/api/poll', null, a.token); assert.ok(p0.ok, p0.error); assert.ok(p0.state.me && !p0.friends && !p0.farm);
+    const p1 = await t.call('GET', '/api/poll?side=1&visit=' + b.id, null, a.token); assert.ok(p1.ok, p1.error);
+    assert.equal(p1.friends.list[0].id, b.id); assert.ok(Array.isArray(p1.neighbors.list)); assert.equal(p1.farm.owner.id, b.id); assert.equal(p1.state.me.id, a.id);
+    const msgs = await t.call('GET', '/api/messages', null, b.token); assert.ok(!msgs.list.some(m => m.kind === 'visit'), '轮询不算串门');
+    assert.ok((await t.call('POST', '/api/friends/block', { id: a.id, on: true }, b.token)).ok);
+    const p2 = await t.call('GET', '/api/poll?visit=' + b.id, null, a.token); assert.ok(p2.ok, p2.error); assert.equal(p2.farmErr.status, 403); assert.ok(p2.state.me);
+    assert.equal(CFG.CROPS.length, 48); assert.ok(CFG.CROPS.every((c, i) => c.id === i), '作物 id 连续');
+  } finally { await t.close(); }
 });
 
 test('互助：真实修改好友农田并给奖励', async () => {
