@@ -27,7 +27,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '${{ matrix.node }}' }
       - name: 加载云函数入口
-        run: node -e "import('./cloud-functions/api/[[default]].js').then(m => { if (typeof m.onRequest !== 'function') throw new Error('no onRequest'); return m.onRequest({ request: new Request('https://x/api/health'), env: {} }); }).then(r => r.json()).then(j => { console.log(j); if (!/TURSO_DATABASE_URL/.test(j.error)) process.exit(1); })"
+        run: |
+          node -e "import('./cloud-functions/api/[[default]].js').then(m => { if (typeof m.onRequest !== 'function') throw new Error('no onRequest'); return m.onRequest({ request: new Request('https://x/api/health'), env: {} }); }).then(r => r.json()).then(j => { console.log(j); if (!/TURSO_DATABASE_URL/.test(j.error)) process.exit(1); })"
   # 可选：合并到 main 后通过 SSH 让服务器执行 deploy.sh
   # 启用方法：仓库 Settings → Secrets 添加 DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY，Variables 添加 DEPLOY_ENABLED=true
   deploy:
