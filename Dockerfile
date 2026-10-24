@@ -4,6 +4,7 @@ COPY package.json ./
 COPY shared ./shared
 COPY server ./server
 COPY src ./src
+COPY vendor ./vendor
 COPY index.html admin.html ./
 ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0 DB_PATH=/data/farm.db BACKUP_DIR=/data/backups TRUST_PROXY=1
 VOLUME ["/data"]

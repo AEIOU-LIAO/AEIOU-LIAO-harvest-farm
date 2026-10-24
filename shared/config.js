@@ -62,14 +62,14 @@
     { id: 'plant', ic: '🌱', tx: '种植作物', need: 12, gold: 150, exp: 30 },
     { id: 'harvest', ic: '🧺', tx: '收获作物', need: 15, gold: 250, exp: 50 },
     { id: 'care', ic: '💧', tx: '浇水 / 除草 / 除虫', need: 6, gold: 150, exp: 30 },
-    { id: 'steal', ic: '🥷', tx: '摘取好友的果实', need: 6, gold: 220, exp: 40 },
-    { id: 'help', ic: '🤝', tx: '帮好友打理农田', need: 4, gold: 180, exp: 35 },
+    { id: 'steal', ic: '🥷', tx: '摘取别人的果实', need: 6, gold: 220, exp: 40 },
+    { id: 'help', ic: '🤝', tx: '帮别人打理农田', need: 4, gold: 180, exp: 35 },
     { id: 'sell', ic: '💰', tx: '卖出作物赚取金币', need: 800, gold: 300, exp: 60 },
   ];
   const WEEKLY = [
     { id: 'w_harvest', stat: 'harvest', ic: '🧺', tx: '本周收获作物', need: 120, gold: 1500, exp: 300 },
-    { id: 'w_steal', stat: 'steal', ic: '🥷', tx: '本周摘取好友果实', need: 40, gold: 1200, exp: 240 },
-    { id: 'w_help', stat: 'help', ic: '🤝', tx: '本周帮好友打理', need: 30, gold: 1200, exp: 240 },
+    { id: 'w_steal', stat: 'steal', ic: '🥷', tx: '本周摘取别人的果实', need: 40, gold: 1200, exp: 240 },
+    { id: 'w_help', stat: 'help', ic: '🤝', tx: '本周帮别人打理', need: 30, gold: 1200, exp: 240 },
     { id: 'w_order', stat: 'order', ic: '📦', tx: '本周完成订单', need: 10, gold: 2000, exp: 400 },
     { id: 'w_trade', stat: 'trade', ic: '🏷️', tx: '本周在集市成交', need: 5, gold: 1000, exp: 200 },
   ];
@@ -77,9 +77,9 @@
     { id: 'n_plant', stat: 'plant', tx: '在空地上种下第一颗种子', need: 1, gold: 50 },
     { id: 'n_harvest', stat: 'harvest', tx: '收获一次作物', need: 1, gold: 80 },
     { id: 'n_sell', stat: 'sell', tx: '在仓库卖出作物', need: 1, gold: 80 },
-    { id: 'n_friend', stat: 'friend', tx: '添加一位真实好友（发送邀请链接）', need: 1, gold: 200 },
-    { id: 'n_visit', stat: 'visit', tx: '去好友农场串门', need: 1, gold: 100 },
-    { id: 'n_social', stat: 'social', tx: '在好友农场摘一次果实或帮一次忙', need: 1, gold: 200 },
+    { id: 'n_friend', stat: 'friend', tx: '加一位好友（附近的人、村民或邀请朋友都可以）', need: 1, gold: 200 },
+    { id: 'n_visit', stat: 'visit', tx: '去别人的农场串门', need: 1, gold: 100 },
+    { id: 'n_social', stat: 'social', tx: '在别人的农场摘一次果实或帮一次忙', need: 1, gold: 200 },
   ];
   // 成就：stat 对应 users 表的累计计数
   const ACHIEVEMENTS = [
@@ -127,7 +127,7 @@
     bg: [['#a8e4ff', '#d8f5b8'], ['#ffd9ec', '#fff0e0'], ['#c8ecff', '#e8f6c8'], ['#ffe8b8', '#ffd09a'], ['#e8d8ff', '#ffe0f0']],
   };
   // 留言用预设短语（不开放自由文本，避免垃圾内容）
-  const PHRASES = ['🌻 来串门啦！', '🥷 菜不错，拿走两个～', '💧 帮你浇过水了', '🐛 虫子已经消灭', '😄 一起加油种田！', '🎁 谢谢你的帮忙', '😤 别偷我的菜！', '🐶 小心我家狗狗', '🌙 晚安，明天见', '👍 农场好漂亮'];
+  const PHRASES = ['来串门啦', '菜不错，拿走两个～', '帮你浇过水了', '虫子已经帮你除掉了', '一起加油种田', '谢谢你的帮忙', '别再偷我的菜了！', '小心我家的狗', '晚安，明天见', '你的农场真漂亮'];
 
   const SHOP_ITEMS = [
     { id: 'fert', name: '化肥', ic: '🧪', price: RULES.fertPrice, desc: '让作物成长进度 +30%' },

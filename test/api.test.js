@@ -7,7 +7,7 @@ const { createApp } = require('../server/index');
 const CFG = require('../shared/config');
 
 async function start(o) {
-  const app = createApp(Object.assign({ db: ':memory:', testClock: true, backupHours: 0, admins: [], quiet: true, noRateLimit: true }, o));
+  const app = createApp(Object.assign({ db: ':memory:', testClock: true, backupHours: 0, admins: [], quiet: true, noRateLimit: true, npcCount: 0 }, o));
   await new Promise(r => app.server.listen(0, '127.0.0.1', r));
   const base = 'http://127.0.0.1:' + app.server.address().port;
   const call = async (method, path, body, token, ik) => {
@@ -37,22 +37,76 @@ test('账号：游客、绑定、跨设备登录、存档保留', async () => {
   } finally { await t.close(); }
 });
 
-test('好友：邀请链接、申请/同意、非好友不能访问', async () => {
+test('好友与开放互访：邀请链接、一键加好友、不加好友也能串门偷菜、拉黑后不可访问', async () => {
   const t = await start();
   try {
     const a = await t.guest('A'), b = await t.guest('B'), c = await t.guest('C');
     await t.friends(a, b);
     const fa = await t.call('GET', '/api/friends', null, a.token); assert.equal(fa.list.length, 1); assert.equal(fa.list[0].id, b.id);
-    assert.ok((await t.call('GET', '/api/farm/' + a.id, null, b.token)).ok);
-    assert.equal((await t.call('GET', '/api/farm/' + a.id, null, c.token)).status, 403, '非好友不能访问');
-    assert.equal((await t.call('POST', `/api/farm/${a.id}/steal`, { idx: 7 }, c.token)).status, 403, '非好友不能偷');
-    const rq = await t.call('POST', '/api/friends/request', { id: a.id }, c.token); assert.ok(rq.ok); assert.equal(rq.friend, false);
-    const req = await t.call('GET', '/api/friends', null, a.token); assert.equal(req.requests.length, 1);
-    assert.ok((await t.call('POST', '/api/friends/respond', { id: c.id, accept: true }, a.token)).ok);
-    assert.ok((await t.call('GET', '/api/farm/' + a.id, null, c.token)).ok);
-    const s = await t.call('GET', '/api/friends/search?q=' + b.code, null, c.token); assert.equal(s.list[0].id, b.id);
+    // C 不是好友，也能在“附近的人”里看到 A，并直接串门、偷菜
+    const nb = await t.call('GET', '/api/neighbors?tab=nearby', null, c.token); assert.ok(nb.list.some(u => u.id === a.id));
+    assert.ok((await t.call('GET', '/api/farm/' + a.id, null, c.token)).ok, '非好友可以串门');
+    await t.plantAll(a, 0); await t.clock(200000);
+    const st = await t.call('POST', `/api/farm/${a.id}/steal-all`, null, c.token); assert.ok(st.ok, st.error); assert.ok(st.result.some(x => x.qty > 0), '非好友可以偷菜');
+    // 一键加好友，不需要对方审批
+    const ad = await t.call('POST', '/api/friends/add', { id: a.id }, c.token); assert.ok(ad.ok, ad.error);
+    assert.ok((await t.call('GET', '/api/friends', null, a.token)).list.some(u => u.id === c.id));
+    assert.equal((await t.call('POST', '/api/friends/add', { id: a.id }, c.token)).status, 409, '不能重复添加');
+    // 拉黑后双方都不能互访
+    assert.ok((await t.call('POST', '/api/friends/block', { id: c.id, on: true }, a.token)).ok);
+    assert.equal((await t.call('GET', '/api/farm/' + a.id, null, c.token)).status, 403);
+    assert.ok(!(await t.call('GET', '/api/neighbors?tab=nearby', null, c.token)).list.some(u => u.id === a.id), '拉黑后不出现在附近列表');
+    assert.equal((await t.call('GET', '/api/farm/' + a.id, null, a.token)).status, 400, '不能访问自己');
+    const s2 = await t.call('GET', '/api/friends/search?q=' + b.code, null, c.token); assert.equal(s2.list[0].id, b.id);
   } finally { await t.close(); }
 });
+
+test('拟真 NPC：看起来和真人一样、按作息上线经营、会偷菜帮忙买货、不抢真人赛季奖励', async () => {
+  const t = await start({ npcCount: 10 });
+  try {
+    const v = await t.call('POST', '/api/auth/guest', { name: '玩家' }); const me = { token: v.token, id: v.state.me.id };
+    const db = t.app.db, game = t.app.game;
+    // 对外接口里不能区分 NPC
+    const nb = await t.call('GET', '/api/neighbors', null, me.token); assert.equal(nb.list.length, 10);
+    nb.list.forEach(u => { assert.equal(u.npc, undefined); assert.notEqual(u.title, '村民'); assert.ok(/^\d{7}$/.test(u.code)); });
+    assert.equal(new Set(nb.list.map(u => u.name)).size, 10, '名字不重复');
+    const farm = await t.call('GET', '/api/farm/' + nb.list[0].id, null, me.token); assert.equal(farm.farm.owner.npc, undefined);
+    // 开局就有成熟的菜可以摘
+    const ripe = nb.list.find(u => u.steal > 0); assert.ok(ripe, '有 NPC 的菜成熟了');
+    const s = await t.call('POST', `/api/farm/${ripe.id}/steal-all`, null, me.token); assert.ok(s.ok, s.error);
+    // 让所有 NPC 上线：会收菜、补种、更新在线状态
+    const online = phase => db.all("SELECT id, settings FROM users WHERE role='npc'").forEach(r => { const o = JSON.parse(r.settings); o.npc.until = game.now() + 600000; o.npc.phase = phase; db.run('UPDATE users SET settings=? WHERE id=?', JSON.stringify(o), r.id); });
+    const ripeCnt = () => db.get("SELECT COUNT(*) n FROM plots p JOIN users u ON u.id=p.user_id WHERE u.role='npc' AND p.c>=0 AND p.p>=1").n;
+    const before = ripeCnt(); online('farm'); db.tx(() => t.app.vill.tick(30));
+    assert.ok(ripeCnt() < before, `NPC 上线后收了菜（成熟 ${before} → ${ripeCnt()}）`);
+    assert.ok(db.get("SELECT COUNT(*) n FROM plots p JOIN users u ON u.id=p.user_id WHERE u.role='npc' AND p.u=1 AND p.c<0").n <= 2, 'NPC 补种了空地');
+    assert.ok((await t.call('GET', '/api/neighbors', null, me.token)).list.every(u => u.online), '在线状态显示为在线');
+    // NPC 会来摘玩家的菜（每人每天最多 4 次）、也会来帮忙
+    await t.plantAll(me, 0); await t.clock(20 * 60000);
+    for (let i = 0; i < 80; i++) { online('social'); db.tx(() => t.app.vill.tick(30)); }
+    const stolen = db.get("SELECT COUNT(*) n FROM steals s JOIN users u ON u.id=s.thief WHERE s.owner=? AND u.role='npc'", me.id).n;
+    assert.ok(stolen >= 1 && stolen <= 4, `NPC 摘菜 ${stolen} 次（上限 4）`);
+    const msgs = (await t.call('GET', '/api/messages', null, me.token)).list; assert.ok(msgs.some(m => m.kind === 'visit' || m.kind === 'stolen'));
+    msgs.forEach(m => assert.equal(m.npc, undefined));
+    // NPC 会买走价格公道的挂单
+    await t.call('POST', '/api/farm/harvest-all', null, me.token);
+    const L = await t.call('POST', '/api/market/list', { item: 'c0', qty: 5, price: 3 }, me.token); assert.ok(L.ok, L.error);
+    await t.clock(4 * 60000); for (let i = 0; i < 150 && db.get('SELECT status FROM market WHERE id=?', L.result.id).status === 'open'; i++) { online('social'); db.tx(() => t.app.vill.tick(30)); }
+    assert.equal(db.get('SELECT status FROM market WHERE id=?', L.result.id).status, 'sold', 'NPC 买走了挂单');
+    // 金币按真实规则流动：NPC 金币有限且不会为负
+    db.all("SELECT gold FROM users WHERE role='npc'").forEach(r => assert.ok(r.gold >= 0 && r.gold < 1e6));
+    // 排行榜包含 NPC；但赛季奖励只在真人之间排名
+    const rk = await t.call('GET', '/api/rank?dim=lv&scope=global', null, me.token); assert.ok(rk.list.length > 1);
+    const last = GAMECFG_week(game.now() - 7 * 86400000); const npc1 = nb.list[0].id;
+    db.run('INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)', npc1, last, 'sp', 99999);
+    db.run('INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)', me.id, last, 'sp', 5000);
+    const se = await t.call('GET', '/api/season', null, me.token); assert.ok(se.last.rank >= 2); assert.equal(se.last.reward, 5000, '真人中排第一，拿第一名奖励');
+    // 运营后台能区分 NPC，指标不被注水
+    const adm = t.app.admin.stats(); assert.equal(adm.totals.users, 1); assert.equal(adm.totals.npcs, 10);
+    assert.ok(t.app.admin.players('').some(u => u.npc));
+  } finally { await t.close(); }
+});
+const GAMECFG_week = ms => CFG.weekKey(ms);
 
 test('偷菜：B 偷走的数量 = A 少收的数量，双方记录一致', async () => {
   const t = await start();

@@ -14,13 +14,13 @@ class Admin {
     const m = (d, k) => (db.get('SELECT val FROM metrics WHERE day=? AND key=?', d, k) || { val: 0 }).val;
     const series = days.map(d => ({ day: d, dau: db.get('SELECT COUNT(*) n FROM logins WHERE day=?', d).n, reg: m(d, 'registrations'), steals: m(d, 'steals'), orders: m(d, 'orders_done'), sales: m(d, 'market_sales'), calls: m(d, 'api_calls'), errors: m(d, 'api_errors'), ms: m(d, 'api_ms'), loadN: m(d, 'load_n'), loadMs: m(d, 'load_ms'), friendAdds: m(d, 'friend_adds') }));
     // 次留 / 七留：按注册日 cohort
-    const ret = (gap) => { let base = 0, kept = 0; for (let i = gap + 1; i <= gap + 7; i++) { const d0 = CFG.dayKey(now - i * 86400000), d1 = CFG.dayKey(now - (i - gap) * 86400000); const ids = db.all('SELECT id FROM users WHERE created_at>=? AND created_at<?', CFG.dayStart(now - i * 86400000), CFG.dayStart(now - i * 86400000) + 86400000); base += ids.length; ids.forEach(r => { if (db.get('SELECT 1 FROM logins WHERE user_id=? AND day=?', r.id, d1)) kept++; }); void d0; } return base ? kept / base : null; };
-    const total = db.get('SELECT COUNT(*) n FROM users').n, withFriend = db.get('SELECT COUNT(DISTINCT a) n FROM friends').n;
-    const wau = db.get('SELECT COUNT(DISTINCT user_id) n FROM logins WHERE day>=?', days[7]).n, thieves = db.get('SELECT COUNT(DISTINCT thief) n FROM steals WHERE at>? AND blocked=0', now - 7 * 86400000).n;
+    const ret = (gap) => { let base = 0, kept = 0; for (let i = gap + 1; i <= gap + 7; i++) { const d0 = CFG.dayKey(now - i * 86400000), d1 = CFG.dayKey(now - (i - gap) * 86400000); const ids = db.all("SELECT id FROM users WHERE role<>'npc' AND created_at>=? AND created_at<?", CFG.dayStart(now - i * 86400000), CFG.dayStart(now - i * 86400000) + 86400000); base += ids.length; ids.forEach(r => { if (db.get('SELECT 1 FROM logins WHERE user_id=? AND day=?', r.id, d1)) kept++; }); void d0; } return base ? kept / base : null; };
+    const total = db.get("SELECT COUNT(*) n FROM users WHERE role<>'npc'").n, withFriend = db.get("SELECT COUNT(DISTINCT f.a) n FROM friends f JOIN users u ON u.id=f.a WHERE u.role<>'npc'").n;
+    const wau = db.get('SELECT COUNT(DISTINCT user_id) n FROM logins WHERE day>=?', days[7]).n, thieves = db.get("SELECT COUNT(DISTINCT s.thief) n FROM steals s JOIN users u ON u.id=s.thief WHERE s.at>? AND s.blocked=0 AND u.role<>'npc'", now - 7 * 86400000).n;
     const ordersGen = db.get('SELECT COUNT(*) n FROM orders WHERE day>=?', days[7]).n, ordersDone = db.get('SELECT COUNT(*) n FROM orders WHERE day>=? AND done=1', days[7]).n;
     const t = series[series.length - 1];
     return {
-      now, totals: { users: total, bound: db.get('SELECT COUNT(*) n FROM users WHERE username IS NOT NULL').n, banned: db.get('SELECT COUNT(*) n FROM users WHERE banned=1').n, gold: db.get('SELECT COALESCE(SUM(gold),0) n FROM users').n, openListings: db.get("SELECT COUNT(*) n FROM market WHERE status='open'").n },
+      now, totals: { users: total, npcs: db.get("SELECT COUNT(*) n FROM users WHERE role='npc'").n, bound: db.get('SELECT COUNT(*) n FROM users WHERE username IS NOT NULL').n, banned: db.get('SELECT COUNT(*) n FROM users WHERE banned=1').n, gold: db.get("SELECT COALESCE(SUM(gold),0) n FROM users WHERE role<>'npc'").n, openListings: db.get("SELECT COUNT(*) n FROM market WHERE status='open'").n },
       today: { dau: t.dau, reg: t.reg, errorRate: t.calls ? t.errors / t.calls : 0, avgMs: t.calls ? t.ms / t.calls : 0, avgLoadMs: t.loadN ? t.loadMs / t.loadN : 0 },
       rates: { d1: ret(1), d7: ret(7), friendRate: total ? withFriend / total : 0, stealRate: wau ? thieves / wau : 0, orderRate: ordersGen ? ordersDone / ordersGen : 0 },
       series,
@@ -29,7 +29,7 @@ class Admin {
   players(q) {
     q = String(q || '').trim();
     const rows = q ? this.db.all("SELECT * FROM users WHERE code=? OR username=? OR name LIKE ? ORDER BY last_active DESC LIMIT 50", q, q, '%' + q + '%') : this.db.all('SELECT * FROM users ORDER BY last_active DESC LIMIT 50');
-    return rows.map(u => ({ id: u.id, code: u.code, name: u.name, username: u.username, lv: u.lv, gold: u.gold, role: u.role, banned: !!u.banned, created_at: u.created_at, last_active: u.last_active }));
+    return rows.map(u => ({ id: u.id, code: u.code, name: u.name, username: u.username, lv: u.lv, gold: u.gold, role: u.role, npc: u.role === 'npc', banned: !!u.banned, created_at: u.created_at, last_active: u.last_active }));
   }
   player(id) {
     const u = this.g.user(id), d = Object.assign({}, u); delete d.pass_hash; delete d.recovery_hash;

@@ -100,6 +100,13 @@ class Game {
     this.db.run('DELETE FROM messages WHERE user_id=? AND id < (SELECT id FROM messages WHERE user_id=? ORDER BY id DESC LIMIT 1 OFFSET 199)', uid, uid);
   }
   isFriend(a, b) { return !!this.db.get('SELECT 1 FROM friends WHERE a=? AND b=?', a, b); }
+  // 开放世界：任何未封禁、未互相拉黑的玩家都可以互相串门
+  canSee(uid, owner) {
+    if (uid === owner) throw bad('这是你自己的农场');
+    const o = this.user(owner); if (o.banned) throw forbid('该玩家已被封禁');
+    if (this.db.get('SELECT 1 FROM blocks WHERE (user_id=? AND blocked=?) OR (user_id=? AND blocked=?)', owner, uid, uid, owner)) throw forbid('无法访问这个农场');
+    return o;
+  }
 
   /* ---------- 账号 ---------- */
   newCode() { for (let i = 0; i < 50; i++) { const c = String(U.randInt(1000000, 9999999)); if (!this.db.get('SELECT 1 FROM users WHERE code=?', c)) return c; } throw new Error('无法生成玩家号'); }
@@ -351,6 +358,22 @@ class Game {
     if (this.db.get('SELECT COUNT(*) n FROM friend_requests WHERE src=? AND at>?', uid, this.now() - 86400000).n >= 30) throw conflict('今天发送的好友申请太多了', 'limit');
     this.db.run('INSERT OR IGNORE INTO friend_requests (src,dst,at) VALUES (?,?,?)', uid, t.id, this.now()); return { friend: false };
   }
+  addFriend(uid, targetId) {
+    const t = this.user(targetId); if (t.id === uid) throw bad('不能加自己为好友'); if (t.banned) throw forbid('该玩家已被封禁');
+    if (this.db.get('SELECT 1 FROM blocks WHERE (user_id=? AND blocked=?) OR (user_id=? AND blocked=?)', t.id, uid, uid, t.id)) throw forbid('无法添加这个玩家');
+    if (this.isFriend(uid, t.id)) throw conflict('你们已经是好友了', 'done');
+    if (this.db.get('SELECT COUNT(*) n FROM friends WHERE a=? AND since>?', uid, this.now() - 86400000).n >= 50) throw conflict('今天加的好友太多了', 'limit');
+    this.makeFriends(uid, t.id); return { friend: this.publicUser(t) };
+  }
+  // 附近的人 / 村民：不需要是好友也能看到并互访
+  neighbors(uid) {
+    const now = this.now();
+    const rows = this.db.all('SELECT * FROM users WHERE banned=0 AND id<>? AND last_active>? AND id NOT IN (SELECT blocked FROM blocks WHERE user_id=?) AND id NOT IN (SELECT user_id FROM blocks WHERE blocked=?) ORDER BY last_active DESC LIMIT 40', uid, now - 7 * 86400000, uid, uid);
+    const fr = new Set(this.db.all('SELECT b FROM friends WHERE a=?', uid).map(r => r.b));
+    const list = rows.map(u => { const v = this.farmView(uid, u.id); return Object.assign(this.publicUser(u), { steal: v.steal, help: v.help, soon: v.soon, online: now - u.last_active < 120000, last: u.last_active, friend: fr.has(u.id) }); });
+    list.sort((a, b) => (b.online - a.online) || (b.steal - a.steal) || (b.last - a.last));
+    return { list };
+  }
   // 邀请链接：链接的主人分享即表示同意，点开的人确认后直接互为好友
   acceptInvite(uid, code) { const t = this.db.get('SELECT * FROM users WHERE code=? AND banned=0', String(code || '')); if (!t) throw notFound('邀请链接无效'); if (t.id === uid) return { self: true }; const added = this.makeFriends(uid, t.id); return { friend: this.publicUser(t), added }; }
   respondRequest(uid, src, accept) { const r = this.db.get('SELECT * FROM friend_requests WHERE src=? AND dst=?', src, uid); if (!r) throw notFound('申请不存在或已处理'); if (accept) this.makeFriends(uid, src); else this.db.run('DELETE FROM friend_requests WHERE src=? AND dst=?', src, uid); return {}; }
@@ -383,7 +406,7 @@ class Game {
     return { list, requests, sent, visitors };
   }
   visit(uid, owner) {
-    if (!this.isFriend(uid, owner)) throw forbid('只能访问好友的农场');
+    this.canSee(uid, owner);
     const now = this.now(), prev = this.db.get('SELECT at FROM visits WHERE owner=? AND visitor=?', owner, uid);
     this.db.run('INSERT INTO visits (owner,visitor,at) VALUES (?,?,?) ON CONFLICT(owner,visitor) DO UPDATE SET at=excluded.at', owner, uid, now);
     if (!prev || now - prev.at > 3600000) this.msg(owner, 'visit', uid, {});
@@ -391,7 +414,7 @@ class Game {
     return this.farmView(uid, owner);
   }
   steal(uid, owner, idx, out) {
-    if (!this.isFriend(uid, owner)) throw forbid('只能摘好友的果实');
+    this.canSee(uid, owner);
     if (this.cnt(uid, 'steal_n', 'day') >= RULES.stealDailyLimit) throw conflict(`今天已经摘了 ${RULES.stealDailyLimit} 次，明天再来吧`, 'limit');
     const o = this.user(owner), P = this.plot(owner, idx), now = this.now();
     if (!P.u || P.c < 0 || P.p < 1) throw conflict('这块地没有成熟的果实', 'not_ripe');
@@ -416,7 +439,7 @@ class Game {
     return { idx, qty, crop: P.c, left: P.y };
   }
   help(uid, owner, idx, out) {
-    if (!this.isFriend(uid, owner)) throw forbid('只能帮好友打理');
+    this.canSee(uid, owner);
     if (this.cnt(uid, 'help_n', 'day') >= RULES.helpDailyLimit) throw conflict(`今天已经帮忙 ${RULES.helpDailyLimit} 次了，休息一下吧`, 'limit');
     const P = this.plot(owner, idx); const k = P.pr.d ? 'd' : P.pr.w ? 'w' : P.pr.b ? 'b' : null; if (!k) throw conflict('这块地不需要帮忙', 'healthy');
     P.pr[k] = 0; this.savePlot(owner, P); const now = this.now();
@@ -425,16 +448,16 @@ class Game {
     this.db.run('UPDATE users SET help_total=help_total+1 WHERE id=?', uid); this.bump(uid, 'help'); this.bump(uid, 'help_n', 1, 'day'); this.bump(uid, 'social', 1, 'all');
     this.msg(owner, 'helped', uid, { kinds: k }, true); return { idx, kind: k };
   }
-  guestbook(uid, owner) { if (uid !== owner && !this.isFriend(uid, owner)) throw forbid('只能查看好友的留言板'); return this.db.all('SELECT g.id,g.phrase,g.at,g.author,u.name,u.avatar FROM guestbook g LEFT JOIN users u ON u.id=g.author WHERE g.owner=? AND g.hidden=0 ORDER BY g.id DESC LIMIT 30', owner).map(r => ({ id: r.id, phrase: r.phrase, at: r.at, author: r.author, name: r.name || '已注销玩家', avatar: J(r.avatar) || {} })); }
+  guestbook(uid, owner) { if (uid !== owner) this.canSee(uid, owner); return this.db.all('SELECT g.id,g.phrase,g.at,g.author,u.name,u.avatar FROM guestbook g LEFT JOIN users u ON u.id=g.author WHERE g.owner=? AND g.hidden=0 ORDER BY g.id DESC LIMIT 30', owner).map(r => ({ id: r.id, phrase: r.phrase, at: r.at, author: r.author, name: r.name || '已注销玩家', avatar: J(r.avatar) || {} })); }
   postGuestbook(uid, owner, phrase) {
-    if (!this.isFriend(uid, owner)) throw forbid('只能给好友留言'); phrase = U.int(phrase, '留言', 0, CFG.PHRASES.length - 1);
+    this.canSee(uid, owner); phrase = U.int(phrase, '留言', 0, CFG.PHRASES.length - 1);
     if (this.cnt(uid, 'gb', 'day') >= RULES.gbDailyLimit) throw conflict('今天留言太多了', 'limit');
     this.db.run('INSERT INTO guestbook (owner,author,phrase,at) VALUES (?,?,?,?)', owner, uid, phrase, this.now()); this.bump(uid, 'gb', 1, 'day'); this.msg(owner, 'gb', uid, { phrase }); return {};
   }
   hideGuestbook(uid, id) { const r = this.db.run('UPDATE guestbook SET hidden=1 WHERE id=? AND owner=?', id, uid); if (!r.changes) throw notFound('留言不存在'); return {}; }
   messages(uid) {
-    const rows = this.db.all('SELECT m.*, u.name AS aname, u.avatar AS aav, u.code AS acode FROM messages m LEFT JOIN users u ON u.id=m.actor WHERE m.user_id=? ORDER BY m.id DESC LIMIT 100', uid)
-      .map(r => ({ id: r.id, kind: r.kind, actor: r.actor, name: r.actor ? (r.aname || '已注销玩家') : (r.kind === 'system' ? '系统' : '已注销玩家'), avatar: J(r.aav) || {}, friend: r.actor ? this.isFriend(uid, r.actor) : false, data: J(r.data) || {}, at: r.at, read: !!r.read }));
+    const rows = this.db.all('SELECT m.*, u.name AS aname, u.avatar AS aav, u.code AS acode, u.role AS arole FROM messages m LEFT JOIN users u ON u.id=m.actor WHERE m.user_id=? ORDER BY m.id DESC LIMIT 100', uid)
+      .map(r => ({ id: r.id, kind: r.kind, actor: r.actor, name: r.actor ? (r.aname || '已注销玩家') : (r.kind === 'system' ? '系统' : '已注销玩家'), avatar: J(r.aav) || {}, friend: r.actor ? this.isFriend(uid, r.actor) : false, canVisit: !!(r.actor && r.aname), data: J(r.data) || {}, at: r.at, read: !!r.read }));
     return rows;
   }
   readMessages(uid) { this.db.run('UPDATE messages SET read=1 WHERE user_id=? AND read=0', uid); return {}; }
@@ -500,9 +523,10 @@ class Game {
   season(uid) {
     const now = this.now(), wk = CFG.weekKey(now), last = CFG.weekKey(now - 7 * 86400000);
     const pts = this.cnt(uid, 'sp', wk), lastPts = this.cnt(uid, 'sp', last);
-    const lastRank = lastPts ? this.db.get('SELECT COUNT(*) n FROM counters c JOIN users u ON u.id=c.user_id WHERE c.period=? AND c.key=? AND u.banned=0 AND c.val > ?', last, 'sp', lastPts).n + 1 : 0;
+    const above = real => this.db.get(`SELECT COUNT(*) n FROM counters c JOIN users u ON u.id=c.user_id WHERE c.period=? AND c.key='sp' AND u.banned=0${real ? " AND u.role<>'npc'" : ''} AND c.val > ?`, last, lastPts).n;
+    const lastRank = lastPts ? above(false) + 1 : 0, rewardRank = lastPts ? above(true) + 1 : 0;
     const claimed = !!this.db.get('SELECT 1 FROM claims WHERE user_id=? AND key=?', uid, 'season:' + last);
-    return { week: wk, end: CFG.weekEnd(now), pts, last: { week: last, pts: lastPts, rank: lastRank, reward: this.seasonReward(lastRank, lastPts), claimed }, tiers: [[1, 5000], [3, 3000], [10, 1500], [50, 800], [Infinity, 300]] };
+    return { week: wk, end: CFG.weekEnd(now), pts, last: { week: last, pts: lastPts, rank: lastRank, reward: this.seasonReward(rewardRank, lastPts), claimed }, tiers: [[1, 5000], [3, 3000], [10, 1500], [50, 800], [Infinity, 300]] };
   }
   claimSeason(uid) { const s = this.season(uid); if (!s.last.reward) throw conflict('上赛季积分不足 100，没有奖励', 'not_done'); this.claim(uid, 'season:' + s.last.week); this.addGold(uid, s.last.reward, 'season'); return { gold: s.last.reward, rank: s.last.rank }; }
 

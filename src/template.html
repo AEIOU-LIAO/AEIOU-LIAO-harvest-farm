@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#79c4f0">
+<meta name="theme-color" content="#1c1610">
 <!-- 接口地址：留空表示和页面同域（推荐，由 Node 服务直接提供页面）；前端单独托管时填 API 域名，如 https://api.example.com -->
 <meta name="farm-api" content="/*API_BASE*/">
 <title>丰收农场</title>
@@ -13,24 +13,25 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
+<div id="fx3d"></div>
 <div id="topbar">
   <div id="card" title="我的资料">
     <canvas id="avatar" width="128" height="128"></canvas>
     <div class="info">
-      <div class="nm"><span id="pname">丰收农场</span><span id="lvbadge">Lv.1</span></div>
-      <div class="expbar"><i id="expfill"></i><span id="exptext"></span></div>
-      <span id="ptitle" style="display:none"></span>
+      <div class="nm"><span id="pname">丰收农场</span><span id="lvbadge">Lv.1</span><span id="ptitle" style="display:none"></span></div>
+      <div class="expbar"><i id="expfill"></i></div>
+      <span id="exptext"></span>
     </div>
   </div>
-  <div id="gold" class="pill"><span class="coin"></span><b id="goldnum">0</b></div>
+  <div id="gold" class="pill"><span id="coinico" class="coin"></span><b id="goldnum">0</b></div>
   <div id="rightbtns">
-    <button id="todbtn" title="时间（点击切换）">🌤️</button>
-    <button id="btn-snd" title="声音">🔊</button>
-    <button id="btn-help" title="玩法与规则">❓</button>
-    <button id="btn-menu" title="设置">⚙️</button>
+    <button id="todbtn" title="时间（点击切换）"></button>
+    <button id="btn-snd" title="声音"></button>
+    <button id="btn-help" title="玩法与规则"></button>
+    <button id="btn-menu" title="设置"></button>
   </div>
 </div>
-<div id="titlebar"><span id="title"></span></div>
+<div id="titlebar"><div id="title"></div></div>
 <div id="side"></div>
 <div id="newbie" style="display:none"></div>
 <div id="friends"></div>
@@ -39,14 +40,16 @@
 <div id="tip"></div>
 <div id="curtool"></div>
 <div id="toasts"></div>
-<div id="netbar">📡 网络连接中断，正在重连…（操作会在恢复后重试，不会重复扣款）</div>
-<div id="loading"><div class="lt">🌾 丰收农场</div><p>正在连接服务器…</p></div>
+<div id="netbar">网络连接中断，正在重连…（操作会在恢复后重试，不会重复扣款）</div>
+<div id="loading"><div class="lt"><span>丰收农场</span><em>HARVEST FARM</em></div><div class="spin"></div><p>正在加载…</p></div>
 <div id="mback"><div id="modal"></div></div>
+<script src="vendor/three.min.js"></script>
 <script>
 /*CONFIG*/
 /*NET*/
-/*ART*/
-/*SCENE*/
+/*ICONS*/
+/*AVATAR*/
+/*WORLD*/
 /*GAME*/
 /*UI*/
 </script>

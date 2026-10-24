@@ -13,6 +13,7 @@ const U = require('./util');
 const { open, SCHEMA_VERSION } = require('./db');
 const { Game } = require('./game');
 const { Admin } = require('./admin');
+const { Villagers } = require('./npc');
 
 const ENV = {
   port: +(process.env.PORT || 3000), host: process.env.HOST || '0.0.0.0', db: path.resolve(ROOT, process.env.DB_PATH || 'data/farm.db'),
@@ -20,6 +21,7 @@ const ENV = {
   tzMin: +(process.env.TZ_OFFSET_MIN || 480), backupDir: path.resolve(ROOT, process.env.BACKUP_DIR || 'data/backups'), backupKeep: +(process.env.BACKUP_KEEP || 7), backupHours: +(process.env.BACKUP_HOURS || 24),
   trustProxy: process.env.TRUST_PROXY === '1', testClock: process.env.FARM_TEST_CLOCK === '1' && process.env.NODE_ENV !== 'production',
   admins: (process.env.ADMIN_USERNAMES || '').split(',').map(s => s.trim()).filter(Boolean), quiet: process.env.QUIET === '1',
+  npcCount: process.env.NPC_COUNT === undefined ? 24 : +process.env.NPC_COUNT, npcTickSec: +(process.env.NPC_TICK_SEC || 30),
 };
 const VERSION = '2.0.0';
 
@@ -29,11 +31,14 @@ function createApp(opts) {
   const db = open(opts.db), game = new Game(db, { tzMin: opts.tzMin }), admin = new Admin(game), lim0 = new U.Limiter();
   const lim = { take: (...a) => opts.noRateLimit ? true : lim0.take(...a) };
   opts.admins.forEach(n => db.run("UPDATE users SET role='admin' WHERE username=?", n));
+  const vill = new Villagers(game);
+  if (opts.npcCount > 0) db.tx(() => vill.ensure(Math.min(80, opts.npcCount)));
+  const npcTick = () => { try { db.tx(() => vill.tick(opts.npcTickSec)); } catch (e) { if (!opts.quiet) console.error('[npc]', e.message); } };
 
   // ---- 指标：内存累计，定时落库 ----
   const mem = {}; const mbump = (k, n) => mem[k] = (mem[k] || 0) + (n || 1);
   const flush = () => { const ks = Object.keys(mem); if (!ks.length) return; try { db.tx(() => ks.forEach(k => { game.metric(k, mem[k]); delete mem[k]; })); } catch (e) { } };
-  const timers = [setInterval(flush, 15000), setInterval(() => { try { db.run('DELETE FROM idem WHERE at<?', game.now() - 86400000); } catch (e) { } }, 3600000)];
+  const timers = [setInterval(flush, 15000), ...(opts.npcCount > 0 ? [setInterval(npcTick, opts.npcTickSec * 1000)] : []), setInterval(() => { try { db.run('DELETE FROM idem WHERE at<?', game.now() - 86400000); } catch (e) { } }, 3600000)];
 
   // ---- 路由 ----
   const routes = [];
@@ -96,6 +101,8 @@ function createApp(opts) {
   R('GET', '/api/friends', { auth: 1 }, (c) => game.friends(c.uid));
   R('GET', '/api/friends/search', { auth: 1, searchLimit: 1 }, (c) => game.search(c.uid, c.query.q));
   R('POST', '/api/friends/request', { auth: 1 }, (c) => game.requestFriend(c.uid, id(c.body.id)));
+  R('POST', '/api/friends/add', { auth: 1 }, (c) => game.addFriend(c.uid, id(c.body.id)));
+  R('GET', '/api/neighbors', { auth: 1 }, (c) => game.neighbors(c.uid));
   R('POST', '/api/friends/respond', { auth: 1 }, (c) => game.respondRequest(c.uid, id(c.body.id), !!c.body.accept));
   R('POST', '/api/friends/remove', { auth: 1 }, (c) => game.removeFriend(c.uid, id(c.body.id)));
   R('POST', '/api/friends/block', { auth: 1 }, (c) => game.block(c.uid, id(c.body.id), !!c.body.on));
@@ -137,15 +144,16 @@ function createApp(opts) {
   R('GET', '/api/admin/suspects', { admin: 1 }, () => admin.suspects());
 
   // 测试专用：拨动服务器时钟（生产环境不可用）
-  if (opts.testClock) R('POST', '/api/test/clock', {}, (c) => { game.clockOffset += Number(c.body.ms) || 0; return { now: game.now() }; });
+  if (opts.testClock) { R('POST', '/api/test/clock', {}, (c) => { game.clockOffset += Number(c.body.ms) || 0; return { now: game.now() }; }); R('POST', '/api/test/npc-tick', {}, () => { vill.tick(opts.npcTickSec); return {}; }); }
 
   // ---- 静态页面 ----
-  const pages = { '/': 'index.html', '/index.html': 'index.html', '/admin': 'admin.html', '/admin.html': 'admin.html' }; const pcache = {};
+  const pages = { '/': 'index.html', '/index.html': 'index.html', '/admin': 'admin.html', '/admin.html': 'admin.html', '/vendor/three.min.js': 'vendor/three.min.js' }; const pcache = {};
   function serveStatic(req, res, p) {
     const f = path.join(ROOT, pages[p]); let st; try { st = fs.statSync(f); } catch (e) { res.writeHead(404); return res.end('Not found'); }
     let c = pcache[f]; if (!c || c.m !== st.mtimeMs) { const raw = fs.readFileSync(f); c = pcache[f] = { m: st.mtimeMs, raw, gz: zlib.gzipSync(raw) }; }
     const gz = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
-    res.writeHead(200, Object.assign(secHeaders(), { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' }, gz ? { 'Content-Encoding': 'gzip' } : {}));
+    const js = /\.js$/.test(f);
+    res.writeHead(200, Object.assign(secHeaders(), { 'Content-Type': js ? 'application/javascript; charset=utf-8' : 'text/html; charset=utf-8', 'Cache-Control': js ? 'public, max-age=604800' : 'no-cache' }, gz ? { 'Content-Encoding': 'gzip' } : {}));
     res.end(req.method === 'HEAD' ? undefined : gz ? c.gz : c.raw);
   }
   const secHeaders = () => ({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" });
@@ -218,7 +226,7 @@ function createApp(opts) {
   const server = http.createServer((req, res) => { handle(req, res).catch(e => { try { send(res, 500, { ok: false, error: 'server' }); } catch (_) { } }); });
   server.keepAliveTimeout = 30000;
   const close = () => new Promise(r => { timers.forEach(clearInterval); flush(); server.close(() => { try { db.close(); } catch (e) { } r(); }); server.closeAllConnections && server.closeAllConnections(); });
-  return { server, db, game, admin, backup, close, opts };
+  return { server, db, game, admin, vill, backup, close, opts };
 }
 
 module.exports = { createApp, VERSION };
