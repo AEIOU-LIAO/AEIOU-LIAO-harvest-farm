@@ -7,11 +7,11 @@
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning server/index.js",
     "dev": "FARM_TEST_CLOCK=1 DB_PATH=data/dev.db node --disable-warning=ExperimentalWarning --watch server/index.js",
-    "build": "node src/build.js",
+    "build": "node src/build.js && node deploy/bundle-functions.js",
     "build:edgeone": "node deploy/edgeone-dist.js",
     "test": "node --disable-warning=ExperimentalWarning --test --test-concurrency=1 test/api.test.js test/edgeone.test.js",
     "test:turso": "TEST_TURSO=1 node --disable-warning=ExperimentalWarning --test --test-concurrency=1 test/api.test.js",
-    "check-build": "node src/build.js && git diff --exit-code index.html",
+    "check-build": "npm run build && git diff --exit-code index.html cloud-functions",
     "backup": "node --disable-warning=ExperimentalWarning server/cli.js backup",
     "admin": "node --disable-warning=ExperimentalWarning server/cli.js"
   }

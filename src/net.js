@@ -28,7 +28,7 @@ const NET = (() => {
     const t0 = Date.now();
     try {
       const r = await fetch(BASE + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal, cache: 'no-store', credentials: BASE ? 'include' : 'same-origin' });
-      let j; try { j = await r.json(); } catch (e) { throw new ApiErr(r.status, 'bad_json', '服务器返回异常'); }
+      const txt = await r.text(); let j; try { j = JSON.parse(txt); } catch (e) { throw new ApiErr(r.status, 'bad_json', /^\s*</.test(txt) ? '接口没有部署成功（服务器返回了网页而不是数据），请检查云函数部署' : '服务器返回异常（HTTP ' + r.status + '）'); }
       setOnline(true);
       const sn = j.now || (j.state && j.state.now); if (sn) offset = sn - (t0 + Date.now()) / 2;
       if (!r.ok || !j.ok) {

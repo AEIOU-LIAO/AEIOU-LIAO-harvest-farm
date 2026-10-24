@@ -6,7 +6,9 @@ const test = require('node:test'), assert = require('node:assert/strict'), path 
 const { startMock } = require('./turso-mock');
 const { createCore } = require('../server/app');
 
-const ENTRY = path.join(__dirname, '..', 'cloud-functions', 'api', '[[default]].js');
+// 把入口文件单独复制到一个空目录再加载：确认它不依赖仓库里的任何其他文件（EdgeOne 只打包 cloud-functions 目录）
+const fs = require('fs'), os = require('os');
+const ENTRY = (() => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'eo-fn-')); const f = path.join(d, 'entry.mjs'); fs.copyFileSync(path.join(__dirname, '..', 'cloud-functions', 'api', '[[default]].js'), f); return f; })();
 const req = (fn, env) => async (method, p, body, token, cookie) => {
   const headers = { 'content-type': 'application/json', 'user-agent': 'test' }; if (token) headers.authorization = 'Bearer ' + token; if (cookie) headers.cookie = cookie;
   const r = await fn({ request: new Request('https://farm.example.com' + p, { method, headers, body: body ? JSON.stringify(body) : undefined }), env, clientIp: '1.2.3.4' });
