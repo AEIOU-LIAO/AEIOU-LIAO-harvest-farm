@@ -82,8 +82,8 @@ __def("shared/config.js", function (module, exports, __req) {
   ];
   // 看家狗：福旺、睿宝，可以都养；喂饱时各自独立判定能不能抓住来偷菜的人
   const DOGS = [
-    { id: 'fuwang', name: '福旺', col: 'dog', price: 400, lv: 3, bite: 5, base: 0.3, perLv: 0.03, max: 0.6, desc: '土黄色的田园犬，机灵亲人，咬一口 5 金币' },
-    { id: 'ruibao', name: '睿宝', col: 'dog2', price: 3000, lv: 10, bite: 15, base: 0.4, perLv: 0.03, max: 0.7, desc: '黑白相间的大狗，威风凛凛，咬一口 15 金币' },
+    { id: 'fuwang', name: '福旺', col: 'dog', price: 400, lv: 3, bite: 5, base: 0.3, perLv: 0.03, max: 0.6, desc: '灰白色的狗狗，机灵亲人，咬一口 5 金币' },
+    { id: 'ruibao', name: '睿宝', col: 'dog2', price: 3000, lv: 10, bite: 15, base: 0.4, perLv: 0.03, max: 0.7, desc: '金色边牧，聪明敏捷，咬一口 15 金币' },
   ];
 
   const RULES = {

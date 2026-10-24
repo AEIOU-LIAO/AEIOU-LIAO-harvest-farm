@@ -268,8 +268,8 @@ const W3 = (() => {
     x.strokeStyle = col; x.lineWidth = 4; x.stroke(); x.fillStyle = '#fff4d8'; x.font = 'bold 50px "PingFang SC","Microsoft YaHei",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, 128, 50);
     const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; const sp = new T.Sprite(new T.SpriteMaterial({ map: t, depthTest: false, transparent: true })); sp.scale.set(0.95, 0.36, 1); sp.renderOrder = 10; return sp;
   }
-  // 两只看家狗：福旺（土黄色田园犬）、睿宝（黑白相间的大狗）
-  const DOG_LOOK = { fuwang: { fur: '#d89a4a', white: '#f6ead2', ear: '#a86a2a', s: 1, tag: '#ffb84a', name: '福旺' }, ruibao: { fur: '#2e2c33', white: '#f2f0ea', ear: '#1a181e', s: 1.18, tag: '#9fd0ff', name: '睿宝' } };
+  // 两只看家狗：福旺（灰白色）、睿宝（金色边牧，体型稍大）
+  const DOG_LOOK = { fuwang: { fur: '#9a9aa2', white: '#f4f3ef', ear: '#6e6e78', s: 1, tag: '#c8d2e0', name: '福旺' }, ruibao: { fur: '#d9a441', white: '#fbf3e2', ear: '#a8742a', s: 1.18, tag: '#ffcf5a', name: '睿宝' } };
   function buildDog(kind) {
     const L = DOG_LOOK[kind || 'fuwang'];
     const g = new T.Group(), fur = mat(L.fur, { p: { roughness: 0.9 } }), white = mat(L.white, { p: { roughness: 0.9 } }), dark = mat('#2a1a10');
