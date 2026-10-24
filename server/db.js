@@ -97,10 +97,17 @@ function open(file) {
   db.all = (sql, ...a) => db.q(sql).all(...a);
   db.run = (sql, ...a) => db.q(sql).run(...a);
   // 事务：同步执行，Node 单线程 + BEGIN IMMEDIATE 保证原子性
-  db.tx = fn => {
-    db.exec('BEGIN IMMEDIATE');
-    try { const r = fn(); db.exec('COMMIT'); return r; }
-    catch (e) { try { db.exec('ROLLBACK'); } catch (_) { } throw e; }
+  let depth = 0, spn = 0;
+  db.tx = fn => { // 可重入：外层已在事务中时直接执行
+    if (depth > 0) return fn();
+    db.exec('BEGIN IMMEDIATE'); depth++;
+    try { const r = fn(); depth--; db.exec('COMMIT'); return r; }
+    catch (e) { depth--; try { db.exec('ROLLBACK'); } catch (_) { } throw e; }
+  };
+  db.sp = fn => { // 保存点：批量操作中单项失败只回滚该项
+    const name = 'sp' + (++spn); db.exec('SAVEPOINT ' + name);
+    try { const r = fn(); db.exec('RELEASE ' + name); return r; }
+    catch (e) { db.exec('ROLLBACK TO ' + name); db.exec('RELEASE ' + name); throw e; }
   };
   return db;
 }

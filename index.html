@@ -2,7 +2,10 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#79c4f0">
+<!-- 接口地址：留空表示和页面同域（推荐，由 Node 服务直接提供页面）；前端单独托管时填 API 域名，如 https://api.example.com -->
+<meta name="farm-api" content="">
 <title>丰收农场</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -139,37 +142,400 @@ button{font-family:inherit;cursor:pointer}
 .help p{margin:0 0 10px;line-height:1.7;font-size:14px}
 .logfull .row-item{padding:7px 4px}
 ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#c8a060;border-radius:5px}::-webkit-scrollbar-track{background:transparent}
-@media (max-width:820px){#titlebar{display:none}#card .expbar{width:110px}.tbtn{width:56px}#rightbtns{margin-right:70px}}
+
+
+/* ===== v2 联网版新增 ===== */
+#card{cursor:pointer}
+#ptitle{font-size:11px;font-weight:900;color:#fff;background:linear-gradient(#b08aff,#7a4ad8);border:2px solid #4a2a8a;border-radius:8px;padding:0 7px;align-self:flex-start;line-height:16px}
+#side{position:fixed;left:10px;top:92px;display:flex;flex-direction:column;gap:7px;z-index:2}
+.sbtn{position:relative;width:54px;height:54px;border-radius:16px;border:3px solid var(--wd);background:linear-gradient(#fff2c8,#f0c070);box-shadow:0 3px 0 var(--wdd),inset 0 2px 0 rgba(255,255,255,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;transition:transform .1s}
+.sbtn span{font-size:23px;line-height:26px}.sbtn em{font-style:normal;font-size:10.5px;font-weight:900;color:#5a3410}
+.sbtn:hover{transform:translateY(-2px)}.sbtn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--wdd)}
+.sbtn.ev{background:linear-gradient(#ffd0e0,#ff8ab0);animation:pulse 1.6s infinite}
+.sbtn .bd{top:-6px;right:-6px}
+#newbie{position:fixed;left:74px;top:92px;width:150px;padding:8px 10px;border-radius:14px;background:linear-gradient(#e8ffd8,#b8f08a);border:3px solid #3a8a2a;box-shadow:0 3px 0 #2a6a1c;cursor:pointer;z-index:2}
+#newbie b{display:block;font-size:13px;color:#2a5a1a}#newbie small{font-size:11px;color:#3a6a2a;font-weight:700}#newbie .bd{top:-8px;right:-8px}
+#friends{max-height:calc(100vh - 210px);overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
+.fr .on{position:absolute;left:8px;top:6px;width:11px;height:11px;border-radius:50%;background:#4cd23c;border:2px solid #fff}
+.fr.add .plus{width:48px;height:48px;border-radius:50%;border:3px dashed #8a5a2a;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:#8a5a2a;background:rgba(255,255,255,.4)}
+#log{max-width:360px;left:76px}#log small{opacity:.6;font-size:11px}#log .new{color:#fff6b0}#log .more{color:#ffe27a;font-weight:800}
+#netbar{position:fixed;left:50%;top:0;transform:translate(-50%,-110%);padding:8px 18px;border-radius:0 0 14px 14px;background:#c8402a;color:#fff;font-weight:800;font-size:14px;z-index:60;transition:transform .3s;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+#netbar.show{transform:translate(-50%,0)}
+#loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(#8fd4f8,#bfe9a0);z-index:70}
+#loading .lt{font-size:44px;font-weight:900;color:#e0502a;text-shadow:0 3px 0 #fff,0 6px 0 rgba(0,0,0,.15);animation:wob 2s infinite}
+#loading p{font-weight:800;color:#3a5a1a}#loading a{color:#c0401e}
+input,select{font-family:inherit;font-size:15px;padding:9px 12px;border-radius:12px;border:3px solid #d8b070;background:#fffdf4;color:#4a2a0c;outline:none;min-width:0;user-select:text;-webkit-user-select:text}
+input:focus,select:focus{border-color:#e0802a;box-shadow:0 0 0 3px rgba(255,170,60,.3)}
+.login{text-align:center}.login .wtitle{font-size:36px;font-weight:900;color:#e0502a;text-shadow:0 3px 0 #fff,0 5px 0 rgba(0,0,0,.15)}
+.login .sub2{margin:2px 0 12px;font-weight:700;opacity:.8}
+.lform{display:flex;flex-direction:column;gap:10px;margin:6px 0 10px}.lform .sub{margin:0}
+.lform a,.fine a{color:#c0401e}
+.fine{font-size:12px;opacity:.7;line-height:1.5;margin:6px 0}
+.invite{display:flex;gap:10px;align-items:center;text-align:left;padding:10px;margin-bottom:12px;border-radius:14px;background:#fff;border:3px dashed #ff8a5a}.invite small{display:block;opacity:.7}
+.reccode{font:900 26px/1.4 monospace;letter-spacing:3px;padding:10px;margin:8px 0;border-radius:12px;background:#fff;border:3px dashed #e0802a;user-select:all;-webkit-user-select:all}
+.av{border-radius:50%;border:2px solid #fff;flex:none;background:#cde}
+.ii{width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:12px}.ii.emo{font-size:28px}.ii .cimg{width:44px;height:44px}
+.ii.gold{background:radial-gradient(#fff6b0,#ffd23a);box-shadow:0 0 10px #ffd23a}.ii.gold .cimg{filter:sepia(1) saturate(4) hue-rotate(5deg) brightness(1.1)}
+.lv{font-size:12px;font-weight:900;color:#fff;background:#ff8a2a;border-radius:8px;padding:0 6px}
+.ttl{font-size:11px;font-weight:900;color:#fff;background:#8a5ad8;border-radius:8px;padding:1px 7px}
+.code{font-family:monospace;font-size:18px;letter-spacing:1px;color:#c0401e}
+.ok{color:#8fe870;font-weight:800}
+.tabs{flex-wrap:wrap}.tabs button{position:relative}.tabs .bd{top:-8px;right:-8px}
+.sec{margin:12px 0 6px;color:#8a3a10}
+.copyrow{display:flex;gap:8px;align-items:center;margin:8px 0}.copyrow input,.copyrow select{flex:1}
+.invbox{padding:10px 14px;border-radius:14px;background:#fff8e0;border:2px solid #e8cf9a;margin:6px 0}.invbox p{margin:4px 0;font-size:13px}
+.row-item.new{background:rgba(255,240,180,.6)}
+.row-item .btn{flex:none}
+.mform{display:flex;flex-direction:column;gap:8px;padding:12px;margin:10px 0;border-radius:14px;background:rgba(255,255,255,.6);border:2px solid #e8cf9a}.mform.danger{border-color:#f0a090}
+.mform .copyrow input{width:80px;flex:1}
+.acct p{margin:4px 0}
+.profile{text-align:center}.profile h3{margin:8px 0 4px}.profile .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:10px 0}.stats div{background:#fff;border-radius:12px;border:2px solid #e8cf9a;padding:6px 2px}.stats b{display:block;font-size:17px;color:#c0401e}.stats small{font-size:11px;opacity:.7}
+.confirm .left,.confirm ul.left{text-align:left}.confirm ul.left{line-height:1.9;font-weight:700}
+.phrases{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:10px}
+.orders{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.order{position:relative;text-align:center;padding:14px 10px;border-radius:18px;background:linear-gradient(#fffdf4,#ffeec0);border:3px solid #e0b060;display:flex;flex-direction:column;align-items:center;gap:4px}
+.order .oi .ii{width:70px;height:70px}.order .oi .cimg{width:64px;height:64px}.order small{opacity:.7}.order .rw{font-weight:900;color:#c07a00}
+.order.done{filter:saturate(.4)}.stamp{position:absolute;top:30%;transform:rotate(-14deg);font-size:26px;font-weight:900;color:#e0402a;border:4px solid #e0402a;border-radius:10px;padding:2px 10px;background:rgba(255,255,255,.7)}
+.scope{display:flex;justify-content:center;gap:0;margin:-2px 0 8px}.scope button{padding:5px 18px;border:2px solid var(--wd);background:#fff;font-weight:900;color:#7a5a2a}.scope button:first-child{border-radius:12px 0 0 12px}.scope button:last-child{border-radius:0 12px 12px 0;border-left:0}.scope button.on{background:#ffd96a;color:#4a2a0c}
+.rank .rk{width:34px;text-align:center;font-weight:900;font-size:18px;color:#8a5a2a}.rank .rk.r1,.rank .rk.r2,.rank .rk.r3{font-size:24px}
+.rank.me{background:rgba(255,220,120,.5);border-radius:10px}
+.ri-n small{font-size:11px;opacity:.7}
+.task.got{opacity:.7}
+.codex{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.cx{text-align:center;padding:6px 4px;border-radius:14px;background:#fff;border:3px solid #e8cf9a}.cx .cimg{width:54px;height:54px;filter:brightness(0) opacity(.25)}.cx b{display:block;font-size:13px}.cx small{font-size:10.5px;opacity:.7}
+.cx.on .cimg{filter:none}.cx.gold.on{background:radial-gradient(#fff8c8,#ffe27a);border-color:#e0a010}.cx.gold.on .cimg{filter:sepia(1) saturate(4) hue-rotate(5deg) brightness(1.1)}
+.cx.r2.on{border-color:#5aa8e8}.cx.r3.on{border-color:#a874d6}.cx.r4.on{border-color:#ff8a2a;box-shadow:0 0 8px rgba(255,140,40,.6)}
+.seedcard.r2{border-color:#5aa8e8}.seedcard.r3{border-color:#a874d6}.seedcard.r4{border-color:#ff8a2a}
+.seedcard .rar{position:absolute;right:-4px;top:8px;font-style:normal;font-size:11px;font-weight:900;color:#fff;background:#5aa8e8;padding:2px 7px;border-radius:10px 4px 4px 10px}
+.seedcard.r3 .rar{background:#a874d6}.seedcard.r4 .rar{background:#ff8a2a}
+.dress{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;justify-content:center}.dress canvas{width:140px;height:140px;border-radius:50%;border:4px solid #fff;box-shadow:0 0 0 3px var(--wd)}
+.swrow{display:flex;align-items:center;gap:6px;margin:6px 0;flex-wrap:wrap}.swrow>span{width:40px;font-weight:900;font-size:13px}
+.sw{width:30px;height:30px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #c8a060;padding:0}.sw.on{box-shadow:0 0 0 3px #e0402a}
+.cosgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.cos{text-align:center;padding:10px;border-radius:16px;background:#fff;border:3px solid #e8cf9a;display:flex;flex-direction:column;align-items:center;gap:6px}.cos.on{border-color:#3aa83c}.cos small{font-size:11px;opacity:.7}
+.thprev{position:relative;width:110px;height:70px;border-radius:10px;background:linear-gradient(#a8e0ff 55%,#7cc850 55%);overflow:hidden}
+.thprev i{position:absolute;left:28px;top:30px;width:44px;height:26px;background:var(--wall);border:2px solid #6a4a2a}.thprev b{position:absolute;left:22px;top:12px;border-left:28px solid transparent;border-right:28px solid transparent;border-bottom:20px solid var(--roof)}.thprev em{position:absolute;right:8px;top:18px;width:24px;height:30px;border-radius:50%;background:var(--tree)}
+.frprev{border-radius:50%;margin:6px}
+.titles{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.season{text-align:center}.season .big{font-size:44px;font-weight:900;color:#ff7a1a}.season .last{margin:10px 0;padding:10px;border-radius:12px;background:#fff;border:2px solid #e8cf9a;font-weight:800}
+.help h3{margin:12px 0 6px}
+@media (max-width:820px){
+  #titlebar{display:none}#card{padding:4px 10px 4px 4px}#avatar{width:44px;height:44px}#card .expbar{width:92px}#card .nm{font-size:14px}
+  .pill{height:36px;font-size:16px;padding:0 12px 0 4px}.coin{width:24px;height:24px}
+  #rightbtns{margin-right:0;gap:5px}#rightbtns button{width:36px;height:36px;font-size:16px}
+  .tbtn{width:54px;height:58px}.tbtn .ic{font-size:24px;height:30px}.tbtn .ic img{width:30px;height:30px}.tbtn .tx{font-size:10.5px}
+  #toolbar{padding:5px 6px;gap:2px;bottom:max(6px,env(safe-area-inset-bottom))}
+  #side{top:70px;gap:5px;left:6px}.sbtn{width:44px;height:44px;border-radius:13px}.sbtn span{font-size:18px;line-height:20px}.sbtn em{font-size:9px}
+  #newbie{left:56px;top:70px;width:120px;padding:5px 8px}
+  #friends{right:6px;top:64px;padding:5px;gap:4px;max-height:calc(100vh - 160px)}.fr{width:50px}.fr canvas,.fr.add .plus{width:38px;height:38px}.fr span{font-size:10.5px;max-width:48px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #log{left:56px;bottom:84px;max-width:62vw;font-size:11.5px;padding:5px 9px}
+  #modal{padding:16px 14px 18px;max-height:90vh}#modal h2{font-size:20px}.row-item{gap:8px}.ri-ic{width:44px;height:44px}.ri-n{min-width:40px;font-size:15px}.price{min-width:56px}
+  .stats{grid-template-columns:repeat(3,1fr)}.toast{white-space:normal;max-width:86vw;text-align:center;font-size:13px}
+}
+@media (max-width:480px){#todbtn,#btn-snd{display:none}#topbar{gap:6px}.pill{margin-top:2px}#card .expbar{width:78px}}
+@media (max-height:520px){#side{flex-direction:row;flex-wrap:wrap;width:230px}#newbie{display:none!important}#log{display:none}}
 
 </style>
 </head>
 <body>
 <canvas id="cv"></canvas>
 <div id="topbar">
-  <div id="card">
+  <div id="card" title="我的资料">
     <canvas id="avatar" width="128" height="128"></canvas>
     <div class="info">
-      <div class="nm"><span id="pname"></span><span id="lvbadge">Lv.1</span></div>
+      <div class="nm"><span id="pname">丰收农场</span><span id="lvbadge">Lv.1</span></div>
       <div class="expbar"><i id="expfill"></i><span id="exptext"></span></div>
+      <span id="ptitle" style="display:none"></span>
     </div>
   </div>
   <div id="gold" class="pill"><span class="coin"></span><b id="goldnum">0</b></div>
   <div id="rightbtns">
-    <button id="todbtn" title="时间">🌤️</button>
+    <button id="todbtn" title="时间（点击切换）">🌤️</button>
     <button id="btn-snd" title="声音">🔊</button>
-    <button id="btn-help" title="玩法">❓</button>
+    <button id="btn-help" title="玩法与规则">❓</button>
     <button id="btn-menu" title="设置">⚙️</button>
   </div>
 </div>
 <div id="titlebar"><span id="title"></span></div>
+<div id="side"></div>
+<div id="newbie" style="display:none"></div>
 <div id="friends"></div>
 <div id="log" class="empty"></div>
 <div id="toolbar"></div>
 <div id="tip"></div>
 <div id="curtool"></div>
 <div id="toasts"></div>
+<div id="netbar">📡 网络连接中断，正在重连…（操作会在恢复后重试，不会重复扣款）</div>
+<div id="loading"><div class="lt">🌾 丰收农场</div><p>正在连接服务器…</p></div>
 <div id="mback"><div id="modal"></div></div>
 <script>
+/* =====================================================
+   丰收农场 · 前后端共用配置与规则
+   服务端是权威；客户端只用它来显示与插值。
+   ===================================================== */
+(function (root) {
+  'use strict';
+  const COLS = 6, ROWS = 4, NPLOTS = COLS * ROWS;
+
+  // rarity: 1 普通 2 稀有 3 史诗 4 传说
+  const CROPS = [
+    { id: 0, name: '萝卜', lv: 1, seed: 20, time: 40, yield: 12, price: 3, exp: 8, seasons: 1, rarity: 1, art: { type: 'root', shape: 'radish', leaf: '#5fb83f', root: '#fbf3f4', blush: '#ff8aa5', hh: 72, is: 1.15 } },
+    { id: 1, name: '白菜', lv: 2, seed: 45, time: 90, yield: 20, price: 4, exp: 16, seasons: 1, rarity: 1, art: { type: 'cabbage', head: '#b9e56e', hh: 70, is: 1.1 } },
+    { id: 2, name: '胡萝卜', lv: 3, seed: 80, time: 150, yield: 26, price: 5, exp: 28, seasons: 1, rarity: 1, art: { type: 'root', shape: 'carrot', leaf: '#4fa83a', root: '#ff8c1a', hh: 74, is: 1.15 } },
+    { id: 3, name: '番茄', lv: 4, seed: 130, time: 240, yield: 30, price: 7, exp: 42, seasons: 2, rarity: 1, art: { type: 'bush', kind: 'tomato', fruit: '#ec3b2e', unripe: '#a8d060', nf: 4, h: 58, hh: 80, is: 0.95 } },
+    { id: 4, name: '草莓', lv: 5, seed: 200, time: 360, yield: 36, price: 9, exp: 62, seasons: 2, rarity: 1, art: { type: 'bush', kind: 'berry', fruit: '#ff3355', unripe: '#d6e8a8', nf: 5, h: 24, low: true, hh: 54, is: 1.2 } },
+    { id: 5, name: '玉米', lv: 6, seed: 300, time: 540, yield: 44, price: 11, exp: 90, seasons: 2, rarity: 1, art: { type: 'corn', hh: 112, is: 0.72 } },
+    { id: 6, name: '辣椒', lv: 7, seed: 420, time: 720, yield: 48, price: 13, exp: 125, seasons: 2, rarity: 1, art: { type: 'bush', kind: 'chili', fruit: '#e8281e', unripe: '#6fbf3a', nf: 5, h: 54, hh: 78, is: 1.0 } },
+    { id: 7, name: '茄子', lv: 8, seed: 560, time: 900, yield: 54, price: 15, exp: 160, seasons: 2, rarity: 1, art: { type: 'bush', kind: 'egg', fruit: '#7b3fa8', unripe: '#8fae6a', nf: 3, h: 56, hh: 80, is: 1.0 } },
+    { id: 8, name: '南瓜', lv: 10, seed: 800, time: 1200, yield: 60, price: 18, exp: 220, seasons: 1, rarity: 2, art: { type: 'vine', kind: 'pumpkin', fruit: '#ff9a1f', hh: 64, is: 1.05 } },
+    { id: 9, name: '西瓜', lv: 12, seed: 1200, time: 1800, yield: 66, price: 24, exp: 330, seasons: 2, rarity: 2, art: { type: 'vine', kind: 'melon', fruit: '#37993b', hh: 62, is: 1.0 } },
+    { id: 10, name: '向日葵', lv: 14, seed: 1800, time: 2400, yield: 72, price: 32, exp: 480, seasons: 1, rarity: 2, art: { type: 'sunflower', hh: 120, is: 0.7 } },
+    { id: 11, name: '菠萝', lv: 16, seed: 2800, time: 3600, yield: 80, price: 45, exp: 760, seasons: 1, rarity: 2, art: { type: 'pine', hh: 80, is: 1.0 } },
+    { id: 12, name: '白萝卜', lv: 3, seed: 60, time: 120, yield: 22, price: 4, exp: 22, seasons: 1, rarity: 1, art: { type: 'root', shape: 'radish', leaf: '#6cc04a', root: '#ffffff', blush: '#eef6dc', hh: 72, is: 1.15 } },
+    { id: 13, name: '紫甘蓝', lv: 5, seed: 180, time: 300, yield: 32, price: 9, exp: 55, seasons: 1, rarity: 1, art: { type: 'cabbage', head: '#a774d6', hh: 70, is: 1.1 } },
+    { id: 14, name: '小黄番茄', lv: 7, seed: 380, time: 660, yield: 46, price: 13, exp: 115, seasons: 2, rarity: 2, art: { type: 'bush', kind: 'tomato', fruit: '#ffc21a', unripe: '#b8d870', nf: 5, h: 56, hh: 80, is: 0.95 } },
+    { id: 15, name: '蓝莓', lv: 9, seed: 700, time: 1080, yield: 58, price: 18, exp: 190, seasons: 2, rarity: 2, art: { type: 'bush', kind: 'berry', fruit: '#4a5ad8', unripe: '#c8d8e8', nf: 5, h: 24, low: true, hh: 54, is: 1.2 } },
+    { id: 16, name: '紫薯', lv: 11, seed: 1000, time: 1500, yield: 62, price: 22, exp: 280, seasons: 1, rarity: 2, art: { type: 'root', shape: 'carrot', leaf: '#5aa84a', root: '#8a3aa8', hh: 74, is: 1.15 } },
+    { id: 17, name: '黄彩椒', lv: 13, seed: 1500, time: 2100, yield: 68, price: 28, exp: 400, seasons: 2, rarity: 2, art: { type: 'bush', kind: 'chili', fruit: '#ffb81a', unripe: '#7fc04a', nf: 5, h: 54, hh: 78, is: 1.0 } },
+    { id: 18, name: '白玉茄', lv: 15, seed: 2200, time: 3000, yield: 74, price: 38, exp: 600, seasons: 2, rarity: 3, art: { type: 'bush', kind: 'egg', fruit: '#f4eedf', unripe: '#a8c08a', nf: 3, h: 56, hh: 80, is: 1.0 } },
+    { id: 19, name: '冬瓜', lv: 17, seed: 3200, time: 5400, yield: 86, price: 52, exp: 980, seasons: 1, rarity: 3, art: { type: 'vine', kind: 'melon', fruit: '#8ec8a4', hh: 62, is: 1.0 } },
+    { id: 20, name: '金南瓜', lv: 19, seed: 4500, time: 7200, yield: 92, price: 68, exp: 1350, seasons: 1, rarity: 3, art: { type: 'vine', kind: 'pumpkin', fruit: '#ffd23a', hh: 64, is: 1.05 } },
+    { id: 21, name: '甜菜', lv: 21, seed: 6000, time: 10800, yield: 100, price: 88, exp: 1900, seasons: 1, rarity: 3, art: { type: 'root', shape: 'radish', leaf: '#4a9a3a', root: '#b8214a', blush: '#7a1030', hh: 72, is: 1.15 } },
+    { id: 22, name: '黑美人西瓜', lv: 24, seed: 8500, time: 14400, yield: 108, price: 115, exp: 2700, seasons: 2, rarity: 4, art: { type: 'vine', kind: 'melon', fruit: '#1f5a2a', hh: 62, is: 1.0 } },
+    { id: 23, name: '月光草莓', lv: 27, seed: 12000, time: 21600, yield: 120, price: 150, exp: 3800, seasons: 2, rarity: 4, art: { type: 'bush', kind: 'berry', fruit: '#f0e4ff', unripe: '#d8e8c8', nf: 5, h: 24, low: true, hh: 54, is: 1.2 } },
+  ];
+  const RARITY = ['', '普通', '稀有', '史诗', '传说'];
+
+  const RULES = {
+    startGold: 300, startPlots: 6, maxLv: 30,
+    fertPrice: 60, fertBoost: 0.3, dogfoodPrice: 120, dogPrice: 400, dogNeedLv: 3, dogFeedMin: 60,
+    redNeedLv: 5,
+    // 偷菜
+    stealDelaySec: 30,          // 成熟后的主人保护时间
+    stealPctMin: 0.08, stealPctMax: 0.15, // 每次偷取占原始产量比例
+    stealMaxPct: 0.4,           // 一块地最多被偷走的比例（主人保底 60%）
+    newbieLv: 5, newbieMaxPct: 0.2, // 主人低于此等级时保底更高
+    stealDailyLimit: 80,        // 每人每天最多成功偷取次数
+    stealExp: 3,
+    dogBlockBase: 0.35, dogBlockPerLv: 0.03, dogBlockMax: 0.7, dogBiteMin: 10, dogBiteMax: 40,
+    // 互助
+    helpDailyLimit: 60, helpExp: 4, helpGold: 6,
+    // 生长
+    probSlow: 0.62, soilSpeed: 1.2, soilYield: 1.2, season2Start: 0.45,
+    goldenChance: 0.04, goldenPriceMult: 5,
+    // 市场
+    marketFee: 0.05, marketMinMult: 0.8, marketMaxMult: 2.0, marketMaxListings: 6, marketTtlHours: 24,
+    // 留言
+    gbDailyLimit: 20,
+  };
+
+  const TASKS = [
+    { id: 'plant', ic: '🌱', tx: '种植作物', need: 12, gold: 150, exp: 30 },
+    { id: 'harvest', ic: '🧺', tx: '收获作物', need: 15, gold: 250, exp: 50 },
+    { id: 'care', ic: '💧', tx: '浇水 / 除草 / 除虫', need: 6, gold: 150, exp: 30 },
+    { id: 'steal', ic: '🥷', tx: '摘取好友的果实', need: 6, gold: 220, exp: 40 },
+    { id: 'help', ic: '🤝', tx: '帮好友打理农田', need: 4, gold: 180, exp: 35 },
+    { id: 'sell', ic: '💰', tx: '卖出作物赚取金币', need: 800, gold: 300, exp: 60 },
+  ];
+  const WEEKLY = [
+    { id: 'w_harvest', stat: 'harvest', ic: '🧺', tx: '本周收获作物', need: 120, gold: 1500, exp: 300 },
+    { id: 'w_steal', stat: 'steal', ic: '🥷', tx: '本周摘取好友果实', need: 40, gold: 1200, exp: 240 },
+    { id: 'w_help', stat: 'help', ic: '🤝', tx: '本周帮好友打理', need: 30, gold: 1200, exp: 240 },
+    { id: 'w_order', stat: 'order', ic: '📦', tx: '本周完成订单', need: 10, gold: 2000, exp: 400 },
+    { id: 'w_trade', stat: 'trade', ic: '🏷️', tx: '本周在集市成交', need: 5, gold: 1000, exp: 200 },
+  ];
+  const NEWBIE = [
+    { id: 'n_plant', stat: 'plant', tx: '在空地上种下第一颗种子', need: 1, gold: 50 },
+    { id: 'n_harvest', stat: 'harvest', tx: '收获一次作物', need: 1, gold: 80 },
+    { id: 'n_sell', stat: 'sell', tx: '在仓库卖出作物', need: 1, gold: 80 },
+    { id: 'n_friend', stat: 'friend', tx: '添加一位真实好友（发送邀请链接）', need: 1, gold: 200 },
+    { id: 'n_visit', stat: 'visit', tx: '去好友农场串门', need: 1, gold: 100 },
+    { id: 'n_social', stat: 'social', tx: '在好友农场摘一次果实或帮一次忙', need: 1, gold: 200 },
+  ];
+  // 成就：stat 对应 users 表的累计计数
+  const ACHIEVEMENTS = [
+    { id: 'a_h1', stat: 'harvest_total', need: 50, tx: '初获丰收', desc: '累计收获 50 次', gold: 300, title: '小农夫' },
+    { id: 'a_h2', stat: 'harvest_total', need: 500, tx: '丰收能手', desc: '累计收获 500 次', gold: 2000, title: '丰收能手' },
+    { id: 'a_h3', stat: 'harvest_total', need: 3000, tx: '农场大亨', desc: '累计收获 3000 次', gold: 10000, title: '农场大亨' },
+    { id: 'a_s1', stat: 'steal_total', need: 20, tx: '妙手空空', desc: '累计摘取好友果实 20 次', gold: 300, title: '妙手空空' },
+    { id: 'a_s2', stat: 'steal_total', need: 300, tx: '神偷', desc: '累计摘取 300 次', gold: 3000, title: '月下神偷' },
+    { id: 'a_p1', stat: 'help_total', need: 20, tx: '热心邻居', desc: '累计帮好友 20 次', gold: 300, title: '热心邻居' },
+    { id: 'a_p2', stat: 'help_total', need: 300, tx: '劳模', desc: '累计帮好友 300 次', gold: 3000, title: '劳动模范' },
+    { id: 'a_f1', stat: 'friends', need: 3, tx: '呼朋唤友', desc: '拥有 3 位好友', gold: 500, title: '人气农夫' },
+    { id: 'a_f2', stat: 'friends', need: 10, tx: '社交达人', desc: '拥有 10 位好友', gold: 2000, title: '社交达人' },
+    { id: 'a_g1', stat: 'golden_total', need: 1, tx: '金光闪闪', desc: '收获第一个变异金色作物', gold: 500, title: '幸运儿' },
+    { id: 'a_g2', stat: 'golden_total', need: 20, tx: '点石成金', desc: '收获 20 次金色作物', gold: 5000, title: '点石成金' },
+    { id: 'a_c1', stat: 'codex', need: 10, tx: '收藏家', desc: '图鉴收集 10 种', gold: 1000, title: '收藏家' },
+    { id: 'a_c2', stat: 'codex', need: 24, tx: '博物学家', desc: '图鉴收集全部普通作物', gold: 6000, title: '博物学家' },
+    { id: 'a_l1', stat: 'lv', need: 10, tx: '小有所成', desc: '达到 Lv.10', gold: 1000 },
+    { id: 'a_l2', stat: 'lv', need: 20, tx: '远近闻名', desc: '达到 Lv.20', gold: 5000, title: '远近闻名' },
+    { id: 'a_o1', stat: 'order_total', need: 30, tx: '诚信商户', desc: '完成 30 个订单', gold: 2000, title: '诚信商户' },
+    { id: 'a_k1', stat: 'checkin_streak', need: 7, tx: '风雨无阻', desc: '连续签到 7 天', gold: 800, title: '勤劳农夫' },
+  ];
+
+  // 装扮：农场主题（房屋/树木颜色）与头像框
+  const THEMES = [
+    { id: 'classic', name: '经典红顶', price: 0, th: { roof: '#c8483a', wall: '#f6e7c8', tree: '#4aa83a', bush: '#4ea43a' } },
+    { id: 'sakura', name: '樱花小屋', price: 3000, th: { roof: '#d9658a', wall: '#fff0e0', tree: '#5ab84e', bush: '#52b04a' } },
+    { id: 'ocean', name: '海风蓝顶', price: 3000, th: { roof: '#3e7ac8', wall: '#f0ead0', tree: '#3f9a3a', bush: '#3f9a3a' } },
+    { id: 'cabin', name: '林间木屋', price: 6000, th: { roof: '#7a5a3a', wall: '#f2dfc0', tree: '#6aa83a', bush: '#6aa83a' } },
+    { id: 'lavender', name: '薰衣草庄园', price: 12000, th: { roof: '#9a6ad9', wall: '#fff4f8', tree: '#58b890', bush: '#4aa87a' } },
+    { id: 'autumn', name: '金秋农舍', price: 20000, th: { roof: '#d9822a', wall: '#fff2d6', tree: '#d9a03a', bush: '#c89a3a' } },
+  ];
+  const FRAMES = [
+    { id: 'none', name: '无', price: 0, color: '' },
+    { id: 'wood', name: '原木框', price: 1000, color: '#a8743a' },
+    { id: 'leaf', name: '青叶框', price: 2500, color: '#5cb83c' },
+    { id: 'gold', name: '黄金框', price: 8000, color: '#ffc61a' },
+    { id: 'star', name: '星光框', price: 0, color: '#b08aff', ach: 'a_c1' },
+    { id: 'thief', name: '神偷框', price: 0, color: '#3a3a5a', ach: 'a_s2' },
+  ];
+  const AVATAR_OPTS = {
+    skin: ['#ffd9b0', '#ffe4cc', '#f2c89a', '#e8b88a', '#c8946a'],
+    hair: ['#2a1a10', '#6a3a1a', '#e8a0c0', '#d9b84a', '#4a5ad8'],
+    shirt: ['#4a8fd8', '#ff7aa5', '#6aa84a', '#8a5a3a', '#b08aff', '#ff9a1f'],
+    band: ['#d9553a', '#3a7ad9', '#3a9a5a'],
+    bg: [['#a8e4ff', '#d8f5b8'], ['#ffd9ec', '#fff0e0'], ['#c8ecff', '#e8f6c8'], ['#ffe8b8', '#ffd09a'], ['#e8d8ff', '#ffe0f0']],
+  };
+  // 留言用预设短语（不开放自由文本，避免垃圾内容）
+  const PHRASES = ['🌻 来串门啦！', '🥷 菜不错，拿走两个～', '💧 帮你浇过水了', '🐛 虫子已经消灭', '😄 一起加油种田！', '🎁 谢谢你的帮忙', '😤 别偷我的菜！', '🐶 小心我家狗狗', '🌙 晚安，明天见', '👍 农场好漂亮'];
+
+  const SHOP_ITEMS = [
+    { id: 'fert', name: '化肥', ic: '🧪', price: RULES.fertPrice, desc: '让作物成长进度 +30%' },
+    { id: 'dogfood', name: '狗粮', ic: '🍖', price: RULES.dogfoodPrice, desc: '小狗吃饱后看家 60 分钟，并获得成长经验' },
+  ];
+
+  const expNeed = lv => Math.round(50 * lv * (1 + lv * 0.35));
+  const dogExpNeed = lv => 3 + lv * 2;
+  const plotCost = unlocked => Math.round(500 * Math.pow(1.28, unlocked - RULES.startPlots));
+  const plotNeedLv = unlocked => 2 + Math.floor((unlocked - RULES.startPlots) * 0.8);
+  const redCost = nRed => 1500 + 600 * nRed;
+  const stageOf = p => p >= 1 ? 4 : p < 0.1 ? 0 : p < 0.35 ? 1 : p < 0.65 ? 2 : 3;
+  const STAGE_NAME = ['种子期', '发芽期', '成长期', '即将成熟', '已成熟'];
+
+  // 土地解锁顺序：从中心向外
+  const UNLOCK_ORDER = (() => { const a = []; for (let i = 0; i < NPLOTS; i++) { const c = i % COLS, r = Math.floor(i / COLS); a.push({ i, d: Math.hypot(c - 2.5, (r - 1.5) * 1.15), c }); } a.sort((p, q) => p.d - q.d || p.c - q.c); return a.map(o => o.i); })();
+
+  function hash32(s) { s = String(s); let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function rng(seed) { let a = seed >>> 0; return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+  // ---- 服务器统一时区（默认 UTC+8，无夏令时）----
+  let TZ_MIN = 480;
+  function setTz(min) { TZ_MIN = min; }
+  function dayKey(ms) { const d = new Date(ms + TZ_MIN * 60000); return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0'); }
+  function dayStart(ms) { const off = TZ_MIN * 60000; return Math.floor((ms + off) / 86400000) * 86400000 - off; }
+  function weekKey(ms) { // ISO 周（按服务器时区）
+    const d = new Date(dayStart(ms) + TZ_MIN * 60000); const day = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - day + 3);
+    const y = d.getUTCFullYear(), jan4 = new Date(Date.UTC(y, 0, 4)); const w = 1 + Math.round(((d - jan4) / 86400000 - 3 + ((jan4.getUTCDay() + 6) % 7)) / 7);
+    return y + '-W' + String(w).padStart(2, '0');
+  }
+  function weekEnd(ms) { const ds = dayStart(ms), d = new Date(ds + TZ_MIN * 60000), day = (d.getUTCDay() + 6) % 7; return ds + (7 - day) * 86400000; }
+
+  // 天气：全服同一套确定性的雨天时间表（每 12 分钟一段，约 1/5 段下雨 40 秒）
+  const RAIN_SLOT = 12 * 60000, RAIN_LEN = 40000;
+  function rainUntil(ms) { const s = Math.floor(ms / RAIN_SLOT); if (hash32('rain' + s) % 5 !== 0) return 0; const st = s * RAIN_SLOT + (hash32('rs' + s) % (RAIN_SLOT - RAIN_LEN)); return ms >= st && ms < st + RAIN_LEN ? st + RAIN_LEN : 0; }
+
+  // 每日行情：两种作物涨价
+  function dayBonus(ms) {
+    const k = dayKey(ms), r = rng(hash32(k)), list = CROPS.filter(c => c.rarity <= 2).map(c => c.id);
+    const a = list.splice(Math.floor(r() * list.length), 1)[0], b = list.splice(Math.floor(r() * list.length), 1)[0];
+    return { [a]: 0.3 + Math.floor(r() * 3) * 0.1, [b]: 0.2 + Math.floor(r() * 3) * 0.1 };
+  }
+
+  // ---- 生长：时间戳懒计算 ----
+  function plotDur(P) { return CROPS[P.c].time * 1000 * (P.sea > 0 ? 0.9 : 1); }
+  function probCount(P) { return (P.pr.d ? 1 : 0) + (P.pr.w ? 1 : 0) + (P.pr.b ? 1 : 0); }
+  function plotSpeed(P) { return (P.soil ? RULES.soilSpeed : 1) * Math.pow(RULES.probSlow, probCount(P)); }
+  function remainSec(P) { return (1 - P.p) * plotDur(P) / 1000 / plotSpeed(P); }
+  // 将地块推进到 now；ev 为服务端预排的病虫害事件 [[时间,类型],...]
+  function advancePlot(P, now) {
+    if (!P.u || P.c < 0 || !CROPS[P.c]) { P.t = now; return P; }
+    if (!P.t) P.t = now;
+    P.ev = P.ev || [];
+    while (P.t < now) {
+      const nextEv = P.ev.length ? P.ev[0][0] : Infinity, until = Math.min(now, nextEv);
+      if (until > P.t && P.p < 1) {
+        const dp = (until - P.t) / plotDur(P) * plotSpeed(P);
+        if (P.p + dp >= 1) { const need = (1 - P.p) / plotSpeed(P) * plotDur(P); P.ra = Math.round(P.t + need); P.p = 1; }
+        else P.p += dp;
+      }
+      P.t = Math.max(P.t, until);
+      if (until === nextEv) {
+        const e = P.ev.shift();
+        if (P.p > 0.1 && P.p < 0.93 && probCount(P) < 2 && !P.pr[e[1]] && !(e[1] === 'd' && rainUntil(e[0]))) P.pr[e[1]] = 1;
+      }
+      if (P.p >= 1) { P.ev = []; P.t = now; }
+    }
+    return P;
+  }
+  function stealCapPct(ownerLv) { return ownerLv < RULES.newbieLv ? RULES.newbieMaxPct : RULES.stealMaxPct; }
+
+  const CFG = { COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
+    expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct };
+  if (typeof module !== 'undefined' && module.exports) module.exports = CFG; else root.GAMECFG = CFG;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+'use strict';
+/* =====================================================
+   丰收农场 · 网络层
+   - Bearer 令牌（localStorage）
+   - 写操作带 Idempotency-Key，网络失败自动重试且不会重复结算
+   - 服务器时间校准、断网提示
+   ===================================================== */
+const NET = (() => {
+  const meta = document.querySelector('meta[name="farm-api"]');
+  const qs = new URLSearchParams(location.search);
+  const BASE = (qs.get('api') || (meta && meta.content) || '').replace(/\/$/, '');
+  const TK = 'hf_token';
+  let token = ''; try { token = localStorage.getItem(TK) || ''; } catch (e) { }
+  let offset = 0, online = true, onAuthLost = null, onOnline = null;
+  const banner = () => document.getElementById('netbar');
+  function setOnline(v) {
+    if (online === v) return; online = v; const b = banner(); if (b) b.classList.toggle('show', !v);
+    if (v && onOnline) onOnline();
+  }
+  function setToken(t) { token = t || ''; try { t ? localStorage.setItem(TK, t) : localStorage.removeItem(TK); } catch (e) { } }
+  const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  class ApiErr extends Error { constructor(status, code, msg) { super(msg); this.status = status; this.code = code; } }
+
+  async function once(method, path, body, ik) {
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 12000);
+    const h = { 'Content-Type': 'application/json' }; if (token) h.Authorization = 'Bearer ' + token; if (ik) h['Idempotency-Key'] = ik;
+    const t0 = Date.now();
+    try {
+      const r = await fetch(BASE + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal, cache: 'no-store' });
+      let j; try { j = await r.json(); } catch (e) { throw new ApiErr(r.status, 'bad_json', '服务器返回异常'); }
+      setOnline(true);
+      const sn = j.now || (j.state && j.state.now); if (sn) offset = sn - (t0 + Date.now()) / 2;
+      if (!r.ok || !j.ok) {
+        if (r.status === 401 && path !== '/api/auth/login' && path !== '/api/auth/recover') { setToken(''); onAuthLost && onAuthLost(); }
+        throw new ApiErr(r.status, j.code || 'error', j.error || '请求失败');
+      }
+      return j;
+    } catch (e) {
+      if (e instanceof ApiErr) throw e;
+      setOnline(false); throw new ApiErr(0, 'network', '网络连接中断');
+    } finally { clearTimeout(to); }
+  }
+  // 写操作：同一个幂等键最多重试 3 次
+  async function post(path, body) {
+    const ik = uuid(); let last;
+    for (let i = 0; i < 4; i++) {
+      try { return await once('POST', path, body || {}, ik); }
+      catch (e) { last = e; if (e.status !== 0 && e.status !== 502 && e.status !== 503 && e.status !== 504) throw e; await sleep([400, 1200, 2500, 0][i]); }
+    }
+    throw last;
+  }
+  const get = (path) => once('GET', path);
+  return {
+    get, post, setToken, ApiErr, get token() { return token; }, get online() { return online; },
+    now: () => Date.now() + offset, onAuthLost: f => onAuthLost = f, onOnline: f => onOnline = f,
+    ping: () => once('GET', '/api/health').then(() => true, () => false),
+  };
+})();
+
 'use strict';
 /* ============ 基础工具 ============ */
 const TAU = Math.PI * 2;
@@ -217,20 +583,7 @@ function leaf(c, x, y, len, wid, ang, fill, stroke, vein) {
 function vgrad(c, y0, y1, stops) { const g = c.createLinearGradient(0, y0, 0, y1); stops.forEach(s => g.addColorStop(s[0], s[1])); return g; }
 
 /* ============ 作物数据 ============ */
-const CROPS = [
-  { id: 0, name: '萝卜', lv: 1, seed: 20, time: 40, yield: 12, price: 3, exp: 8, seasons: 1, art: { type: 'root', shape: 'radish', leaf: '#5fb83f', root: '#fbf3f4', blush: '#ff8aa5', hh: 72, is: 1.15 } },
-  { id: 1, name: '白菜', lv: 2, seed: 45, time: 90, yield: 20, price: 4, exp: 16, seasons: 1, art: { type: 'cabbage', head: '#b9e56e', hh: 70, is: 1.1 } },
-  { id: 2, name: '胡萝卜', lv: 3, seed: 80, time: 150, yield: 26, price: 5, exp: 28, seasons: 1, art: { type: 'root', shape: 'carrot', leaf: '#4fa83a', root: '#ff8c1a', hh: 74, is: 1.15 } },
-  { id: 3, name: '番茄', lv: 4, seed: 130, time: 240, yield: 30, price: 7, exp: 42, seasons: 2, art: { type: 'bush', kind: 'tomato', fruit: '#ec3b2e', unripe: '#a8d060', nf: 4, h: 58, hh: 80, is: 0.95 } },
-  { id: 4, name: '草莓', lv: 5, seed: 200, time: 360, yield: 36, price: 9, exp: 62, seasons: 2, art: { type: 'bush', kind: 'berry', fruit: '#ff3355', unripe: '#d6e8a8', nf: 5, h: 24, low: true, hh: 54, is: 1.2 } },
-  { id: 5, name: '玉米', lv: 6, seed: 300, time: 540, yield: 44, price: 11, exp: 90, seasons: 2, art: { type: 'corn', hh: 112, is: 0.72 } },
-  { id: 6, name: '辣椒', lv: 7, seed: 420, time: 720, yield: 48, price: 13, exp: 125, seasons: 2, art: { type: 'bush', kind: 'chili', fruit: '#e8281e', unripe: '#6fbf3a', nf: 5, h: 54, hh: 78, is: 1.0 } },
-  { id: 7, name: '茄子', lv: 8, seed: 560, time: 900, yield: 54, price: 15, exp: 160, seasons: 2, art: { type: 'bush', kind: 'egg', fruit: '#7b3fa8', unripe: '#8fae6a', nf: 3, h: 56, hh: 80, is: 1.0 } },
-  { id: 8, name: '南瓜', lv: 10, seed: 800, time: 1200, yield: 60, price: 18, exp: 220, seasons: 1, art: { type: 'vine', kind: 'pumpkin', fruit: '#ff9a1f', hh: 64, is: 1.05 } },
-  { id: 9, name: '西瓜', lv: 12, seed: 1200, time: 1800, yield: 66, price: 24, exp: 330, seasons: 2, art: { type: 'vine', kind: 'melon', fruit: '#37993b', hh: 62, is: 1.0 } },
-  { id: 10, name: '向日葵', lv: 14, seed: 1800, time: 2400, yield: 72, price: 32, exp: 480, seasons: 1, art: { type: 'sunflower', hh: 120, is: 0.7 } },
-  { id: 11, name: '菠萝', lv: 16, seed: 2800, time: 3600, yield: 80, price: 45, exp: 760, seasons: 1, art: { type: 'pine', hh: 80, is: 1.0 } },
-];
+const CROPS = GAMECFG.CROPS; // 作物数值与美术参数来自 shared/config.js（服务器可覆盖数值）
 
 /* ============ 作物绘制（原点=土地中心） ============ */
 function seedMound(c) {
@@ -793,7 +1146,7 @@ function lockedTile(c, t, hover, price) {
   // 木牌
   c.save(); c.translate(0, -2); rrect(c, -2.5, -26, 5, 28, 2, '#8a5a2b', '#4a2d12', 1.4); rrect(c, -20, -42, 40, 22, 4, '#e8c07a', '#6a4220', 2);
   c.font = `15px ${EMOJI}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#6a4220'; c.fillText('🔒', 0, -31); c.restore();
-  if (hover) { c.save(); c.font = 'bold 14px "Microsoft YaHei",sans-serif'; c.textAlign = 'center'; c.lineWidth = 4; c.strokeStyle = 'rgba(60,40,10,.85)'; c.fillStyle = '#ffe27a'; const s = '扩建 ¥' + price; c.strokeText(s, 0, -52); c.fillText(s, 0, -52); c.restore(); }
+  if (hover && price != null) { c.save(); c.font = 'bold 14px "Microsoft YaHei",sans-serif'; c.textAlign = 'center'; c.lineWidth = 4; c.strokeStyle = 'rgba(60,40,10,.85)'; c.fillStyle = '#ffe27a'; const s = '扩建 🪙' + price; c.strokeText(s, 0, -52); c.fillText(s, 0, -52); c.restore(); }
 }
 function star4(c, x, y, r, a) {
   c.save(); c.translate(x, y); c.rotate(a); c.beginPath();
@@ -872,73 +1225,53 @@ function drawAvatar(cv, st) {
 
 'use strict';
 /* =====================================================
-   丰收农场 · 游戏逻辑
+   丰收农场 · 客户端（联网版）
+   服务器是金币、作物、偷菜结果的唯一权威；客户端只负责展示与请求。
    ===================================================== */
 const $ = id => document.getElementById(id);
-const SAVE_KEY = 'harvest_farm_save_v1';
-const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const CFG = GAMECFG, RULES = CFG.RULES;
 const pick = a => a[Math.floor(Math.random() * a.length)];
-const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : String(Math.floor(n));
+const fmt = n => n >= 1e8 ? (n / 1e8).toFixed(1) + '亿' : n >= 1e4 ? (n / 1e4).toFixed(n >= 1e6 ? 0 : 1) + '万' : String(Math.floor(n));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function fmtTime(s) { s = Math.max(0, Math.ceil(s)); if (s < 60) return s + '秒'; const m = Math.floor(s / 60), r = s % 60; if (m < 60) return m + '分' + (r ? r + '秒' : ''); const h = Math.floor(m / 60); return h + '小时' + (m % 60 ? (m % 60) + '分' : ''); }
-function today() { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + (d.getDate()); }
-function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
-
-const OWN_THEME = { roof: '#c8483a', wall: '#f6e7c8', tree: '#4aa83a', bush: '#4ea43a' };
-const FRIENDS = [
-  { id: 'xm', name: '小美', lv: 6, dog: 0, av: { skin: '#ffe0c0', hair: '#6a3a1a', fringe: 1, pig: 1, shirt: '#ff7aa5', bg1: '#ffd9ec', bg2: '#fff0e0' }, theme: { roof: '#d9658a', wall: '#fff0e0', tree: '#5ab84e', bush: '#52b04a' } },
-  { id: 'an', name: '阿牛', lv: 9, dog: 0.35, av: { skin: '#f2c89a', hat: 1, band: '#3a7ad9', shirt: '#6aa84a', bg1: '#c8ecff', bg2: '#e8f6c8' }, theme: { roof: '#3e7ac8', wall: '#f0ead0', tree: '#3f9a3a', bush: '#3f9a3a' } },
-  { id: 'dx', name: '大熊', lv: 12, dog: 0, av: { skin: '#e8b88a', hair: '#2a1a10', fringe: 1, shirt: '#8a5a3a', bg1: '#ffe8b8', bg2: '#ffd09a' }, theme: { roof: '#7a5a3a', wall: '#f2dfc0', tree: '#6aa83a', bush: '#6aa83a' } },
-  { id: 'tt', name: '糖糖', lv: 15, dog: 0.2, av: { skin: '#ffe4cc', hair: '#e8a0c0', fringe: 1, pig: 1, shirt: '#b08aff', bg1: '#e8d8ff', bg2: '#ffe0f0' }, theme: { roof: '#9a6ad9', wall: '#fff4f8', tree: '#58b890', bush: '#4aa87a' } },
-];
-
-/* 土地解锁顺序：从中心向外 */
-const UNLOCK_ORDER = (() => { const a = []; for (let i = 0; i < COLS * ROWS; i++) { const c = i % COLS, r = Math.floor(i / COLS); a.push({ i, d: Math.hypot(c - 2.5, (r - 1.5) * 1.15), c }); } a.sort((p, q) => p.d - q.d || p.c - q.c); return a.map(o => o.i); })();
+function ago(t) { const s = (NET.now() - t) / 1000; if (s < 60) return '刚刚'; if (s < 3600) return Math.floor(s / 60) + '分钟前'; if (s < 86400) return Math.floor(s / 3600) + '小时前'; return Math.floor(s / 86400) + '天前'; }
+const cropOf = item => { const m = /^([cg])(\d+)$/.exec(item || ''); return m && CROPS[+m[2]] ? { golden: m[1] === 'g', id: +m[2] } : null; };
+const itemName = item => item === 'fert' ? '化肥' : item === 'dogfood' ? '狗粮' : (c => c ? (c.golden ? '金色' : '') + CROPS[c.id].name : item)(cropOf(item));
+const unitPrice = item => { const c = cropOf(item); if (!c) return 0; const b = (S && S.bonus || {})[c.id] || 0; let m = 1; (S && S.events || []).forEach(e => { if (e.kind === 'price_mult' && (e.params.crop == null || +e.params.crop === c.id)) m *= e.params.mult; }); return Math.round(CROPS[c.id].price * (1 + b) * (c.golden ? RULES.goldenPriceMult : 1) * m); };
 const DEPTH_ORDER = (() => { const a = []; for (let i = 0; i < COLS * ROWS; i++) a.push(i); a.sort((p, q) => { const dp = (p % COLS) + Math.floor(p / COLS), dq = (q % COLS) + Math.floor(q / COLS); return dp - dq || (p % COLS) - (q % COLS); }); return a; })();
-
-const TASKS = [
-  { id: 'plant', ic: '🌱', tx: '种植作物', need: 12, gold: 150, exp: 30 },
-  { id: 'harvest', ic: '🧺', tx: '收获作物', need: 15, gold: 250, exp: 50 },
-  { id: 'care', ic: '💧', tx: '浇水 / 除草 / 除虫', need: 10, gold: 150, exp: 30 },
-  { id: 'steal', ic: '🥷', tx: '摘取好友的果实', need: 6, gold: 220, exp: 40 },
-  { id: 'help', ic: '🤝', tx: '帮好友打理农田', need: 4, gold: 180, exp: 35 },
-  { id: 'sell', ic: '💰', tx: '卖出作物赚取金币', need: 800, gold: 300, exp: 60 },
-];
-const STAGE_NAME = ['种子期', '发芽期', '成长期', '即将成熟', '已成熟'];
-const expNeed = lv => Math.round(50 * lv * (1 + lv * 0.35));
-const MAX_LV = 30;
+const stageOf = CFG.stageOf, STAGE_NAME = CFG.STAGE_NAME, expNeed = CFG.expNeed;
+function plotPos(i) { return cellPos(i % COLS, Math.floor(i / COLS)); }
 
 /* ============ 状态 ============ */
-let S, view = { friend: null, plots: null, key: 'home' }, hoverIdx = -1, painting = false, lastPaint = -1, mouse = { x: 0, y: 0, in: false };
-function newPlot() { return { u: false, soil: 0, c: -1, p: 0, sea: 0, y: 0, pr: { d: 0, w: 0, b: 0 }, wet: 0 }; }
-function newState() {
-  const plots = []; for (let i = 0; i < COLS * ROWS; i++) plots.push(newPlot());
-  UNLOCK_ORDER.slice(0, 6).forEach(i => plots[i].u = true);
-  return { v: 1, name: '小农夫', gold: 300, exp: 0, lv: 1, plots, wh: {}, items: { fert: 3, dogfood: 0 }, dog: { own: false, until: 0 }, seed: 0, tool: 'auto', tasks: { date: today(), prog: {}, claimed: {} }, checkin: { last: '', streak: 0 }, stolen: {}, helped: {}, log: [], t: Date.now(), sound: true, music: true, tod: 'auto', fresh: true, soldTotal: 0 };
-}
-function loadState() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY); if (!raw) return newState();
-    const d = JSON.parse(raw), base = newState(); const s = Object.assign(base, d);
-    s.items = Object.assign(base.items, d.items || {}); s.dog = Object.assign(base.dog, d.dog || {}); s.tasks = Object.assign(base.tasks, d.tasks || {});
-    s.plots = base.plots.map((bp, i) => Object.assign(bp, (d.plots || [])[i] || {}, { pr: Object.assign({ d: 0, w: 0, b: 0 }, ((d.plots || [])[i] || {}).pr || {}) }));
-    s.fresh = false; return s;
-  } catch (e) { return newState(); }
-}
-let noSave = false;
-function saveState() { if (noSave) return; try { S.t = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { } }
+let S = null;                 // 服务器快照：me / plots / inv / badges / rain / bonus / events
+let FR = { list: [], requests: [], sent: [], visitors: [] }; // 好友
+let MSGS = [];                // 消息缓存
+let PREF = { sound: true, music: true, notify: false, tod: 'auto', tut: 0 };
+let view = { key: 'home', friend: null, plots: [], farm: null };
+let tool = 'auto', hoverIdx = -1, painting = false, lastPaint = -1, mouse = { x: 0, y: 0, in: false };
+let started = false, dogBarkUntil = 0;
+const busy = new Set();
+const blankPlots = () => { const a = []; for (let i = 0; i < CFG.NPLOTS; i++) a.push({ idx: i, u: CFG.UNLOCK_ORDER.indexOf(i) < RULES.startPlots ? 1 : 0, soil: 0, c: -1, p: 0, t: 0, sea: 0, y: 0, pr: { d: 0, w: 0, b: 0 } }); return a; };
+view.plots = blankPlots();
+
+const AVO = CFG.AVATAR_OPTS;
+function avStyle(av) { av = av || {}; const bg = AVO.bg[av.bg || 0] || AVO.bg[0]; const hat = av.hat === undefined ? 1 : av.hat; return { skin: AVO.skin[av.skin || 0], hair: hat ? undefined : AVO.hair[av.hair || 0], hat, fringe: hat ? 0 : (av.fringe === undefined ? 1 : av.fringe), pig: !hat && av.pig, band: AVO.band[av.band || 0], shirt: AVO.shirt[av.shirt || 0], bg1: bg[0], bg2: bg[1] }; }
+const frameColor = id => (CFG.FRAMES.find(f => f.id === id) || {}).color || '';
+const themeOf = id => (CFG.THEMES.find(t => t.id === id) || CFG.THEMES[0]).th;
+const unlockedCount = () => S ? S.plots.filter(p => p.u).length : RULES.startPlots;
 
 /* ============ 音效 ============ */
 let AC = null, master = null, musicTimer = null;
 function ac() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.8; master.connect(AC.destination); } catch (e) { } } if (AC && AC.state === 'suspended') AC.resume(); return AC; }
 function tone(f, d, type, vol, delay, slide) {
-  if (!S.sound) return; const a = ac(); if (!a) return;
+  if (!PREF.sound) return; const a = ac(); if (!a) return;
   const t0 = a.currentTime + (delay || 0), o = a.createOscillator(), g = a.createGain();
   o.type = type || 'sine'; o.frequency.setValueAtTime(f, t0); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t0 + d);
   g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol || 0.1, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
   o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + d + 0.05);
 }
 function noise(d, vol, f0, f1) {
-  if (!S.sound) return; const a = ac(); if (!a) return; const n = Math.floor(a.sampleRate * d), buf = a.createBuffer(1, n, a.sampleRate), ch = buf.getChannelData(0);
+  if (!PREF.sound) return; const a = ac(); if (!a) return; const n = Math.floor(a.sampleRate * d), buf = a.createBuffer(1, n, a.sampleRate), ch = buf.getChannelData(0);
   for (let i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n);
   const s = a.createBufferSource(); s.buffer = buf; const fl = a.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.setValueAtTime(f0, a.currentTime); fl.frequency.exponentialRampToValueAtTime(f1, a.currentTime + d);
   const g = a.createGain(); g.gain.value = vol; s.connect(fl); fl.connect(g); g.connect(master); s.start();
@@ -958,12 +1291,13 @@ const SFX = {
   bark: () => { tone(420, 0.1, 'sawtooth', 0.09, 0, 220); tone(380, 0.12, 'sawtooth', 0.09, 0.16, 200); },
   rain: () => { noise(1.4, 0.12, 5000, 2500); },
   open: () => { tone(520, 0.08, 'triangle', 0.06); tone(780, 0.1, 'triangle', 0.06, 0.05); },
+  golden: () => { [784, 988, 1175, 1568, 1976].forEach((f, i) => tone(f, 0.25, 'triangle', 0.08, i * 0.07)); },
 };
 function sfx(n) { try { SFX[n] && SFX[n](); } catch (e) { } }
 function startMusic() {
-  if (musicTimer || !S.music) return; const notes = [262, 294, 330, 392, 440, 523, 587, 659]; let i = 0, last = 3;
+  if (musicTimer || !PREF.music) return; const notes = [262, 294, 330, 392, 440, 523, 587, 659]; let i = 0, last = 3;
   musicTimer = setInterval(() => {
-    if (!S.music || !S.sound || document.hidden) return; const a = ac(); if (!a) return;
+    if (!PREF.music || !PREF.sound || document.hidden) return; const a = ac(); if (!a) return;
     last = clamp(last + pick([-2, -1, -1, 0, 1, 1, 2]), 0, notes.length - 1); const f = notes[last], t0 = a.currentTime;
     const o = a.createOscillator(), g = a.createGain(), fl = a.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 1800;
     o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.028, t0 + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.6);
@@ -1002,398 +1336,297 @@ function drawFx(c) {
   });
 }
 
-/* ============ 提示与日志 ============ */
+/* ============ 提示 ============ */
 function toast(msg, kind) {
   const d = document.createElement('div'); d.className = 'toast' + (kind ? ' ' + kind : ''); d.textContent = msg; $('toasts').appendChild(d);
   while ($('toasts').children.length > 4) $('toasts').firstChild.remove();
   setTimeout(() => d.remove(), 2600);
 }
-function addLog(msg) { S.log.push({ t: Date.now(), m: msg }); if (S.log.length > 40) S.log.shift(); renderLog(); }
-function renderLog() { const el = $('log'); const l = S.log.slice(-5); el.innerHTML = l.map(x => `<div>${x.m}</div>`).join(''); el.classList.toggle('empty', !l.length); }
 
-/* ============ 经济 / 成长 ============ */
-function setGold(v) { S.gold = Math.max(0, Math.floor(v)); $('goldnum').textContent = fmt(S.gold); $('gold').classList.remove('bump'); void $('gold').offsetWidth; $('gold').classList.add('bump'); }
-function addGold(n) { setGold(S.gold + n); }
-function addExp(n) {
-  if (S.lv >= MAX_LV) return; S.exp += n; let up = 0;
-  while (S.lv < MAX_LV && S.exp >= expNeed(S.lv)) { S.exp -= expNeed(S.lv); S.lv++; up++; }
-  renderHud(); if (up) levelUp();
+/* ============ 接口调用 ============ */
+// 统一处理错误；成功后应用服务器返回的状态
+async function api(path, body, opt) {
+  opt = opt || {};
+  try {
+    const r = await NET.post(path, body);
+    if (r.state) applyState(r.state);
+    if (r.farm && view.key !== 'home' && r.farm.owner.id === view.friend.id) applyFarm(r.farm);
+    if (r.me && S) { S.me = r.me; S.inv = r.inv; if (r.badges) S.badges = r.badges; renderHud(); renderToolbar(); }
+    if (r.out && r.out.levelUp && r.out.levelUp.length) setTimeout(() => levelUp(r.out.levelUp[r.out.levelUp.length - 1]), opt.lvDelay || 500);
+    return r;
+  } catch (e) {
+    if (!opt.quiet) { toast(e.code === 'network' ? '网络不稳定，操作没有完成，请稍后再试' : e.message, 'warn'); sfx('err'); }
+    if (e.code === 'network') return null;
+    if (e.status === 409 && !opt.noRefresh) refreshState(); // 状态可能过期，拉一次最新
+    return null;
+  }
 }
-function levelUp() {
-  sfx('level'); const reward = S.lv * 120; addGold(reward); S.items.fert += 1;
-  const unlocked = CROPS.filter(c => c.lv === S.lv);
-  openModal(`<div class="lvup"><div class="burst">🎉</div><h2>恭喜升级！</h2><div class="biglv">Lv.${S.lv}</div>
-    <p>获得 <b>🪙 ${reward}</b> 金币 和 <b>🧪 化肥 ×1</b></p>
-    ${unlocked.length ? `<div class="unl">解锁新作物：${unlocked.map(c => `<span class="chip"><img src="${cropIcon(c.id)}">${c.name}</span>`).join('')}</div>` : ''}
-    <button class="btn big" onclick="closeModal()">太棒了</button></div>`, { small: true });
-  renderToolbar();
+async function refreshState() { try { const r = await NET.get('/api/state'); applyState(r); } catch (e) { } }
+function applyState(st) {
+  const prevUnread = S ? S.badges.unread : 0;
+  S = st; PREF = Object.assign({ sound: true, music: true, notify: false, tod: 'auto', tut: 0 }, S.me.settings || {});
+  if (view.key === 'home') { view.plots = S.plots; }
+  if (!bgTheme || bgTheme !== S.me.theme) { bgTheme = S.me.theme; if (view.key === 'home') bgDirty = true; }
+  renderHud(); renderToolbar(); renderTitle(); renderSide();
+  if (S.badges.unread > prevUnread) { loadMessages(true); loadFriends(); }
 }
-function task(id, n) { const t = S.tasks; if (t.date !== today()) resetTasks(); t.prog[id] = (t.prog[id] || 0) + (n || 1); renderToolbar(); }
-function resetTasks() { S.tasks = { date: today(), prog: {}, claimed: {} }; }
-const dayBonus = (() => { let cache = {}; return function () { const k = today(); if (cache.k !== k) { const r = mulberry32(hashStr(k)), list = CROPS.map(c => c.id), a = list.splice(Math.floor(r() * list.length), 1)[0], b = list.splice(Math.floor(r() * list.length), 1)[0]; cache = { k, m: { [a]: 0.3 + Math.floor(r() * 3) * 0.1, [b]: 0.2 + Math.floor(r() * 3) * 0.1 } }; } return cache.m; }; })();
-const unitPrice = id => Math.round(CROPS[id].price * (1 + (dayBonus()[id] || 0)));
-const dogActive = () => S.dog.own && S.dog.until > Date.now();
-const cropYield = (P, id) => Math.round(CROPS[id].yield * (P.soil ? 1.2 : 1));
-const stageOf = p => p >= 1 ? 4 : p < 0.1 ? 0 : p < 0.35 ? 1 : p < 0.65 ? 2 : 3;
-function plotSpeed(P) { const n = (P.pr.d ? 1 : 0) + (P.pr.w ? 1 : 0) + (P.pr.b ? 1 : 0); return (P.soil ? 1.2 : 1) * Math.pow(0.62, n); }
-function plotDur(P) { return CROPS[P.c].time * 1000 * (P.sea > 0 ? 0.9 : 1); }
-function remainSec(P) { return (1 - P.p) * plotDur(P) / 1000 / plotSpeed(P); }
-function plotPos(i) { return cellPos(i % COLS, Math.floor(i / COLS)); }
+function applyFarm(farm) { view.farm = farm; view.friend = farm.owner; view.plots = farm.plots; renderTitle(); renderToolbar(); }
+async function loadMessages(notifyNew) {
+  try {
+    const r = await NET.get('/api/messages'); const old = new Set(MSGS.map(m => m.id + ':' + m.at)); MSGS = r.list; renderLog();
+    if (notifyNew) MSGS.filter(m => !m.read && !old.has(m.id + ':' + m.at)).slice(0, 2).forEach(m => { if (m.kind === 'stolen' || m.kind === 'dog' || m.kind === 'market_sold' || m.kind === 'friend_ok' || m.kind === 'helped') { toast(stripTags(msgText(m)), m.kind === 'stolen' ? 'warn' : ''); if (m.kind === 'stolen') { sfx('steal'); if (view.key === 'home') { const d = m.data || {}; Object.keys(d.items || {}).forEach(() => { }); } } if (m.kind === 'dog') { dogBarkUntil = Date.now() + 2500; sfx('bark'); } sysNotify(stripTags(msgText(m))); } });
+  } catch (e) { }
+}
+async function loadFriends() { try { FR = await NET.get('/api/friends'); renderFriends(); } catch (e) { } }
+const stripTags = h => h.replace(/<[^>]+>/g, '');
 
-/* ============ 时间推进 ============ */
-let rainUntil = 0, nextRain = Date.now() + 5 * 60000, nextThief = Date.now() + 120000, rainK = 0, dogBarkUntil = 0, lastTick = Date.now();
-function tickOwn(dt, online) {
-  const now = Date.now();
-  if (S.tasks.date !== today()) { resetTasks(); renderToolbar(); }
-  S.plots.forEach((P, i) => {
-    P.wet = Math.max(0, P.wet - dt / 90000);
-    if (!P.u || P.c < 0) return;
-    const raining = now < rainUntil;
-    if (P.p < 1) {
-      P.p = Math.min(1, P.p + dt / plotDur(P) * (online ? plotSpeed(P) : (P.soil ? 1.2 : 1)));
-      if (P.p >= 1) { const pos = plotPos(i); if (online && view.key === 'home') { fxStars(pos.x, pos.y - 40, 10); } }
-    }
-    if (raining) { P.pr.d = 0; P.wet = 1; }
-    if (online && dt <= 3500 && P.p > 0.1 && P.p < 0.93) {
-      const n = (P.pr.d ? 1 : 0) + (P.pr.w ? 1 : 0) + (P.pr.b ? 1 : 0);
-      if (n < 2 && Math.random() < (dt / 1000) * 1.6 / Math.max(CROPS[P.c].time, 60)) {
-        const opts = ['d', 'w', 'b'].filter(k => !P.pr[k] && !(k === 'd' && raining)); if (opts.length) { P.pr[pick(opts)] = 1; }
-      }
-    }
+/* ============ 消息文字 ============ */
+function msgText(m) {
+  const n = `<b>${esc(m.name)}</b>`, d = m.data || {};
+  const items = d.items ? Object.entries(d.items).map(([k, v]) => `${v} 个${itemName(k)}`).join('、') : '';
+  switch (m.kind) {
+    case 'stolen': return `🥷 ${n} 摘走了你的 ${items || (d.qty || '') + ' 个果实'}${d.n > 1 ? `（${d.n} 次）` : ''}`;
+    case 'helped': return `🤝 ${n} 帮你打理了农田${d.n > 1 ? ` ×${d.n}` : ''}`;
+    case 'dog': return `🐶 你家小狗赶走了来偷菜的 ${n}${d.n > 1 ? ` ×${d.n}` : ''}`;
+    case 'visit': return `👣 ${n} 来你的农场串门了`;
+    case 'friend_ok': return `🎉 你和 ${n} 成为了好友`;
+    case 'gb': return `💌 ${n} 给你留言：${esc(CFG.PHRASES[d.phrase] || '')}`;
+    case 'market_sold': return `🏷️ ${n} 买走了你的 ${d.qty} 个${itemName(d.item)}，收入 🪙${d.gold}`;
+    case 'market_expired': return `⌛ 集市挂单 ${d.qty} 个${itemName(d.item)} 已过期，已退回仓库`;
+    default: return esc(m.kind);
+  }
+}
+function renderLog() {
+  const el = $('log'); const l = MSGS.slice(0, 4);
+  el.innerHTML = l.map(m => `<div${m.read ? '' : ' class="new"'}>${msgText(m)} <small>${ago(m.at)}</small></div>`).join('') + (S && S.badges.unread ? `<div class="more">📬 ${S.badges.unread} 条新消息 · 点击查看</div>` : '');
+  el.classList.toggle('empty', !l.length);
+}
+
+/* ============ 本地插值 ============ */
+// 服务器只给出“某时刻的状态”，客户端按同一套规则推算进度，用于动画；每次请求后都以服务器为准
+function tickView() {
+  const now = NET.now();
+  view.plots.forEach((P, i) => {
+    if (!P.u || P.c < 0) return; const was = P.p;
+    CFG.advancePlot(P, now);
+    if (was < 1 && P.p >= 1) { const pos = plotPos(i); fxStars(pos.x, pos.y - 40, 10); if (view.key === 'home') ripeNotify(P); }
+    if (view.key !== 'home') { P.canSteal = P.p >= 1 && !P.mine && P.left > 0 && now >= (P.ra || 0) + RULES.stealDelaySec * 1000; P.protectUntil = P.p >= 1 ? (P.ra || 0) + RULES.stealDelaySec * 1000 : 0; }
   });
-  if (online && dt <= 3500) {
-    if (now > nextRain && now > rainUntil && Math.random() < 0.02) { rainUntil = now + 28000; nextRain = now + (8 + Math.random() * 8) * 60000; toast('🌧️ 下雨啦！农田被滋润了～'); sfx('rain'); }
-    if (now > nextThief) { nextThief = now + rint(75, 160) * 1000; thiefEvent(); }
-  }
 }
-function thiefEvent() {
-  const ripe = S.plots.filter(P => P.u && P.c >= 0 && P.p >= 1 && P.y > 1); if (!ripe.length) return;
-  const f = pick(FRIENDS), P = pick(ripe), cr = CROPS[P.c], idx = S.plots.indexOf(P), pos = plotPos(idx);
-  if (dogActive() && Math.random() < 0.85) { dogBarkUntil = Date.now() + 2500; sfx('bark'); addLog(`🐶 小狗汪汪叫，把 <b>${f.name}</b> 赶跑了！`); return; }
-  const n = Math.min(P.y - 1, rint(2, 5)); P.y -= n; addLog(`🦊 <b>${f.name}</b> 偷走了你的 ${n} 个${cr.name}`); toast(`${f.name} 偷走了 ${n} 个${cr.name}！`, 'warn'); sfx('steal');
-  if (view.key === 'home') fxText(pos.x, pos.y - 40, `-${n} ${cr.name}`, '#ff8a8a', 20);
-  renderFriends();
+const notified = new Set();
+function ripeNotify(P) { const k = P.idx + ':' + Math.round(P.ra / 1000); if (notified.has(k)) return; notified.add(k); if (document.hidden) sysNotify(`🌾 ${CROPS[P.c].name} 成熟了，快去收获，小心被好友摘走！`); }
+function sysNotify(txt) { if (!PREF.notify || !document.hidden || !('Notification' in window) || Notification.permission !== 'granted') return; try { new Notification('丰收农场', { body: txt, tag: 'farm' }); } catch (e) { } }
+
+/* ============ 自己农场的操作 ============ */
+const posOf = i => plotPos(i);
+async function doPlant(i, quiet) {
+  const cr = CROPS[S.me.seed]; if (S.me.lv < cr.lv) { if (!quiet) toast(`${cr.name} 需要 Lv.${cr.lv} 解锁`, 'warn'); sfx('err'); return; }
+  if (S.me.gold < cr.seed) { if (!quiet) toast('金币不够买种子啦', 'warn'); sfx('err'); return; }
+  const r = await api('/api/farm/plant', { idx: i, crop: S.me.seed }); if (!r) return; const p = posOf(i);
+  fxPuff(p.x, p.y); fxStars(p.x, p.y - 6, 5, '#b8e890'); fxText(p.x, p.y - 24, `-${cr.seed}`, '#ffd23a', 18); sfx('plant');
+}
+function harvestFx(x) {
+  const p = posOf(x.idx), cr = CROPS[x.crop];
+  fxCoins(p.x, p.y - 30, 7); fxStars(p.x, p.y - 40, 8); fxText(p.x, p.y - 50, `${cr.name} ×${x.n}`, '#fff6c0', 24); if (x.exp) fxText(p.x + 4, p.y - 20, `+${x.exp} 经验`, '#8fe8ff', 18);
+  if (x.stolen) setTimeout(() => fxText(p.x, p.y - 78, `被好友摘走 ${x.stolen}`, '#ffb0a0', 15), 300);
+  if (x.golden) setTimeout(() => { fxStars(p.x, p.y - 50, 24, '#ffd23a'); fxText(p.x, p.y - 96, `✨ 变异！金色${cr.name} ×${x.golden}`, '#ffd23a', 22); sfx('golden'); toast(`✨ 出现变异！获得 金色${cr.name} ×${x.golden}`); }, 500);
+  if (x.season2) setTimeout(() => fxText(p.x, p.y - 70, '进入第二季', '#b8f08a', 17), 400);
+}
+async function doHarvest(i) { const r = await api('/api/farm/harvest', { idx: i }); if (!r) return; sfx('harvest'); harvestFx(r.result); }
+function careFx(i, k, own) {
+  const p = posOf(i);
+  if (k === 'd') { fxDrops(p.x, p.y); sfx('water'); } else if (k === 'w') { fxLeaves(p.x, p.y); sfx('weed'); } else { fxPuff(p.x, p.y - 30); fxStars(p.x, p.y - 30, 6, '#ff9a9a'); sfx('bug'); }
+  fxText(p.x, p.y - 50, own ? ({ d: '浇水', w: '除草', b: '除虫' })[k] + ' +2经验' : `帮忙 +${RULES.helpExp}经验 +${RULES.helpGold}🪙`, own ? '#8fe8ff' : '#b8f08a', 17);
+}
+async function doCare(i) { const r = await api('/api/farm/care', { idx: i }); if (r) careFx(i, r.result.kind, true); }
+async function doShovel(i) { const P = view.plots[i]; if (P.c < 0) return; if (P.p >= 1) { toast('作物已成熟，先收获吧～', 'warn'); sfx('err'); return; } const r = await api('/api/farm/shovel', { idx: i }); if (!r) return; const p = posOf(i); fxPuff(p.x, p.y); fxLeaves(p.x, p.y, '#8a6a3a'); sfx('weed'); }
+async function doFert(i) {
+  const P = view.plots[i]; if (P.c < 0 || P.p >= 1) return; if (!(S.inv.fert > 0)) { toast('化肥用完了，去商店买点吧', 'warn'); sfx('err'); return; }
+  const r = await api('/api/farm/fert', { idx: i }); if (!r) return; const p = posOf(i); fxStars(p.x, p.y - 30, 12, '#c8ff8a'); fxText(p.x, p.y - 56, '成长加速！', '#c8ff8a', 19); sfx('fert');
+}
+async function doRed(i) { const r = await api('/api/farm/red', { idx: i }); if (!r) return; const p = posOf(i); fxStars(p.x, p.y, 14, '#ff9a6a'); fxText(p.x, p.y - 40, '升级红土地！', '#ffb08a', 21); sfx('level'); toast('红土地：生长更快，产量 +20%'); tool = 'auto'; renderToolbar(); }
+async function doExpand(i) { const r = await api('/api/farm/expand', { idx: i }); if (!r) return; const p = posOf(r.result.idx); fxPuff(p.x, p.y); fxStars(p.x, p.y - 10, 14); fxText(p.x, p.y - 40, '开垦成功！', '#ffe27a', 22); sfx('level'); }
+function stagger(list, fn, gap) { list.forEach((x, k) => setTimeout(() => fn(x), k * (gap || 70))); }
+async function allHarvest() { if (view.key !== 'home') return; const r = await api('/api/farm/harvest-all', null, { lvDelay: 900 }); if (!r) return; sfx('harvest'); stagger(r.result.filter(x => !x.err), harvestFx); }
+async function allCare() { if (view.key !== 'home') return; const r = await api('/api/farm/care-all'); if (!r) return; stagger(r.result.filter(x => !x.err), x => careFx(x.idx, x.kind, true), 90); }
+async function allPlant() {
+  if (view.key !== 'home') return; const cr = CROPS[S.me.seed]; if (S.me.lv < cr.lv) { toast(`${cr.name} 需要 Lv.${cr.lv}`, 'warn'); return; }
+  const r = await api('/api/farm/plant-all', { crop: S.me.seed }); if (!r) return; const ok = r.result.filter(x => !x.err);
+  stagger(ok, x => { const p = posOf(x.idx); fxPuff(p.x, p.y); fxStars(p.x, p.y - 6, 5, '#b8e890'); fxText(p.x, p.y - 24, `-${cr.seed}`, '#ffd23a', 18); sfx('plant'); });
+  const fail = r.result.length - ok.length; if (fail) toast(`种下 ${ok.length} 块，${fail} 块因金币不足没种上`, 'warn');
 }
 
-/* ============ 玩家动作（自己的农场） ============ */
-function actPlant(i, quiet) {
-  const P = S.plots[i], cr = CROPS[S.seed], pos = plotPos(i);
-  if (S.lv < cr.lv) { if (!quiet) toast(`${cr.name} 需要 Lv.${cr.lv} 解锁`, 'warn'); sfx('err'); return false; }
-  if (S.gold < cr.seed) { if (!quiet) toast('金币不够买种子啦', 'warn'); sfx('err'); return false; }
-  setGold(S.gold - cr.seed); P.c = S.seed; P.p = 0; P.sea = 0; P.y = cropYield(P, S.seed); P.pr = { d: 0, w: 0, b: 0 }; P.wet = 0.5;
-  fxPuff(pos.x, pos.y); fxStars(pos.x, pos.y - 6, 5, '#b8e890'); fxText(pos.x, pos.y - 24, `-${cr.seed}`, '#ffd23a', 18); sfx('plant'); addExp(2); task('plant'); return true;
+/* ============ 好友农场的操作 ============ */
+async function visit(f) {
+  closeModal(); $('tip').style.display = 'none';
+  try {
+    const r = await NET.get('/api/farm/' + f.id);
+    view = { key: 'f' + f.id, friend: r.farm.owner, plots: r.farm.plots, farm: r.farm }; tool = 'auto'; hoverIdx = -1; bgDirty = true; sfx('open');
+    renderToolbar(); renderTitle(); renderFriends(); toast(`来到了 ${f.name} 的农场`); refreshState();
+  } catch (e) { toast(e.message, 'warn'); }
 }
-function actHarvest(i) {
-  const P = S.plots[i], cr = CROPS[P.c], pos = plotPos(i), n = P.y;
-  S.wh[P.c] = (S.wh[P.c] || 0) + n; sfx('harvest');
-  fxCoins(pos.x, pos.y - 30, 7); fxStars(pos.x, pos.y - 40, 8); fxText(pos.x, pos.y - 50, `${cr.name} ×${n}`, '#fff6c0', 24); fxText(pos.x + 4, pos.y - 20, `+${cr.exp} 经验`, '#8fe8ff', 18);
-  addExp(cr.exp); task('harvest');
-  if (cr.seasons > 1 && P.sea < cr.seasons - 1) { P.sea++; P.p = 0.45; P.y = cropYield(P, P.c); P.pr = { d: 0, w: 0, b: 0 }; setTimeout(() => fxText(pos.x, pos.y - 70, '进入第二季', '#b8f08a', 17), 400); }
-  else { P.c = -1; P.p = 0; P.y = 0; P.sea = 0; P.pr = { d: 0, w: 0, b: 0 }; }
-  renderFriends(); return true;
+function goHome() { if (!S) return; view = { key: 'home', friend: null, plots: S.plots, farm: null }; hoverIdx = -1; bgDirty = true; sfx('open'); renderToolbar(); renderTitle(); renderFriends(); refreshState(); }
+function stealFx(x) {
+  const p = posOf(x.idx);
+  if (x.blocked) { dogBarkUntil = Date.now() + 2500; sfx('bark'); fxText(p.x, p.y - 40, x.bite ? `被狗咬了 -${x.bite}🪙` : '被狗赶走了', '#ff8a8a', 20); return; }
+  fxStars(p.x, p.y - 40, 8); fxText(p.x, p.y - 54, `${CROPS[x.crop].name} ×${x.qty}`, '#fff6c0', 22); fxText(p.x, p.y - 24, `+${RULES.stealExp} 经验`, '#8fe8ff', 17); sfx('steal');
 }
-function actCare(i) {
-  const P = S.plots[i], pos = plotPos(i); const k = P.pr.d ? 'd' : P.pr.w ? 'w' : P.pr.b ? 'b' : null; if (!k) return false;
-  P.pr[k] = 0;
-  if (k === 'd') { P.wet = 1; fxDrops(pos.x, pos.y); sfx('water'); fxText(pos.x, pos.y - 50, '浇水 +2经验', '#8fe8ff', 17); }
-  else if (k === 'w') { fxLeaves(pos.x, pos.y); sfx('weed'); fxText(pos.x, pos.y - 50, '除草 +2经验', '#b8f08a', 17); }
-  else { fxPuff(pos.x, pos.y - 30); fxStars(pos.x, pos.y - 30, 6, '#ff9a9a'); sfx('bug'); fxText(pos.x, pos.y - 50, '除虫 +2经验', '#ffb0b0', 17); }
-  addExp(2); task('care'); return true;
-}
-function actShovel(i) {
-  const P = S.plots[i], pos = plotPos(i); if (P.c < 0) return false;
-  if (P.p >= 1) { toast('作物已成熟，先收获吧～', 'warn'); sfx('err'); return false; }
-  P.c = -1; P.p = 0; P.y = 0; P.sea = 0; P.pr = { d: 0, w: 0, b: 0 }; fxPuff(pos.x, pos.y); fxLeaves(pos.x, pos.y, '#8a6a3a'); sfx('weed'); return true;
-}
-function actFert(i) {
-  const P = S.plots[i], pos = plotPos(i); if (P.c < 0 || P.p >= 1) return false;
-  if (S.items.fert <= 0) { toast('化肥用完了，去商店买点吧', 'warn'); sfx('err'); return false; }
-  S.items.fert--; P.p = Math.min(1, P.p + 0.3); fxStars(pos.x, pos.y - 30, 12, '#c8ff8a'); fxText(pos.x, pos.y - 56, '成长加速！', '#c8ff8a', 19); sfx('fert'); renderToolbar(); return true;
-}
-function plotCost() { const n = S.plots.filter(p => p.u).length - 6; return Math.round(500 * Math.pow(1.28, n)); }
-function plotNeedLv() { const n = S.plots.filter(p => p.u).length - 6; return 2 + Math.floor(n * 0.8); }
-function actExpand(i) {
-  const cost = plotCost(), need = plotNeedLv(), P = S.plots[i], pos = plotPos(i);
-  if (S.lv < need) { toast(`扩建这块地需要 Lv.${need}`, 'warn'); sfx('err'); return false; }
-  if (S.gold < cost) { toast(`金币不足，扩建需要 ${cost} 金币`, 'warn'); sfx('err'); return false; }
-  setGold(S.gold - cost); P.u = true; fxPuff(pos.x, pos.y); fxStars(pos.x, pos.y - 10, 14); fxText(pos.x, pos.y - 40, '开垦成功！', '#ffe27a', 22); sfx('level'); addExp(10); return true;
-}
-function redCost() { return 1500 + 600 * S.plots.filter(p => p.soil).length; }
-function actRed(i) {
-  const P = S.plots[i], pos = plotPos(i); if (!P.u) return false; if (P.soil) { toast('这块已经是红土地了', 'warn'); return false; }
-  if (S.lv < 5) { toast('红土地需要 Lv.5', 'warn'); return false; } const c = redCost(); if (S.gold < c) { toast(`金币不足，需要 ${c}`, 'warn'); sfx('err'); return false; }
-  setGold(S.gold - c); P.soil = 1; fxStars(pos.x, pos.y, 14, '#ff9a6a'); fxText(pos.x, pos.y - 40, '升级红土地！', '#ffb08a', 21); sfx('level'); addExp(15); toast('红土地：生长更快，产量 +20%'); return true;
-}
-function sellCrop(id, n) {
-  const have = S.wh[id] || 0; n = Math.min(n, have); if (n <= 0) return 0; const g = n * unitPrice(id);
-  S.wh[id] = have - n; if (!S.wh[id]) delete S.wh[id]; addGold(g); S.soldTotal += g; task('sell', g); sfx('coin'); return g;
-}
-function feedDog() {
-  if (!S.dog.own) { toast('你还没有小狗，先去商店领养吧', 'warn'); return; } if (S.items.dogfood <= 0) { toast('没有狗粮了', 'warn'); sfx('err'); return; }
-  S.items.dogfood--; S.dog.until = Math.max(S.dog.until, Date.now()) + 20 * 60000; toast('🐶 小狗吃饱啦，接下来20分钟会帮你看家'); sfx('bark'); renderToolbar();
-}
+async function fSteal(i) { const r = await api(`/api/farm/${view.friend.id}/steal`, { idx: i }); if (r) { stealFx(r.result); if (r.result.blocked) toast(`${view.friend.name} 家的小狗把你赶走了${r.result.bite ? `，损失 ${r.result.bite} 金币` : ''}`, 'warn'); } }
+async function fHelp(i) { const r = await api(`/api/farm/${view.friend.id}/help`, { idx: i }); if (r) careFx(i, r.result.kind, false); }
+async function allSteal() { if (view.key === 'home') return; const r = await api(`/api/farm/${view.friend.id}/steal-all`); if (!r) return; const ok = r.result.filter(x => !x.err); stagger(ok, stealFx, 120); const got = ok.filter(x => !x.blocked).reduce((a, x) => a + x.qty, 0); if (got) setTimeout(() => toast(`一共摘到 ${got} 个果实`), ok.length * 120); }
+async function allHelp() { if (view.key === 'home') return; const r = await api(`/api/farm/${view.friend.id}/help-all`); if (!r) return; stagger(r.result.filter(x => !x.err), x => careFx(x.idx, x.kind, false), 120); }
 
-/* ============ 好友农场 ============ */
-function genFriend(f) {
-  const bucket = Math.floor(Date.now() / 600000), start = bucket * 600000, elapsed = Date.now() - start, rnd = mulberry32(hashStr(f.id) ^ Math.imul(bucket, 2654435761));
-  const nUnlock = Math.min(24, 8 + f.lv), avail = CROPS.filter(c => c.lv <= f.lv), plots = [];
-  for (let i = 0; i < COLS * ROWS; i++) {
-    const P = newPlot(); P.u = UNLOCK_ORDER.indexOf(i) < nUnlock; P.soil = rnd() < (f.lv > 8 ? 0.3 : 0) ? 1 : 0; P.key = `${f.id}:${bucket}:${i}`;
-    if (P.u && rnd() < 0.88) {
-      const cr = avail[Math.floor(rnd() * avail.length)]; P.c = cr.id; const base = rnd() < 0.45 ? 1 : rnd() * 1.05; P.p = Math.min(1, base * 0.9 + elapsed / (cr.time * 1000)); if (base >= 1) P.p = 1; P.y = cropYield(P, cr.id);
-      if (P.p < 1 && P.p > 0.1 && rnd() < 0.4 && !S.helped[P.key]) P.pr[pick(['d', 'w', 'b'])] = 1;
-      if (S.stolen[P.key]) { P.stolen = true; P.y = Math.max(1, Math.round(P.y * 0.8)); }
+/* ============ 点击土地 ============ */
+async function clickPlot(i) {
+  if (i < 0 || !S) return; const P = view.plots[i]; if (busy.has(view.key + i)) return; busy.add(view.key + i);
+  try {
+    if (view.key !== 'home') {
+      if (!P.u || P.c < 0) return;
+      if (P.p >= 1) {
+        if (P.mine === 1) { toast('这块地你已经摘过了～'); return; } if (P.mine === 2) { toast('这块地被狗看着，下一季再来吧'); return; }
+        if (P.left <= 0) { toast('已经被摘得差不多了，给主人留点吧'); return; }
+        if (NET.now() < P.protectUntil) { toast(`刚成熟，主人保护中，${Math.ceil((P.protectUntil - NET.now()) / 1000)} 秒后才能摘`); return; }
+        return await fSteal(i);
+      }
+      if (P.pr.d || P.pr.w || P.pr.b) return await fHelp(i); return;
     }
-    plots.push(P);
-  }
-  return plots;
-}
-function pruneKeys() { const b = Math.floor(Date.now() / 600000); [S.stolen, S.helped].forEach(o => Object.keys(o).forEach(k => { if (+k.split(':')[1] < b - 2) delete o[k]; })); }
-function friendStats(f) { const ps = genFriend(f); let steal = 0, help = 0; ps.forEach(P => { if (P.u && P.c >= 0) { if (P.p >= 1 && !P.stolen) steal++; if (P.pr.d || P.pr.w || P.pr.b) help++; } }); return { steal, help }; }
-function visit(f) {
-  closeModal(); view = { friend: f, plots: genFriend(f), key: f.id }; S.tool = 'auto'; hoverIdx = -1; bgDirty = true; sfx('open'); $('tip').style.display = 'none';
-  renderToolbar(); renderTitle(); renderFriends(); toast(`来到了 ${f.name} 的农场`);
-}
-function goHome() { view = { friend: null, plots: S.plots, key: 'home' }; hoverIdx = -1; bgDirty = true; sfx('open'); renderToolbar(); renderTitle(); renderFriends(); }
-function fSteal(i) {
-  const f = view.friend, P = view.plots[i], cr = CROPS[P.c], pos = plotPos(i);
-  if (P.stolen) { toast('这块地你已经摘过了～', 'warn'); return false; }
-  if (f.dog && Math.random() < f.dog) { const loss = Math.min(S.gold, rint(20, 60)); setGold(S.gold - loss); sfx('bark'); fxText(pos.x, pos.y - 40, `被狗咬了 -${loss}`, '#ff8a8a', 20); addLog(`🐕 被 <b>${f.name}</b> 家的狗咬了，损失 ${loss} 金币`); return false; }
-  const n = Math.max(2, Math.min(P.y, Math.round(P.y * (0.08 + Math.random() * 0.1)))); P.stolen = true; S.stolen[P.key] = 1; S.wh[P.c] = (S.wh[P.c] || 0) + n;
-  fxStars(pos.x, pos.y - 40, 8); fxText(pos.x, pos.y - 54, `${cr.name} ×${n}`, '#fff6c0', 22); fxText(pos.x, pos.y - 24, '+3 经验', '#8fe8ff', 17); sfx('steal'); addExp(3); task('steal'); addLog(`🥷 从 <b>${f.name}</b> 家摘了 ${n} 个${cr.name}`); renderFriends(); return true;
-}
-function fHelp(i) {
-  const P = view.plots[i], pos = plotPos(i), k = P.pr.d ? 'd' : P.pr.w ? 'w' : P.pr.b ? 'b' : null; if (!k) return false; P.pr[k] = 0; S.helped[P.key] = 1;
-  if (k === 'd') { fxDrops(pos.x, pos.y); sfx('water'); } else if (k === 'w') { fxLeaves(pos.x, pos.y); sfx('weed'); } else { fxStars(pos.x, pos.y - 30, 6, '#ff9a9a'); sfx('bug'); }
-  fxText(pos.x, pos.y - 50, '帮忙 +4经验 +6🪙', '#b8f08a', 17); addExp(4); addGold(6); task('help'); renderFriends(); return true;
-}
-
-/* ============ 输入 ============ */
-function clickPlot(i) {
-  const isHome = view.key === 'home'; if (i < 0) return false; const P = view.plots[i];
-  if (!isHome) {
-    if (!P.u || P.c < 0) return false; if (P.p >= 1 && !P.stolen) return fSteal(i); if (P.pr.d || P.pr.w || P.pr.b) return fHelp(i); return false;
-  }
-  if (!P.u) { if (S.tool === 'auto') { askExpand(i); } return false; }
-  switch (S.tool) {
-    case 'shovel': return actShovel(i);
-    case 'fert': return actFert(i);
-    case 'red': return actRed(i);
-    default:
-      if (P.c < 0) return actPlant(i); if (P.p >= 1) return actHarvest(i); if (P.pr.d || P.pr.w || P.pr.b) return actCare(i); return false;
-  }
+    if (!P.u) { if (tool === 'auto' && !painting) askExpand(i); return; }
+    switch (tool) {
+      case 'shovel': return await doShovel(i);
+      case 'fert': return await doFert(i);
+      case 'red': return await doRed(i);
+      default: if (P.c < 0) return await doPlant(i); if (P.p >= 1) return await doHarvest(i); if (P.pr.d || P.pr.w || P.pr.b) return await doCare(i);
+    }
+  } finally { busy.delete(view.key + i); }
 }
 function askExpand(i) {
-  const cost = plotCost(), need = plotNeedLv();
-  openModal(`<div class="confirm"><div class="big">🌾</div><h3>开垦新土地</h3><p>花费 <b>🪙 ${cost}</b> 金币开垦这块荒地${S.lv < need ? `<br><span class="warn">需要 Lv.${need}（当前 Lv.${S.lv}）</span>` : ''}</p>
+  const owned = unlockedCount(), cost = CFG.plotCost(owned), need = CFG.plotNeedLv(owned);
+  openModal(`<div class="confirm"><div class="big">🌾</div><h3>开垦新土地</h3><p>花费 <b>🪙 ${fmt(cost)}</b> 金币开垦这块荒地${S.me.lv < need ? `<br><span class="warn">需要 Lv.${need}（当前 Lv.${S.me.lv}）</span>` : ''}</p>
     <div class="row"><button class="btn" onclick="closeModal()">再想想</button><button class="btn primary" id="okx">开垦</button></div></div>`, { small: true });
-  $('okx').onclick = () => { closeModal(); if (actExpand(i)) { renderFriends(); } };
+  $('okx').onclick = () => { closeModal(); doExpand(i); };
 }
-function batch(fn, list) { list.forEach((i, k) => setTimeout(() => { if (fn(i) === false) { } }, k * 70)); }
-function allHarvest() { if (view.key !== 'home') return; const l = S.plots.map((P, i) => P.u && P.c >= 0 && P.p >= 1 ? i : -1).filter(i => i >= 0); if (!l.length) { toast('还没有成熟的作物～'); return; } batch(actHarvest, l); }
-function allCare() { if (view.key !== 'home') return; const l = []; S.plots.forEach((P, i) => { if (P.u && P.c >= 0) { ['d', 'w', 'b'].forEach(k => { if (P.pr[k]) l.push(i); }); } }); if (!l.length) { toast('农田都很健康～'); return; } let d = 0; l.forEach(i => { setTimeout(() => actCare(i), d); d += 90; }); }
-function allPlant() {
-  if (view.key !== 'home') return; const cr = CROPS[S.seed]; const l = S.plots.map((P, i) => P.u && P.c < 0 ? i : -1).filter(i => i >= 0); if (!l.length) { toast('没有空地了'); return; }
-  if (S.lv < cr.lv) { toast(`${cr.name} 需要 Lv.${cr.lv}`, 'warn'); return; } const can = Math.min(l.length, Math.floor(S.gold / cr.seed)); if (can <= 0) { toast('金币不够买种子啦', 'warn'); sfx('err'); return; }
-  l.slice(0, can).forEach((i, k) => setTimeout(() => actPlant(i, true), k * 70));
-}
-function allSteal() { if (view.key === 'home') return; const l = view.plots.map((P, i) => P.u && P.c >= 0 && P.p >= 1 && !P.stolen ? i : -1).filter(i => i >= 0); if (!l.length) { toast('没有可以摘的果实了'); return; } l.forEach((i, k) => setTimeout(() => fSteal(i), k * 120)); }
-function allHelp() { if (view.key === 'home') return; const l = view.plots.map((P, i) => P.u && P.c >= 0 && (P.pr.d || P.pr.w || P.pr.b) ? i : -1).filter(i => i >= 0); if (!l.length) { toast('这里不需要帮忙～'); return; } l.forEach((i, k) => setTimeout(() => fHelp(i), k * 120)); }
 
 /* ============ HUD / 工具栏 / 好友栏 ============ */
 function renderHud() {
-  $('pname').textContent = S.name; $('lvbadge').textContent = 'Lv.' + S.lv;
-  const need = expNeed(S.lv), pct = S.lv >= MAX_LV ? 100 : S.exp / need * 100; $('expfill').style.width = pct + '%'; $('exptext').textContent = S.lv >= MAX_LV ? '满级' : `${Math.floor(S.exp)} / ${need}`;
-  $('goldnum').textContent = fmt(S.gold);
+  if (!S) return; const me = S.me;
+  $('pname').textContent = me.name; $('lvbadge').textContent = 'Lv.' + me.lv; $('ptitle').textContent = me.title || ''; $('ptitle').style.display = me.title ? '' : 'none';
+  const pct = me.lv >= RULES.maxLv ? 100 : me.exp / me.expNeed * 100; $('expfill').style.width = pct + '%'; $('exptext').textContent = me.lv >= RULES.maxLv ? '满级' : `${Math.floor(me.exp)} / ${me.expNeed}`;
+  const g = $('goldnum'); if (g.textContent !== fmt(me.gold)) { g.textContent = fmt(me.gold); $('gold').classList.remove('bump'); void $('gold').offsetWidth; $('gold').classList.add('bump'); }
+  drawAvatar($('avatar'), avStyle(me.avatar)); $('avatar').style.boxShadow = `0 0 0 3px ${frameColor(me.frame) || 'var(--wd)'}`;
+  $('btn-snd').textContent = PREF.sound ? '🔊' : '🔈';
 }
-function renderTitle() { $('title').innerHTML = view.key === 'home' ? `🌾 ${S.name}的农场` : `🏡 ${view.friend.name}的农场 <small>Lv.${view.friend.lv}</small>`; const day = ['自动', '白天', '黄昏', '夜晚'][['auto', 'day', 'dusk', 'night'].indexOf(S.tod)]; $('todbtn').textContent = ({ auto: '🌤️', day: '☀️', dusk: '🌇', night: '🌙' })[S.tod]; $('todbtn').title = '时间：' + day + '（点击切换）'; }
-function claimable() { if (S.tasks.date !== today()) resetTasks(); return TASKS.filter(t => (S.tasks.prog[t.id] || 0) >= t.need && !S.tasks.claimed[t.id]).length + (S.checkin.last !== today() ? 1 : 0); }
+function renderTitle() {
+  if (view.key === 'home') $('title').innerHTML = S ? `🌾 ${esc(S.me.name)}的农场` : '🌾 丰收农场';
+  else $('title').innerHTML = `🏡 ${esc(view.friend.name)}的农场 <small>Lv.${view.friend.lv}${view.friend.dog ? ' · 🐶看家中' : ''}</small>`;
+  $('todbtn').textContent = ({ auto: '🌤️', day: '☀️', dusk: '🌇', night: '🌙' })[PREF.tod] || '🌤️';
+}
 function renderToolbar() {
-  const home = view.key === 'home', tb = $('toolbar'); const items = [];
-  const tool = (id, ic, tx, extra) => items.push({ id, ic, tx, tool: true, ...extra });
+  if (!S) { $('toolbar').innerHTML = ''; return; }
+  const home = view.key === 'home', tb = $('toolbar'), items = [], b = S.badges;
+  const T = (id, ic, tx, extra) => items.push(Object.assign({ id, ic, tx, tool: true }, extra));
   if (home) {
-    tool('auto', '🖐️', '自动');
-    items.push({ id: 'seed', ic: `<img src="${cropIcon(S.seed)}">`, tx: CROPS[S.seed].name, raw: 1 });
-    tool('shovel', '⛏️', '铲除'); tool('fert', '🧪', '化肥', { badge: S.items.fert });
-    items.push({ id: 'allh', ic: '🧺', tx: '一键收获' }, { id: 'allc', ic: '🛠️', tx: '一键护理' }, { id: 'allp', ic: '🌱', tx: '一键种植' });
-    items.push({ id: 'wh', ic: '🎒', tx: '仓库' }, { id: 'shop', ic: '🏪', tx: '商店' }, { id: 'task', ic: '📜', tx: '任务', badge: claimable(), alert: 1 });
+    T('auto', '🖐️', '自动'); items.push({ id: 'seed', ic: `<img src="${cropIcon(S.me.seed)}">`, tx: CROPS[S.me.seed].name });
+    T('shovel', '⛏️', '铲除'); T('fert', '🧪', '化肥', { badge: S.inv.fert || 0 });
+    items.push({ id: 'allh', ic: '🧺', tx: '一键收获', badge: S.plots.filter(p => p.u && p.c >= 0 && p.p >= 1).length || 0 }, { id: 'allc', ic: '🛠️', tx: '一键护理' }, { id: 'allp', ic: '🌱', tx: '一键种植' });
+    items.push({ id: 'wh', ic: '🎒', tx: '仓库' }, { id: 'shop', ic: '🏪', tx: '商店' }, { id: 'task', ic: '📜', tx: '任务', badge: b.tasks + b.newbie, alert: 1 });
   } else {
-    tool('auto', '🖐️', '自动'); items.push({ id: 'alls', ic: '🥷', tx: '一键摘取' }, { id: 'allhp', ic: '🤝', tx: '一键帮忙' }, { id: 'wh', ic: '🎒', tx: '仓库' }, { id: 'home', ic: '🏠', tx: '回家' });
+    T('auto', '🖐️', '自动'); items.push({ id: 'alls', ic: '🥷', tx: '一键摘取', badge: view.plots.filter(p => p.canSteal).length || 0 }, { id: 'allhp', ic: '🤝', tx: '一键帮忙' }, { id: 'gb', ic: '💌', tx: '留言' }, { id: 'wh', ic: '🎒', tx: '仓库' }, { id: 'home', ic: '🏠', tx: '回家' });
   }
-  tb.innerHTML = items.map(it => `<button class="tbtn${it.tool && S.tool === it.id ? ' on' : ''}" data-id="${it.id}"><span class="ic">${it.raw ? it.ic : it.ic}</span><span class="tx">${it.tx}</span>${it.badge ? `<i class="bd${it.alert ? ' al' : ''}">${it.badge}</i>` : ''}</button>`).join('');
-  tb.querySelectorAll('.tbtn').forEach(b => b.onclick = () => toolbarClick(b.dataset.id));
+  const html = items.map(it => `<button class="tbtn${it.tool && tool === it.id ? ' on' : ''}" data-id="${it.id}"><span class="ic">${it.ic}</span><span class="tx">${it.tx}</span>${it.badge ? `<i class="bd${it.alert ? ' al' : ''}">${it.badge}</i>` : ''}</button>`).join('');
+  if (tb._h !== html) { tb._h = html; tb.innerHTML = html; tb.querySelectorAll('.tbtn').forEach(x => x.onclick = () => toolbarClick(x.dataset.id)); }
 }
 function toolbarClick(id) {
   ac(); sfx('click');
-  if (['auto', 'shovel', 'fert'].includes(id)) { S.tool = id; renderToolbar(); updateCursor(); return; }
-  const m = { seed: openSeeds, allh: allHarvest, allc: allCare, allp: allPlant, wh: openWarehouse, shop: () => openShop('item'), task: openTasks, alls: allSteal, allhp: allHelp, home: goHome }; m[id] && m[id]();
+  if (['auto', 'shovel', 'fert'].includes(id)) { tool = id; renderToolbar(); updateCursor(); return; }
+  const m = { seed: openSeeds, allh: allHarvest, allc: allCare, allp: allPlant, wh: openWarehouse, shop: () => openShop('item'), task: () => openTasks(), alls: allSteal, allhp: allHelp, home: goHome, gb: () => openGuestbook(view.friend) };
+  m[id] && m[id]();
+}
+// 左侧活动入口
+function renderSide() {
+  if (!S) return; const b = S.badges;
+  const items = [['friends', '👥', '好友', b.requests], ['msg', '📬', '消息', b.unread], ['orders', '📦', '订单'], ['market', '🏷️', '集市'], ['rank', '🏆', '排行'], ['ach', '🏅', '成就', b.ach], ['codex', '📖', '图鉴'], ['dress', '🎨', '装扮']];
+  const html = items.map(([id, ic, tx, bd]) => `<button class="sbtn" data-s="${id}"><span>${ic}</span><em>${tx}</em>${bd ? `<i class="bd">${bd}</i>` : ''}</button>`).join('')
+    + (S.events.length ? `<button class="sbtn ev" data-s="events"><span>🎉</span><em>活动</em></button>` : '');
+  const el = $('side'); if (el._h !== html) { el._h = html; el.innerHTML = html; el.querySelectorAll('.sbtn').forEach(x => x.onclick = () => { ac(); sfx('click'); sideClick(x.dataset.s); }); }
+  renderNewbie();
+}
+function sideClick(s) { ({ friends: () => openFriends(), msg: openMessages, orders: openOrders, market: () => openMarket(), rank: () => openRank(), ach: openAch, codex: openCodex, dress: () => openDress(), events: openEvents })[s](); }
+function renderNewbie() {
+  const el = $('newbie'); if (!S || !S.badges.newbieLeft) { el.style.display = 'none'; return; }
+  const done = CFG.NEWBIE.length - S.badges.newbieLeft; el.style.display = '';
+  const html = `<b>🌱 新手任务 ${done}/${CFG.NEWBIE.length}</b><small>${S.badges.newbie ? '有奖励可以领取！' : '点击查看下一步'}</small>${S.badges.newbie ? '<i class="bd al">!</i>' : ''}`;
+  if (el._h !== html) { el._h = html; el.innerHTML = html; } el.onclick = () => openTasks('newbie');
 }
 function renderFriends() {
-  const el = $('friends'); const list = [{ me: 1 }].concat(FRIENDS);
-  el.innerHTML = list.map(f => {
-    if (f.me) return `<div class="fr${view.key === 'home' ? ' on' : ''}" data-id="me"><canvas width="96" height="96" data-av="me"></canvas><span>我家</span></div>`;
-    const st = friendStats(f); return `<div class="fr${view.key === f.id ? ' on' : ''}" data-id="${f.id}"><canvas width="96" height="96" data-av="${f.id}"></canvas><span>${f.name}</span>${st.steal ? `<i class="bd">${st.steal}</i>` : ''}${st.help ? `<i class="bd hp">${st.help}</i>` : ''}</div>`;
-  }).join('');
-  el.querySelectorAll('.fr').forEach(d => { const id = d.dataset.id, cv = d.querySelector('canvas'); drawAvatar(cv, id === 'me' ? MY_AV : FRIENDS.find(f => f.id === id).av); d.onclick = () => { ac(); id === 'me' ? goHome() : visit(FRIENDS.find(f => f.id === id)); }; });
-  const my = $('avatar'); drawAvatar(my, MY_AV);
+  const el = $('friends'); if (!S) { el.innerHTML = ''; return; }
+  const me = `<div class="fr${view.key === 'home' ? ' on' : ''}" data-id="me"><canvas width="96" height="96"></canvas><span>我家</span></div>`;
+  const list = FR.list.map(f => `<div class="fr${view.key === 'f' + f.id ? ' on' : ''}" data-id="${f.id}" title="${esc(f.name)} Lv.${f.lv}"><canvas width="96" height="96"></canvas><span>${esc(f.name)}</span>${f.online ? '<em class="on"></em>' : ''}${f.steal ? `<i class="bd">${f.steal}</i>` : ''}${f.help ? `<i class="bd hp">${f.help}</i>` : ''}</div>`).join('');
+  const html = me + list + `<div class="fr add" data-id="add"><div class="plus">＋</div><span>加好友</span>${S.badges.requests ? `<i class="bd">${S.badges.requests}</i>` : ''}</div>`;
+  if (el._h !== html) { el._h = html; el.innerHTML = html;
+    el.querySelectorAll('.fr').forEach(d => { const id = d.dataset.id, cv = d.querySelector('canvas'); const f = FR.list.find(x => String(x.id) === id);
+      if (cv) { drawAvatar(cv, avStyle(id === 'me' ? S.me.avatar : f.avatar)); const fc = frameColor(id === 'me' ? S.me.frame : f.frame); if (fc) cv.style.boxShadow = `0 0 0 3px ${fc}`; }
+      d.onclick = () => { ac(); if (id === 'me') goHome(); else if (id === 'add') openFriends(FR.requests.length ? 'req' : 'add'); else visit(f); }; });
+  }
 }
-const MY_AV = { skin: '#ffd9b0', hat: 1, band: '#d9553a', shirt: '#4a8fd8', bg1: '#a8e4ff', bg2: '#d8f5b8' };
 
-/* ============ 弹窗 ============ */
+/* ============ 弹窗基础 ============ */
+let modalStack = null;
 function openModal(html, opt) {
-  opt = opt || {}; const m = $('modal'); m.className = opt.small ? 'small' : opt.wide ? 'wide' : ''; m.innerHTML = (opt.noclose ? '' : '<button class="x" onclick="closeModal()">✕</button>') + html; $('mback').classList.add('show'); sfx('open'); if (opt.mount) opt.mount();
+  opt = opt || {}; const m = $('modal'); m.className = opt.small ? 'small' : opt.wide ? 'wide' : ''; m.innerHTML = (opt.noclose ? '' : '<button class="x" onclick="closeModal()">✕</button>') + html; $('mback').classList.add('show'); $('mback').dataset.noclose = opt.noclose ? '1' : ''; sfx('open'); if (opt.mount) opt.mount(); modalStack = opt.onclose || null;
 }
-function closeModal() { $('mback').classList.remove('show'); }
+function closeModal(force) { if ($('mback').dataset.noclose === '1' && !force) return; $('mback').classList.remove('show'); $('mback').dataset.noclose = ''; const f = modalStack; modalStack = null; if (f) f(); }
 const iconImg = id => `<img class="cimg" src="${cropIcon(id)}">`;
-function openSeeds() {
-  const cards = CROPS.map(c => {
-    const lock = S.lv < c.lv, per = Math.floor(c.yield * c.price);
-    return `<div class="seedcard${lock ? ' lock' : ''}${S.seed === c.id ? ' sel' : ''}" data-id="${c.id}">
-      ${c.seasons > 1 ? '<em class="tag">两季</em>' : ''}${iconImg(c.id)}<h4>${c.name}</h4>
-      <div class="meta"><span>🪙 ${c.seed}</span><span>⏱ ${fmtTime(c.time)}</span></div>
-      <div class="meta"><span>📦 ×${c.yield}</span><span>💰 ${per}</span></div><div class="meta"><span>✨ ${c.exp}经验</span></div>
-      ${lock ? `<div class="lockmask">🔒 Lv.${c.lv} 解锁</div>` : ''}</div>`;
-  }).join('');
-  openModal(`<h2>🌱 选择种子</h2><p class="sub">选好后点击空地播种，种子在播种时自动购买</p><div class="seedgrid">${cards}</div>`, { wide: true, mount: () => { document.querySelectorAll('.seedcard').forEach(d => d.onclick = () => { const id = +d.dataset.id; if (S.lv < CROPS[id].lv) { toast(`需要 Lv.${CROPS[id].lv} 解锁`, 'warn'); sfx('err'); return; } S.seed = id; S.tool = 'auto'; closeModal(); renderToolbar(); sfx('click'); toast(`已选择 ${CROPS[id].name}`); }); } });
-}
-function openWarehouse(tab) {
-  tab = tab || 'fruit'; const bonus = dayBonus(), ids = Object.keys(S.wh).map(Number).sort((a, b) => a - b); let total = 0; ids.forEach(id => total += S.wh[id] * unitPrice(id));
-  const bonusTxt = Object.keys(bonus).map(id => `<span class="hot">🔥 ${CROPS[id].name} +${Math.round(bonus[id] * 100)}%</span>`).join('');
-  let body;
-  if (tab === 'fruit') {
-    body = ids.length ? ids.map(id => `<div class="row-item"><div class="ri-ic">${iconImg(id)}</div><div class="ri-main"><b>${CROPS[id].name}</b><small>单价 🪙${unitPrice(id)}${bonus[id] ? ' <span class="hot">🔥</span>' : ''}</small></div><div class="ri-n">×${S.wh[id]}</div>
-      <button class="btn sm" data-sell="${id}" data-n="1">卖1个</button><button class="btn sm primary" data-sell="${id}" data-n="9999">全部卖出</button></div>`).join('') : '<div class="empty">仓库空空如也，去收获点什么吧～</div>';
-    body += ids.length ? `<div class="sellall"><button class="btn big primary" id="sellall">一键卖出全部 · 约 🪙${total}</button></div>` : '';
-  } else {
-    body = `<div class="row-item"><div class="ri-ic big">🧪</div><div class="ri-main"><b>化肥</b><small>选择工具栏的「化肥」后点击作物，加速 30% 成长</small></div><div class="ri-n">×${S.items.fert}</div></div>
-      <div class="row-item"><div class="ri-ic big">🍖</div><div class="ri-main"><b>狗粮</b><small>喂食后小狗会看家 20 分钟，赶走偷菜的人${S.dog.own ? (dogActive() ? `（还剩 ${fmtTime((S.dog.until - Date.now()) / 1000)}）` : '') : '（需先领养小狗）'}</small></div><div class="ri-n">×${S.items.dogfood}</div><button class="btn sm primary" id="feeddog">喂狗</button></div>`;
-  }
-  openModal(`<h2>🎒 仓库</h2><div class="tabs"><button class="${tab === 'fruit' ? 'on' : ''}" data-t="fruit">果实</button><button class="${tab === 'item' ? 'on' : ''}" data-t="item">道具</button></div><div class="hots">${bonusTxt ? '今日行情：' + bonusTxt : ''}</div><div class="list">${body}</div>`, {
-    wide: true, mount: () => {
-      document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => openWarehouse(b.dataset.t));
-      document.querySelectorAll('[data-sell]').forEach(b => b.onclick = () => { const g = sellCrop(+b.dataset.sell, +b.dataset.n); if (g) { toast(`卖出获得 🪙${g}`); openWarehouse(tab); } });
-      const sa = $('sellall'); if (sa) sa.onclick = () => { let g = 0; ids.forEach(id => g += sellCrop(id, 9999)); toast(`一共卖出 🪙${g}`); openWarehouse(tab); };
-      const fd = $('feeddog'); if (fd) fd.onclick = () => { feedDog(); openWarehouse('item'); };
-    }
-  });
-}
-function openShop(tab) {
-  tab = tab || 'item'; let body = '';
-  if (tab === 'item') {
-    body = `<div class="row-item"><div class="ri-ic big">🧪</div><div class="ri-main"><b>化肥</b><small>让作物成长进度 +30%</small></div><div class="price">🪙 60</div><button class="btn sm primary" data-buy="fert" data-n="1">购买</button><button class="btn sm" data-buy="fert" data-n="10">×10</button></div>
-    <div class="row-item"><div class="ri-ic big">🍖</div><div class="ri-main"><b>狗粮</b><small>小狗吃饱后看家 20 分钟</small></div><div class="price">🪙 120</div><button class="btn sm primary" data-buy="dogfood" data-n="1">购买</button><button class="btn sm" data-buy="dogfood" data-n="5">×5</button></div>`;
-  } else if (tab === 'land') {
-    const owned = S.plots.filter(p => p.u).length, can = owned < COLS * ROWS;
-    body = `<div class="row-item"><div class="ri-ic big">🌾</div><div class="ri-main"><b>开垦荒地</b><small>已开垦 ${owned}/${COLS * ROWS} 块 · 需要 Lv.${plotNeedLv()}</small></div><div class="price">🪙 ${can ? plotCost() : '—'}</div><button class="btn sm primary" id="buyland" ${can ? '' : 'disabled'}>开垦</button></div>
-    <div class="row-item"><div class="ri-ic big" style="background:linear-gradient(#d9663a,#a53a1a)">🟥</div><div class="ri-main"><b>红土地升级</b><small>生长速度 +20%，产量 +20% · 需要 Lv.5<br>购买后点击要升级的土地</small></div><div class="price">🪙 ${redCost()}</div><button class="btn sm primary" id="buyred">选择土地</button></div>`;
-  } else {
-    body = `<div class="row-item"><div class="ri-ic big">🐶</div><div class="ri-main"><b>${S.dog.own ? '看家小狗（已领养）' : '领养小狗'}</b><small>${S.dog.own ? '喂狗粮后它会帮你赶走小偷' : '好友会来偷菜，有一只小狗帮你看家吧'}${S.lv < 3 && !S.dog.own ? ' · 需要 Lv.3' : ''}</small></div><div class="price">${S.dog.own ? '' : '🪙 400'}</div><button class="btn sm primary" id="buydog" ${S.dog.own ? 'disabled' : ''}>${S.dog.own ? '已拥有' : '领养'}</button></div>`;
-  }
-  openModal(`<h2>🏪 商店</h2><div class="tabs"><button class="${tab === 'item' ? 'on' : ''}" data-t="item">道具</button><button class="${tab === 'land' ? 'on' : ''}" data-t="land">土地</button><button class="${tab === 'dog' ? 'on' : ''}" data-t="dog">宠物</button></div><div class="mygold">我的金币：🪙 ${S.gold}</div><div class="list">${body}</div>`, {
-    wide: true, mount: () => {
-      document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => openShop(b.dataset.t));
-      document.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => { const k = b.dataset.buy, n = +b.dataset.n, price = (k === 'fert' ? 60 : 120) * n; if (S.gold < price) { toast('金币不足', 'warn'); sfx('err'); return; } setGold(S.gold - price); S.items[k] += n; sfx('coin'); toast(`购买成功 ×${n}`); renderToolbar(); openShop('item'); });
-      const bl = $('buyland'); if (bl) bl.onclick = () => { const next = UNLOCK_ORDER.find(i => !S.plots[i].u); if (next === undefined) return; if (S.lv < plotNeedLv()) { toast(`需要 Lv.${plotNeedLv()}`, 'warn'); sfx('err'); return; } if (actExpand(next)) { goHomeIfNeeded(); openShop('land'); } };
-      const br = $('buyred'); if (br) br.onclick = () => { if (S.lv < 5) { toast('红土地需要 Lv.5', 'warn'); sfx('err'); return; } closeModal(); S.tool = 'red'; renderToolbar(); updateCursor(); toast('点击一块已开垦的土地进行升级（点工具栏「自动」取消）'); };
-      const bd = $('buydog'); if (bd) bd.onclick = () => { if (S.lv < 3) { toast('需要 Lv.3', 'warn'); sfx('err'); return; } if (S.gold < 400) { toast('金币不足', 'warn'); sfx('err'); return; } setGold(S.gold - 400); S.dog.own = true; S.items.dogfood += 1; sfx('bark'); toast('🐶 小狗来啦！送你一份狗粮，记得喂它'); openShop('dog'); renderToolbar(); };
-    }
-  });
-}
-function goHomeIfNeeded() { if (view.key !== 'home') goHome(); }
-function claimTask(id) {
-  const t = TASKS.find(x => x.id === id); if ((S.tasks.prog[id] || 0) < t.need || S.tasks.claimed[id]) return; S.tasks.claimed[id] = 1; addGold(t.gold); addExp(t.exp); sfx('coin'); toast(`任务完成！🪙+${t.gold}  ✨+${t.exp}`); openTasks(); renderToolbar();
-}
-function doCheckin() {
-  if (S.checkin.last === today()) return; const y = new Date(); y.setDate(y.getDate() - 1); const ys = y.getFullYear() + '-' + (y.getMonth() + 1) + '-' + y.getDate();
-  S.checkin.streak = S.checkin.last === ys ? S.checkin.streak + 1 : 1; S.checkin.last = today(); const n = ((S.checkin.streak - 1) % 7) + 1, g = 100 * n;
-  addGold(g); let extra = ''; if (n % 3 === 0) { S.items.fert += 2; extra = '、化肥 ×2'; } if (n === 7) { S.items.dogfood += 2; extra += '、狗粮 ×2'; } sfx('level'); toast(`签到成功！第${n}天 🪙+${g}${extra}`); openTasks(); renderToolbar();
-}
-function openTasks() {
-  if (S.tasks.date !== today()) resetTasks(); const done = S.checkin.last === today(), n = done ? ((S.checkin.streak - 1) % 7) + 1 : (S.checkin.streak % 7) + 1;
-  const days = [1, 2, 3, 4, 5, 6, 7].map(d => `<div class="day${(done ? d <= n : d < n) ? ' got' : ''}${!done && d === n ? ' today' : ''}"><small>第${d}天</small><b>🪙${d * 100}</b>${d % 3 === 0 ? '<em>+🧪</em>' : ''}${d === 7 ? '<em>+🍖</em>' : ''}</div>`).join('');
-  const rows = TASKS.map(t => { const p = Math.min(t.need, S.tasks.prog[t.id] || 0), ok = p >= t.need, cl = S.tasks.claimed[t.id]; return `<div class="row-item task"><div class="ri-ic big">${t.ic}</div><div class="ri-main"><b>${t.tx}</b><div class="pbar"><i style="width:${p / t.need * 100}%"></i><span>${p}/${t.need}</span></div><small>奖励 🪙${t.gold} · ✨${t.exp}</small></div><button class="btn sm ${ok && !cl ? 'primary' : ''}" data-claim="${t.id}" ${ok && !cl ? '' : 'disabled'}>${cl ? '已领取' : ok ? '领取' : '进行中'}</button></div>`; }).join('');
-  openModal(`<h2>📜 每日任务</h2><div class="checkin"><div class="cih"><b>📅 每日签到</b><span>已连续 ${S.checkin.streak} 天</span><button class="btn sm primary" id="checkin" ${done ? 'disabled' : ''}>${done ? '今日已签' : '签到'}</button></div><div class="days">${days}</div></div><div class="list">${rows}</div>`, {
-    wide: true, mount: () => { document.querySelectorAll('[data-claim]').forEach(b => b.onclick = () => claimTask(b.dataset.claim)); const ci = $('checkin'); if (ci) ci.onclick = doCheckin; }
-  });
-}
-function openHelp() {
-  openModal(`<h2>📖 玩法说明</h2><div class="help">
-  <p><b>🖐️ 自动模式（默认）</b>：直接点击土地，系统会按状态自动处理——空地播种、成熟收获、有💧🌿🐛就顺手处理。按住鼠标在土地上拖动可以连续操作！</p>
-  <p><b>🌱 种子</b>：点工具栏「种子」选择要种的作物。种子在播种时自动扣钱。等级越高，能种的作物越值钱。</p>
-  <p><b>💧🌿🐛 照看农田</b>：作物生长中会缺水、长草、生虫，不处理会让成长变慢。照料还能得到经验。下雨天农田会自动被浇灌。</p>
-  <p><b>🧪 化肥</b>：选择「化肥」后点击生长中的作物，立即加快 30% 的进度。</p>
-  <p><b>🎒 仓库 / 🏪 商店</b>：收获的果实放在仓库里，可以随时出售（注意每日行情🔥）。商店可以买化肥、狗粮、扩建土地、升级红土地和领养小狗。</p>
-  <p><b>🥷 好友农场</b>：点击右侧好友头像去串门，成熟的果实可以摘取（每块地只能摘一次），有💧🌿🐛的地可以帮忙打理拿奖励。小心有些好友家养了狗！</p>
-  <p><b>🦊 小偷</b>：你的作物成熟后没有及时收获，好友也会来偷。养一只小狗并喂狗粮可以帮你看家。</p>
-  <p><b>🌾 两季作物</b>：带「两季」标记的作物收获后会自动长第二季，不用重新买种子。</p>
-  <p><b>⌨️ 快捷键</b>：1 自动 · 2 铲除 · 3 化肥 · Q 一键收获 · W 一键护理 · E 一键种植 · Esc 关闭弹窗</p>
-  </div>`, { wide: true });
-}
-function openMenu() {
-  openModal(`<h2>⚙️ 设置</h2><div class="list">
-    <div class="row-item"><div class="ri-main"><b>农场名字</b><small>${S.name}</small></div><button class="btn sm" id="rename">修改</button></div>
-    <div class="row-item"><div class="ri-main"><b>游戏音效</b></div><button class="btn sm ${S.sound ? 'primary' : ''}" id="tsound">${S.sound ? '开启' : '关闭'}</button></div>
-    <div class="row-item"><div class="ri-main"><b>背景音乐</b></div><button class="btn sm ${S.music ? 'primary' : ''}" id="tmusic">${S.music ? '开启' : '关闭'}</button></div>
-    <div class="row-item"><div class="ri-main"><b>玩法说明</b></div><button class="btn sm" id="thelp">查看</button></div>
-    <div class="row-item"><div class="ri-main"><b>重置存档</b><small>清除所有进度，重新开始</small></div><button class="btn sm danger" id="reset">重置</button></div></div>`, {
-    small: true, mount: () => {
-      $('rename').onclick = () => { const n = prompt('给你的农场起个名字（最多8个字）', S.name); if (n && n.trim()) { S.name = n.trim().slice(0, 8); renderHud(); renderTitle(); openMenu(); } };
-      $('tsound').onclick = () => { S.sound = !S.sound; openMenu(); }; $('tmusic').onclick = () => { S.music = !S.music; if (S.music) startMusic(); openMenu(); };
-      $('thelp').onclick = openHelp; $('reset').onclick = () => { if (confirm('确定要清除所有存档重新开始吗？')) { noSave = true; localStorage.removeItem(SAVE_KEY); location.reload(); } };
-    }
-  });
-}
-function welcome() {
-  openModal(`<div class="welcome"><div class="wtitle">🌾 丰收农场</div><p>欢迎来到你的小农场！</p><ul><li>点击土地 <b>种植</b>，等作物成熟后点击 <b>收获</b></li><li>留意作物上的 💧🌿🐛，及时照顾它们</li><li>在右边 <b>好友</b> 家串门摘果实，赚金币升级</li></ul><p class="sub">鼠标按住拖动可以连续操作哦</p><button class="btn big primary" onclick="closeModal()">开始种田！</button></div>`, { small: true, noclose: true });
+const itemIcon = item => { const c = cropOf(item); if (c) return `<span class="ii${c.golden ? ' gold' : ''}"><img class="cimg" src="${cropIcon(c.id)}"></span>`; return `<span class="ii emo">${item === 'fert' ? '🧪' : item === 'dogfood' ? '🍖' : '📦'}</span>`; };
+const avHtml = (av, frame, size) => { const cv = document.createElement('canvas'); cv.width = cv.height = 96; drawAvatar(cv, avStyle(av)); const fc = frameColor(frame); return `<img class="av" src="${cv.toDataURL()}" style="width:${size || 40}px;height:${size || 40}px;${fc ? `box-shadow:0 0 0 3px ${fc}` : ''}">`; };
+function levelUp(lv) {
+  sfx('level'); const unlocked = CROPS.filter(c => c.lv === lv);
+  openModal(`<div class="lvup"><div class="burst">🎉</div><h2>恭喜升级！</h2><div class="biglv">Lv.${lv}</div>
+    <p>获得 <b>🪙 ${lv * 120}</b> 金币 和 <b>🧪 化肥 ×1</b></p>
+    ${unlocked.length ? `<div class="unl">解锁新作物：${unlocked.map(c => `<span class="chip"><img src="${cropIcon(c.id)}">${c.name}</span>`).join('')}</div>` : ''}
+    <button class="btn big" onclick="closeModal()">太棒了</button></div>`, { small: true });
 }
 
 /* ============ Canvas 主循环 ============ */
-const cv = $('cv'), ctx = cv.getContext('2d'); let W = 0, H = 0, DPR = 1, K = 1, offX = 0, offY = 0, vb = { x0: 0, x1: 1600, y0: 0, y1: 900 }; const bg = document.createElement('canvas'); let bgDirty = true;
+const cv = $('cv'), ctx = cv.getContext('2d'); let W = 0, H = 0, DPR = 1, K = 1, offX = 0, offY = 0, vb = { x0: 0, x1: 1600, y0: 0, y1: 900 }; const bg = document.createElement('canvas'); let bgDirty = true, bgTheme = '';
 function resize() {
   DPR = Math.min(2, window.devicePixelRatio || 1); W = window.innerWidth; H = window.innerHeight; cv.width = Math.floor(W * DPR); cv.height = Math.floor(H * DPR);
-  K = Math.max(0.4, Math.min((H - 150) / 650, W / 1340)); offX = W / 2 - 800 * K; offY = H / 2 - 490 * K - 6;
+  const narrow = W < 700; K = Math.max(0.3, Math.min((H - (narrow ? 190 : 150)) / 650, W / (narrow ? 920 : 1340))); offX = W / 2 - 800 * K + (narrow ? -12 * K : 0); offY = H / 2 - 490 * K - 6 + (narrow ? 10 : 0);
   vb = { x0: -offX / K, x1: (W - offX) / K, y0: -offY / K, y1: (H - offY) / K }; bg.width = cv.width; bg.height = cv.height; bgDirty = true;
 }
 function rebuildBg() {
   const c = bg.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, bg.width, bg.height); c.setTransform(DPR * K, 0, 0, DPR * K, DPR * offX, DPR * offY);
-  buildBackground(c, vb, view.friend ? view.friend.theme : OWN_THEME); bgDirty = false;
+  buildBackground(c, vb, themeOf(view.key === 'home' ? (S ? S.me.theme : 'classic') : view.friend.theme)); bgDirty = false;
 }
-function curHour() { const m = { day: 12, dusk: 18.6, night: 23 }; if (m[S.tod]) return m[S.tod]; const d = new Date(); return d.getHours() + d.getMinutes() / 60; }
+function curHour() { const m = { day: 12, dusk: 18.6, night: 23 }; if (m[PREF.tod]) return m[PREF.tod]; const d = new Date(); return d.getHours() + d.getMinutes() / 60; }
 const chickens = [{ x: 175, y: 560, vx: 0, tx: 175, d: 1, pk: 0, w: 140 }, { x: 1300, y: 500, vx: 0, tx: 1300, d: -1, pk: 0, w: 120 }, { x: 1180, y: 730, vx: 0, tx: 1180, d: 1, pk: 0, w: 100 }];
-function updateChickens(dt, t) {
+function updateChickens(dt) {
   chickens.forEach((c, i) => { c.pk -= dt; if (c.pk > 0) return; if (Math.abs(c.tx - c.x) < 3) { if (Math.random() < 0.5) { c.pk = 1 + Math.random() * 2; c.tx = c.x; } else { c.tx = clamp(c.x + (Math.random() - 0.5) * 2 * c.w, [120, 1230, 1150][i] - c.w, [120, 1230, 1150][i] + c.w); } } else { const s = 22 * dt; c.x += Math.sign(c.tx - c.x) * s; c.d = Math.sign(c.tx - c.x) || c.d; } });
 }
-let lastFrame = performance.now(), tAcc = 0;
+let lastFrame = performance.now(), tAcc = 0, rainK = 0, wasRain = false;
 function frame(now) {
   const dt = Math.min(0.06, (now - lastFrame) / 1000); lastFrame = now; tAcc += dt; const t = tAcc;
-  if (bgDirty) rebuildBg(); updateFx(dt); updateChickens(dt, t);
-  const raining = Date.now() < rainUntil; rainK += ((raining ? 1 : 0) - rainK) * Math.min(1, dt * 1.2);
+  if (bgDirty) rebuildBg(); updateFx(dt); updateChickens(dt);
+  const raining = !!CFG.rainUntil(NET.now()); if (raining && !wasRain && started) { toast('🌧️ 下雨啦！农田被滋润了～'); sfx('rain'); } wasRain = raining;
+  rainK += ((raining ? 1 : 0) - rainK) * Math.min(1, dt * 1.2);
   const h = curHour(), nk = nightK(h);
   ctx.setTransform(DPR * K, 0, 0, DPR * K, DPR * offX, DPR * offY);
   drawSky(ctx, vb, h, rainK); drawCelestial(ctx, vb, h, t); drawClouds(ctx, vb, t, rainK > 0.5, nk); if (nk < 0.5) drawBirds(ctx, vb, t);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.drawImage(bg, 0, 0, W, H); ctx.setTransform(DPR * K, 0, 0, DPR * K, DPR * offX, DPR * offY);
-  // 动态小物
   drawSmoke(ctx, 250 + 44, 340 - 142, t); windmillBlades(ctx, 1240, 330, t, t * (rainK > 0.5 ? 1.3 : 0.55)); pondShimmer(ctx, 215, 667, t);
-  const sl = Math.sin(t * 0.37);
   drawButterfly(ctx, 600 + Math.sin(t * 0.7) * 160, 430 + Math.sin(t * 1.3) * 40, t, '#ff9ac8'); drawButterfly(ctx, 1000 + Math.cos(t * 0.5) * 140, 600 + Math.sin(t * 0.9) * 50, t + 2, '#ffe066');
   chickens.forEach((c, i) => drawChicken(ctx, c.x, c.y, t + i * 3, c.d, c.pk > 0));
-  if (view.key === 'home') { const mode = !S.dog.own ? 'none' : (Date.now() < dogBarkUntil ? 'bark' : dogActive() ? 'guard' : 'sleep'); drawDog(ctx, 1352 + 58, 628, t, mode); if (!S.dog.own) { ctx.save(); ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.restore(); } }
-  else if (view.friend.dog) drawDog(ctx, 1410, 628, t, Math.sin(t * 0.3) > 0.2 ? 'bark' : 'guard');
-  // 土地
-  const plots = view.plots;
-  DEPTH_ORDER.forEach(i => {
-    const P = plots[i], pos = plotPos(i); drawPlot(ctx, P, pos.x, pos.y, t, { hover: i === hoverIdx, idx: i, price: plotCost(), stolen: P.stolen && view.key !== 'home' });
-  });
-  drawFrontFence(ctx);
-  drawFx(ctx);
-  // 光照
+  const nowS = NET.now();
+  if (view.key === 'home') { if (S && S.me.dog.own) drawDog(ctx, 1410, 628, t, Date.now() < dogBarkUntil ? 'bark' : S.me.dog.until > nowS ? 'guard' : 'sleep'); }
+  else if (view.friend.dog) drawDog(ctx, 1410, 628, t, Date.now() < dogBarkUntil ? 'bark' : 'guard');
+  const plots = view.plots, cost = CFG.plotCost(unlockedCount());
+  DEPTH_ORDER.forEach(i => { const P = plots[i], pos = plotPos(i); drawPlot(ctx, P, pos.x, pos.y, t, { hover: i === hoverIdx, idx: i, price: view.key === 'home' ? cost : null, stolen: view.key !== 'home' && P.mine }); });
+  drawFrontFence(ctx); drawFx(ctx);
   const dusk = (h > 17 && h < 19.8) ? 1 - Math.abs(h - 18.4) / 1.4 : 0, dawn = (h > 5 && h < 7.5) ? 1 - Math.abs(h - 6.2) / 1.3 : 0;
   if (nk > 0) { ctx.fillStyle = `rgba(14,24,76,${0.46 * nk})`; ctx.fillRect(vb.x0, vb.y0, vb.x1 - vb.x0, vb.y1 - vb.y0); }
   if (dusk > 0) { ctx.fillStyle = `rgba(255,140,60,${0.16 * dusk})`; ctx.fillRect(vb.x0, vb.y0, vb.x1 - vb.x0, vb.y1 - vb.y0); }
   if (dawn > 0) { ctx.fillStyle = `rgba(255,170,130,${0.12 * dawn})`; ctx.fillRect(vb.x0, vb.y0, vb.x1 - vb.x0, vb.y1 - vb.y0); }
   if (rainK > 0.01) { ctx.fillStyle = `rgba(40,60,90,${0.22 * rainK})`; ctx.fillRect(vb.x0, vb.y0, vb.x1 - vb.x0, vb.y1 - vb.y0); ctx.globalAlpha = rainK; drawRain(ctx, vb, t); ctx.globalAlpha = 1; }
   if (nk > 0.3) drawFireflies(ctx, vb, t, nk);
-  // 暗角
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.78); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(20,30,10,.28)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
   updateTip(); requestAnimationFrame(frame);
 }
@@ -1408,70 +1641,491 @@ function pickPlot(wx, wy) {
   }
   return -1;
 }
+// 拖动连续操作：请求按顺序排队发送
+const paintQ = []; let paintRunning = false;
+async function runPaint() { if (paintRunning) return; paintRunning = true; while (paintQ.length) { await clickPlot(paintQ.shift()); } paintRunning = false; }
 function paintAt(ev, first) {
-  const w = toWorld(ev), i = pickPlot(w.x, w.y); if (i < 0 || (!first && i === lastPaint)) return; lastPaint = i; ac(); startMusic();
-  if (first || view.key === 'home') clickPlot(i);
+  if (!S) return; const w = toWorld(ev), i = pickPlot(w.x, w.y); if (i < 0 || (!first && i === lastPaint)) return; lastPaint = i; ac(); startMusic();
+  if (first) { paintQ.push(i); runPaint(); } else if (view.key === 'home' && view.plots[i].u && !paintQ.includes(i)) { paintQ.push(i); runPaint(); }
 }
-cv.addEventListener('pointerdown', ev => { if (ev.button !== 0 && ev.pointerType === 'mouse') return; painting = true; lastPaint = -1; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = pickPlot(...Object.values(toWorld(ev))); paintAt(ev, true); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
+cv.addEventListener('pointerdown', ev => { if (ev.button !== 0 && ev.pointerType === 'mouse') return; painting = true; lastPaint = -1; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = ev.pointerType === 'mouse'; const w = toWorld(ev); hoverIdx = pickPlot(w.x, w.y); paintAt(ev, true); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
 cv.addEventListener('pointermove', ev => { mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; const w = toWorld(ev); hoverIdx = pickPlot(w.x, w.y); if (painting) paintAt(ev, false); updateCursor(); });
-cv.addEventListener('pointerup', () => { painting = false; lastPaint = -1; }); cv.addEventListener('pointercancel', () => { painting = false; });
+cv.addEventListener('pointerup', ev => { painting = false; lastPaint = -1; if (ev.pointerType !== 'mouse') { setTimeout(() => { mouse.in = false; hoverIdx = -1; updateCursor(); }, 1400); } }); cv.addEventListener('pointercancel', () => { painting = false; });
 cv.addEventListener('pointerleave', () => { mouse.in = false; hoverIdx = -1; updateCursor(); });
-cv.addEventListener('contextmenu', e => { e.preventDefault(); S.tool = 'auto'; renderToolbar(); updateCursor(); });
+cv.addEventListener('contextmenu', e => { e.preventDefault(); tool = 'auto'; renderToolbar(); updateCursor(); });
 function updateCursor() {
   const el = $('curtool'); let h = ''; const i = hoverIdx, plots = view.plots;
-  if (mouse.in && i >= 0 && view.key === 'home') {
+  if (S && mouse.in && i >= 0 && view.key === 'home') {
     const P = plots[i];
-    if (S.tool === 'shovel') h = '⛏️'; else if (S.tool === 'fert') h = '🧪'; else if (S.tool === 'red') h = '🟥';
-    else if (P.u && P.c < 0) h = `<img src="${cropIcon(S.seed)}">`; else if (P.u && P.c >= 0 && P.p >= 1) h = '🧺'; else if (P.u && P.c >= 0 && (P.pr.d || P.pr.w || P.pr.b)) h = P.pr.d ? '💧' : P.pr.w ? '🌿' : '🐛';
-  } else if (mouse.in && i >= 0 && view.key !== 'home') { const P = plots[i]; if (P.u && P.c >= 0 && P.p >= 1 && !P.stolen) h = '🥷'; else if (P.u && P.c >= 0 && (P.pr.d || P.pr.w || P.pr.b)) h = '🤝'; }
-  else if (mouse.in && S.tool !== 'auto' && view.key === 'home') h = S.tool === 'shovel' ? '⛏️' : S.tool === 'fert' ? '🧪' : '🟥';
+    if (tool === 'shovel') h = '⛏️'; else if (tool === 'fert') h = '🧪'; else if (tool === 'red') h = '🟥';
+    else if (P.u && P.c < 0) h = `<img src="${cropIcon(S.me.seed)}">`; else if (P.u && P.c >= 0 && P.p >= 1) h = '🧺'; else if (P.u && P.c >= 0 && (P.pr.d || P.pr.w || P.pr.b)) h = P.pr.d ? '💧' : P.pr.w ? '🌿' : '🐛';
+  } else if (mouse.in && i >= 0 && view.key !== 'home') { const P = plots[i]; if (P.u && P.c >= 0 && P.canSteal) h = '🥷'; else if (P.u && P.c >= 0 && (P.pr.d || P.pr.w || P.pr.b)) h = '🤝'; }
   if (el._h !== h) { el._h = h; el.innerHTML = h; } el.style.display = h ? 'block' : 'none'; el.style.transform = `translate(${mouse.x + 14}px,${mouse.y + 12}px)`;
-  cv.style.cursor = h ? 'pointer' : (i >= 0 ? 'pointer' : 'default');
+  cv.style.cursor = (h || i >= 0) ? 'pointer' : 'default';
 }
 function updateTip() {
-  const tip = $('tip'); if (!mouse.in || hoverIdx < 0 || painting) { tip.style.display = 'none'; return; }
-  const P = view.plots[hoverIdx]; let h = '';
-  if (!P.u) h = `<b>🌾 荒地</b><div>开垦需要 🪙${plotCost()}（Lv.${plotNeedLv()}）</div>`;
-  else if (P.c < 0) h = `<b>空地${P.soil ? '（红土地）' : ''}</b><div>点击种植 ${CROPS[S.seed].name}${view.key === 'home' ? `（🪙${CROPS[S.seed].seed}）` : ''}</div>`;
+  const tip = $('tip'); if (!S || !mouse.in || hoverIdx < 0 || painting) { tip.style.display = 'none'; return; }
+  const P = view.plots[hoverIdx], home = view.key === 'home'; let h = '';
+  if (!P.u) h = home ? `<b>🌾 荒地</b><div>开垦需要 🪙${fmt(CFG.plotCost(unlockedCount()))}（Lv.${CFG.plotNeedLv(unlockedCount())}）</div>` : '<b>🌾 荒地</b>';
+  else if (P.c < 0) h = `<b>空地${P.soil ? '（红土地）' : ''}</b>${home ? `<div>点击种植 ${CROPS[S.me.seed].name}（🪙${CROPS[S.me.seed].seed}）</div>` : ''}`;
   else {
     const cr = CROPS[P.c], st = stageOf(P.p), pr = [P.pr.d && '💧缺水', P.pr.w && '🌿杂草', P.pr.b && '🐛害虫'].filter(Boolean);
     h = `<b>${cr.name}${P.soil ? '（红土地）' : ''}</b><div>${STAGE_NAME[st]}${cr.seasons > 1 ? ` · 第${P.sea + 1}季` : ''}</div>`;
-    h += st === 4 ? `<div>预计 ×${P.y}${P.stolen ? '（已被摘过）' : ''}</div>` : `<div>成熟还需 ${fmtTime(remainSec(P))}</div><div class="bar"><i style="width:${Math.floor(P.p * 100)}%"></i></div>`;
-    if (pr.length) h += `<div class="warn">${pr.join(' ')}</div>`;
+    if (st === 4) {
+      h += `<div>剩余 ×${P.y}${P.stolen ? `（被摘走 ${P.stolen}）` : ''}</div>`;
+      if (!home) { const now = NET.now(); h += P.mine === 1 ? '<div class="warn">你已经摘过了</div>' : P.mine === 2 ? '<div class="warn">被狗赶走过，下季再来</div>' : P.left <= 0 ? '<div class="warn">已达保底，不能再摘</div>' : now < P.protectUntil ? `<div class="warn">主人保护中 ${Math.ceil((P.protectUntil - now) / 1000)} 秒</div>` : `<div class="ok">🥷 可以摘取（最多还能被摘 ${P.left}）</div>`; }
+    } else h += `<div>成熟还需 ${fmtTime(CFG.remainSec(P))}</div><div class="bar"><i style="width:${Math.floor(P.p * 100)}%"></i></div>`;
+    if (pr.length) h += `<div class="warn">${pr.join(' ')}${home ? '' : ' · 点击帮忙'}</div>`;
   }
   if (tip._h !== h) { tip._h = h; tip.innerHTML = h; } tip.style.display = 'block';
-  const x = Math.min(window.innerWidth - 190, mouse.x + 18), y = Math.max(8, mouse.y - 80); tip.style.transform = `translate(${x}px,${y}px)`;
+  const x = Math.min(window.innerWidth - 200, mouse.x + 18), y = Math.max(8, mouse.y - 90); tip.style.transform = `translate(${x}px,${y}px)`;
 }
 
-/* ============ 初始化 ============ */
-function init() {
-  S = loadState(); view = { friend: null, plots: S.plots, key: 'home' }; pruneKeys();
-  const now = Date.now(), off = Math.min(now - S.t, 8 * 3600 * 1000);
-  if (!S.fresh && off > 15000) {
-    const before = S.plots.filter(P => P.u && P.c >= 0 && P.p >= 1).length; tickOwn(off, false); const after = S.plots.filter(P => P.u && P.c >= 0 && P.p >= 1).length;
-    setTimeout(() => toast(`欢迎回来！离开的 ${fmtTime(off / 1000)} 里，农田${after > before ? `有 ${after - before} 块作物成熟了` : '继续生长着'}`), 600);
+/* ============ 启动 ============ */
+async function savePref(patch) { Object.assign(PREF, patch); try { localStorage.setItem('hf_pref', JSON.stringify(PREF)); } catch (e) { } if (S) await api('/api/me/profile', { settings: PREF }, { quiet: true }); }
+async function enterGame(state, fresh) {
+  applyState(state); started = true; closeModal(true); $('loading').style.display = 'none';
+  view = { key: 'home', friend: null, plots: S.plots, farm: null }; bgDirty = true; renderTitle();
+  await loadFriends(); loadMessages(false);
+  const inv = new URLSearchParams(location.search).get('invite');
+  if (inv) { history.replaceState(null, '', location.pathname); const r = await api('/api/invite/accept', { code: inv }, { quiet: true }); if (r && r.friend) { toast(r.added ? `🎉 你和 ${r.friend.name} 成为了好友！` : `你和 ${r.friend.name} 已经是好友了`); await loadFriends(); refreshState(); } else if (r && r.self) toast('这是你自己的邀请链接，发给朋友吧～'); else if (!r) toast('邀请链接无效', 'warn'); }
+  checkMigrate(fresh);
+  try { NET.post('/api/telemetry', { loadMs: Math.round(performance.now()) }).catch(() => { }); } catch (e) { }
+  if (window.innerWidth < 600 && window.innerHeight > window.innerWidth) setTimeout(() => toast('📱 横屏体验更好哦'), 1500);
+}
+function checkMigrate(fresh) {
+  let old = null; try { old = JSON.parse(localStorage.getItem('harvest_farm_save_v1') || 'null'); } catch (e) { }
+  let dismissed = false; try { dismissed = localStorage.getItem('hf_migrate_done') === '1'; } catch (e) { }
+  if (old && !S.me.migrated && !dismissed) return openMigrate(old);
+  if (fresh || !PREF.tut) welcome();
+}
+async function boot() {
+  resize(); window.addEventListener('resize', resize); requestAnimationFrame(frame);
+  try { PREF = Object.assign(PREF, JSON.parse(localStorage.getItem('hf_pref') || '{}')); } catch (e) { }
+  NET.onAuthLost(() => { if (started) { started = false; S = null; view = { key: 'home', friend: null, plots: blankPlots(), farm: null }; renderToolbar(); renderFriends(); toast('登录已失效，请重新登录', 'warn'); showLogin(); } });
+  NET.onOnline(() => { if (started) { refreshState(); loadFriends(); } });
+  // 拉取服务器的有效配置（运营后台可能改过作物数值）
+  for (let i = 0; i < 3; i++) {
+    try { const c = await NET.get('/api/config'); c.CROPS.forEach((x, k) => { if (CROPS[k]) ['seed', 'time', 'yield', 'price', 'exp', 'lv'].forEach(f => CROPS[k][f] = x[f]); }); Object.assign(RULES, c.RULES); CFG.setTz(c.TZ_MIN); break; }
+    catch (e) { $('loading').querySelector('p').textContent = '正在连接服务器…（' + (i + 1) + '）'; await new Promise(r => setTimeout(r, 1500)); }
   }
-  nextThief = now + 90000; resize(); window.addEventListener('resize', resize); renderHud(); renderTitle(); renderToolbar(); renderFriends(); renderLog();
-  lastTick = now; setInterval(() => { const n = Date.now(), dt = Math.min(n - lastTick, 8 * 3600 * 1000); lastTick = n; if (dt > 0) tickOwn(dt, dt <= 3500); }, 500);
-  setInterval(saveState, 6000); setInterval(() => { renderFriends(); }, 20000); window.addEventListener('beforeunload', saveState); document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
+  if (!NET.online) { $('loading').querySelector('p').innerHTML = '连接不上服务器，请检查网络后 <a href="javascript:location.reload()">刷新重试</a>'; return; }
+  if (NET.token) { try { const st = await NET.get('/api/state'); return enterGame(st, false); } catch (e) { if (e.code === 'network') { $('loading').querySelector('p').innerHTML = '网络异常，<a href="javascript:location.reload()">点此重试</a>'; return; } } }
+  $('loading').style.display = 'none'; showLogin();
+}
+function bindGlobal() {
   $('mback').addEventListener('pointerdown', e => { if (e.target === $('mback')) closeModal(); });
   $('btn-help').onclick = () => { ac(); openHelp(); }; $('btn-menu').onclick = () => { ac(); openMenu(); };
-  $('btn-snd').onclick = () => { ac(); S.sound = !S.sound; $('btn-snd').textContent = S.sound ? '🔊' : '🔈'; if (S.sound) { startMusic(); sfx('click'); } };
-  $('btn-snd').textContent = S.sound ? '🔊' : '🔈';
-  $('todbtn').onclick = () => { const o = ['auto', 'day', 'dusk', 'night']; S.tod = o[(o.indexOf(S.tod) + 1) % 4]; renderTitle(); sfx('click'); };
-  $('log').onclick = () => { openModal(`<h2>📋 消息</h2><div class="list logfull">${S.log.length ? S.log.slice().reverse().map(x => `<div class="row-item"><div class="ri-main">${x.m}<small>${new Date(x.t).toLocaleTimeString()}</small></div></div>`).join('') : '<div class="empty">暂时没有消息</div>'}</div>`, { small: true }); };
+  $('btn-snd').onclick = () => { ac(); savePref({ sound: !PREF.sound }); renderHud(); if (PREF.sound) { startMusic(); sfx('click'); } };
+  $('todbtn').onclick = () => { const o = ['auto', 'day', 'dusk', 'night']; savePref({ tod: o[(o.indexOf(PREF.tod) + 1) % 4] }); renderTitle(); sfx('click'); };
+  $('card').onclick = () => { if (S) openProfile(); };
+  $('log').onclick = () => openMessages();
   document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT') return; const k = e.key.toLowerCase();
-    if (k === 'escape') { closeModal(); S.tool = 'auto'; renderToolbar(); updateCursor(); }
-    else if ($('mback').classList.contains('show')) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return; const k = e.key.toLowerCase();
+    if (k === 'escape') { closeModal(); tool = 'auto'; renderToolbar(); updateCursor(); }
+    else if ($('mback').classList.contains('show') || !S) return;
     else if (k === '1') toolbarClick('auto'); else if (k === '2' && view.key === 'home') toolbarClick('shovel'); else if (k === '3' && view.key === 'home') toolbarClick('fert');
-    else if (k === 'q') (view.key === 'home' ? allHarvest : allSteal)(); else if (k === 'w') (view.key === 'home' ? allCare : allHelp)(); else if (k === 'e') allPlant();
+    else if (k === 'q') (view.key === 'home' ? allHarvest : allSteal)(); else if (k === 'w') (view.key === 'home' ? allCare : allHelp)(); else if (k === 'e' && view.key === 'home') allPlant(); else if (k === 'h') goHome();
   });
-  if (S.fresh) { S.fresh = false; welcome(); }
   document.addEventListener('pointerdown', () => { ac(); startMusic(); }, { once: true });
-  requestAnimationFrame(frame);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && started) { refreshState(); loadFriends(); if (view.key !== 'home') visitRefresh(); } });
+  setInterval(() => { if (started) tickView(); }, 500);
+  setInterval(() => { if (started && !document.hidden) refreshState(); }, 15000);
+  setInterval(() => { if (started && !document.hidden) loadFriends(); }, 30000);
+  setInterval(() => { if (started && document.hidden && PREF.notify) refreshState(); }, 60000);
+  setInterval(() => { if (started && !document.hidden && view.key !== 'home') visitRefresh(); }, 10000);
+  setInterval(() => { if (started && !document.hidden) renderLog(); }, 30000);
 }
-window.addEventListener('DOMContentLoaded', init);
+async function visitRefresh() { if (view.key === 'home') return; const key = view.key; try { const r = await NET.get('/api/farm/' + view.friend.id); if (view.key === key) applyFarm(r.farm); } catch (e) { if (e.status === 403) { toast('你们已经不是好友了', 'warn'); goHome(); } } }
+window.addEventListener('DOMContentLoaded', () => { bindGlobal(); boot(); });
+
+'use strict';
+/* =====================================================
+   丰收农场 · 界面弹窗
+   ===================================================== */
+const qsa = s => document.querySelectorAll(s);
+const val = id => ($(id) && $(id).value || '').trim();
+const tabsHtml = (tabs, cur, attr) => `<div class="tabs">${tabs.map(([k, t, bd]) => `<button class="${k === cur ? 'on' : ''}" data-${attr || 't'}="${k}">${t}${bd ? `<i class="bd">${bd}</i>` : ''}</button>`).join('')}</div>`;
+const bindTabs = (fn, attr) => qsa(`.tabs [data-${attr || 't'}]`).forEach(b => b.onclick = () => fn(b.dataset[attr || 't']));
+async function getj(path) { try { return await NET.get(path); } catch (e) { toast(e.message, 'warn'); return null; } }
+
+/* ---------------- 登录 / 注册 ---------------- */
+async function showLogin(tab) {
+  tab = tab || 'quick';
+  const inv = new URLSearchParams(location.search).get('invite'); let inviter = null;
+  if (inv) { try { inviter = await NET.get('/api/invite/' + encodeURIComponent(inv)); } catch (e) { } }
+  const invHtml = inviter ? `<div class="invite">${avHtml(inviter.avatar, inviter.frame, 44)}<div><b>${esc(inviter.name)}</b>（Lv.${inviter.lv}）邀请你一起种菜！<small>进入游戏后你们会自动成为好友</small></div></div>` : '';
+  const forms = {
+    quick: `<p class="sub">起个名字就能开始，进入后可以随时绑定账号，换设备也能登录</p><input id="l-name" maxlength="10" placeholder="你的农场主昵称" value="小农夫"><button class="btn big primary" id="l-go">开始种田</button>`,
+    login: `<input id="l-user" placeholder="账号" autocomplete="username"><input id="l-pass" type="password" placeholder="密码" autocomplete="current-password"><button class="btn big primary" id="l-go">登录</button><p class="sub"><a href="#" id="l-forgot">忘记密码？</a></p>`,
+    reg: `<input id="l-name" maxlength="10" placeholder="昵称（最多10字）"><input id="l-user" placeholder="账号：4–20 位字母/数字/下划线" autocomplete="username"><input id="l-pass" type="password" placeholder="密码：至少 6 位" autocomplete="new-password"><button class="btn big primary" id="l-go">注册并开始</button>`,
+    recover: `<p class="sub">用绑定账号时保存的<b>恢复码</b>重设密码</p><input id="l-user" placeholder="账号"><input id="l-code" placeholder="恢复码（12 位）"><input id="l-pass" type="password" placeholder="新密码"><button class="btn big primary" id="l-go">重设并登录</button>`,
+  };
+  openModal(`<div class="login"><div class="wtitle">🌾 丰收农场</div><p class="sub2">和朋友一起种菜、偷菜、做买卖的多人农场</p>${invHtml}
+    ${tabsHtml([['quick', '快速开始'], ['login', '账号登录'], ['reg', '注册账号']], tab === 'recover' ? 'login' : tab)}<div class="lform">${forms[tab]}</div>
+    <p class="fine">游戏数据保存在服务器上。继续即表示你同意我们为了运行游戏保存你的昵称和游戏数据，你可以随时在“设置 → 账号”中导出或注销。</p></div>`, {
+    small: true, noclose: true, mount: () => {
+      bindTabs(t => showLogin(t)); const f = $('l-forgot'); if (f) f.onclick = e => { e.preventDefault(); showLogin('recover'); };
+      const go = async () => {
+        const b = $('l-go'); b.disabled = true;
+        try {
+          let r;
+          if (tab === 'quick') r = await NET.post('/api/auth/guest', { name: val('l-name') || '小农夫' });
+          else if (tab === 'login') r = await NET.post('/api/auth/login', { username: val('l-user'), password: $('l-pass').value });
+          else if (tab === 'reg') r = await NET.post('/api/auth/register', { name: val('l-name') || '小农夫', username: val('l-user'), password: $('l-pass').value });
+          else { r = await NET.post('/api/auth/recover', { username: val('l-user'), code: val('l-code'), password: $('l-pass').value }); setTimeout(() => showRecovery(r.recovery), 800); }
+          NET.setToken(r.token); sfx('level'); enterGame(r.state, tab === 'quick' || tab === 'reg');
+        } catch (e) { toast(e.message, 'warn'); sfx('err'); b.disabled = false; }
+      };
+      $('l-go').onclick = go; qsa('.lform input').forEach(i => i.onkeydown = e => { if (e.key === 'Enter') go(); });
+    }
+  });
+}
+function showRecovery(code) {
+  openModal(`<div class="confirm"><div class="big">🔑</div><h3>请保存你的恢复码</h3><p>忘记密码时，用它重新设置密码。<b>它只显示这一次</b>，请截图或抄下来。</p><div class="reccode">${esc(code)}</div><div class="row"><button class="btn" id="cp">复制</button><button class="btn primary" onclick="closeModal(true)">我已保存</button></div></div>`, { small: true, noclose: true, mount: () => { $('cp').onclick = () => copyText(code); } });
+}
+function copyText(t) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('已复制'), () => { const i = document.createElement('textarea'); i.value = t; document.body.appendChild(i); i.select(); try { document.execCommand('copy'); toast('已复制'); } catch (e) { toast('复制失败，请手动复制', 'warn'); } i.remove(); }); }
+function welcome() {
+  openModal(`<div class="welcome"><div class="wtitle">🌾 欢迎来到丰收农场</div><p>这是一个<b>真实多人</b>的农场：你种的菜，好友真的能来摘；好友的菜，你也能去摘！</p><ul>
+    <li>🖐️ 点击空地 <b>种植</b>，成熟后点击 <b>收获</b>，按住拖动可以连续操作</li>
+    <li>💧🌿🐛 作物会缺水、长草、生虫，处理掉才长得快（好友也能帮你）</li>
+    <li>👥 点右侧 <b>＋</b> 复制邀请链接发给朋友，成为好友后就能互相串门</li>
+    <li>🥷 好友的菜成熟后可以摘一点，但主人一定能保住 ${Math.round((1 - RULES.stealMaxPct) * 100)}% 以上；养只小狗看家吧</li>
+    <li>🌱 左边的 <b>新手任务</b> 会一步步带你上手，完成有金币奖励</li></ul>
+    <button class="btn big primary" id="wgo">开始种田！</button></div>`, { small: true, noclose: true, mount: () => { $('wgo').onclick = () => { closeModal(true); savePref({ tut: 1 }); }; } });
+}
+function openMigrate(old) {
+  const lv = Math.min(30, parseInt(old.lv) || 1), gold = parseInt(old.gold) || 0;
+  openModal(`<div class="confirm"><div class="big">📦</div><h3>发现本机的单机版存档</h3><p>旧存档：<b>Lv.${lv}</b> · 金币 <b>${fmt(gold)}</b></p>
+    <p class="left">多人版的数据统一保存在服务器上，为了公平，旧存档里的数值无法直接导入（浏览器里的数据可以被随意修改）。作为补偿，你可以领取一次<b>老玩家礼包</b>：</p>
+    <ul class="left"><li>等级提升到 <b>Lv.${Math.min(lv, 8)}</b>（最高 8 级）</li><li>金币 <b>${Math.min(gold, 3000) + 200}</b>、化肥 ×5</li></ul>
+    <p class="left fine">旧存档会原样保留在这个浏览器里，不会被删除或覆盖。每个账号只能领取一次。</p>
+    <div class="row"><button class="btn" id="mno">不需要</button><button class="btn primary" id="myes">领取礼包</button></div></div>`, {
+    small: true, noclose: true, mount: () => {
+      $('mno').onclick = () => { try { localStorage.setItem('hf_migrate_done', '1'); } catch (e) { } closeModal(true); if (!PREF.tut) welcome(); };
+      $('myes').onclick = async () => { const r = await api('/api/me/migrate', { lv, gold }); if (r) { try { localStorage.setItem('hf_migrate_done', '1'); } catch (e) { } closeModal(true); sfx('level'); toast(`礼包已到账：Lv.${r.result.lv}，🪙${r.result.gold}，化肥×${r.result.fert}`); if (!PREF.tut) setTimeout(welcome, 600); } };
+    }
+  });
+}
+
+/* ---------------- 种子 / 仓库 / 商店 ---------------- */
+function openSeeds() {
+  const cards = CROPS.slice().sort((a, b) => a.lv - b.lv || a.seed - b.seed).map(c => {
+    const lock = S.me.lv < c.lv, per = Math.floor(c.yield * c.price), perH = Math.round((per - c.seed) / (c.time / 3600));
+    return `<div class="seedcard r${c.rarity}${lock ? ' lock' : ''}${S.me.seed === c.id ? ' sel' : ''}" data-id="${c.id}">
+      ${c.seasons > 1 ? '<em class="tag">两季</em>' : ''}${c.rarity > 1 ? `<em class="rar">${CFG.RARITY[c.rarity]}</em>` : ''}${iconImg(c.id)}<h4>${c.name}</h4>
+      <div class="meta"><span>🪙 ${fmt(c.seed)}</span><span>⏱ ${fmtTime(c.time)}</span></div>
+      <div class="meta"><span>📦 ×${c.yield}</span><span>💰 ${fmt(per)}</span></div><div class="meta"><span>✨ ${c.exp}</span><span title="每小时净收益">📈 ${fmt(perH)}/时</span></div>
+      ${lock ? `<div class="lockmask">🔒 Lv.${c.lv} 解锁</div>` : ''}</div>`;
+  }).join('');
+  openModal(`<h2>🌱 选择种子</h2><p class="sub">选好后点击空地播种，种子在播种时自动扣钱</p><div class="seedgrid">${cards}</div>`, {
+    wide: true, mount: () => qsa('.seedcard').forEach(d => d.onclick = async () => {
+      const id = +d.dataset.id; if (S.me.lv < CROPS[id].lv) { toast(`需要 Lv.${CROPS[id].lv} 解锁`, 'warn'); sfx('err'); return; }
+      S.me.seed = id; tool = 'auto'; closeModal(); renderToolbar(); sfx('click'); toast(`已选择 ${CROPS[id].name}`); api('/api/me/profile', { seed: id }, { quiet: true });
+    })
+  });
+}
+function openWarehouse(tab) {
+  tab = tab || 'fruit'; const inv = S.inv, crops = Object.keys(inv).filter(k => cropOf(k) && inv[k] > 0).sort((a, b) => cropOf(a).id - cropOf(b).id || (a < b ? -1 : 1));
+  let total = 0; crops.forEach(k => total += inv[k] * unitPrice(k));
+  const bonusTxt = Object.keys(S.bonus).map(id => `<span class="hot">🔥 ${CROPS[id].name} +${Math.round(S.bonus[id] * 100)}%</span>`).join('');
+  let body;
+  if (tab === 'fruit') {
+    body = crops.length ? crops.map(k => { const c = cropOf(k); return `<div class="row-item"><div class="ri-ic">${itemIcon(k)}</div><div class="ri-main"><b>${itemName(k)}</b><small>单价 🪙${unitPrice(k)}${S.bonus[c.id] && !c.golden ? ' <span class="hot">🔥</span>' : ''}${c.golden ? ' · 变异稀有品' : ''}</small></div><div class="ri-n">×${inv[k]}</div>
+      <button class="btn sm" data-sell="${k}" data-n="1">卖1个</button><button class="btn sm primary" data-sell="${k}" data-n="${inv[k]}">全部卖出</button></div>`; }).join('') : '<div class="empty">仓库空空如也，去收获点什么吧～</div>';
+    if (crops.length) body += `<div class="sellall"><button class="btn big primary" id="sellall">一键卖出全部 · 约 🪙${fmt(total)}</button><p class="fine">想卖个好价钱？也可以去 🏷️ 集市挂单卖给其他玩家</p></div>`;
+  } else {
+    const d = S.me.dog, now = NET.now();
+    body = `<div class="row-item"><div class="ri-ic big">🧪</div><div class="ri-main"><b>化肥</b><small>选择工具栏的「化肥」后点击作物，进度 +30%</small></div><div class="ri-n">×${inv.fert || 0}</div></div>
+      <div class="row-item"><div class="ri-ic big">🍖</div><div class="ri-main"><b>狗粮</b><small>${d.own ? `小狗 Lv.${d.lv}（${d.exp}/${d.need}）· 拦截率 ${Math.round(Math.min(RULES.dogBlockMax, RULES.dogBlockBase + RULES.dogBlockPerLv * (d.lv - 1)) * 100)}%${d.until > now ? ` · 还能看家 ${fmtTime((d.until - now) / 1000)}` : ' · 饿着肚子在睡觉'}` : '需要先在商店领养小狗'}</small></div><div class="ri-n">×${inv.dogfood || 0}</div><button class="btn sm primary" id="feeddog" ${d.own ? '' : 'disabled'}>喂狗</button></div>`;
+  }
+  openModal(`<h2>🎒 仓库</h2>${tabsHtml([['fruit', '果实'], ['item', '道具']], tab)}<div class="hots">${bonusTxt ? '今日行情：' + bonusTxt : ''}</div><div class="list">${body}</div>`, {
+    wide: true, mount: () => {
+      bindTabs(openWarehouse);
+      qsa('[data-sell]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/wh/sell', { item: b.dataset.sell, n: +b.dataset.n }); if (r) { sfx('coin'); toast(`卖出获得 🪙${r.result.gold}`); } openWarehouse(tab); });
+      const sa = $('sellall'); if (sa) sa.onclick = async () => { sa.disabled = true; const r = await api('/api/wh/sell-all'); if (r) { sfx('coin'); toast(`一共卖出 🪙${r.result.gold}`); } openWarehouse(tab); };
+      const fd = $('feeddog'); if (fd) fd.onclick = async () => { const r = await api('/api/dog/feed'); if (r) { sfx('bark'); toast(r.result.lvUp ? `🐶 小狗升到 Lv.${r.result.lvUp} 了！看家更厉害了` : `🐶 小狗吃饱啦，接下来 ${RULES.dogFeedMin} 分钟会帮你看家`); } openWarehouse('item'); };
+    }
+  });
+}
+function openShop(tab) {
+  tab = tab || 'item'; let body = '';
+  if (tab === 'item') body = CFG.SHOP_ITEMS.map(it => `<div class="row-item"><div class="ri-ic big">${it.ic}</div><div class="ri-main"><b>${it.name}</b><small>${it.desc} · 已有 ${S.inv[it.id] || 0}</small></div><div class="price">🪙 ${it.price}</div><button class="btn sm primary" data-buy="${it.id}" data-n="1">购买</button><button class="btn sm" data-buy="${it.id}" data-n="10">×10</button></div>`).join('');
+  else if (tab === 'land') {
+    const owned = unlockedCount(), can = owned < CFG.NPLOTS, nRed = S.plots.filter(p => p.soil).length;
+    body = `<div class="row-item"><div class="ri-ic big">🌾</div><div class="ri-main"><b>开垦荒地</b><small>已开垦 ${owned}/${CFG.NPLOTS} 块 · 需要 Lv.${CFG.plotNeedLv(owned)}</small></div><div class="price">🪙 ${can ? fmt(CFG.plotCost(owned)) : '—'}</div><button class="btn sm primary" id="buyland" ${can ? '' : 'disabled'}>开垦</button></div>
+    <div class="row-item"><div class="ri-ic big" style="background:linear-gradient(#d9663a,#a53a1a)">🟥</div><div class="ri-main"><b>红土地升级</b><small>生长速度 +20%，产量 +20% · 需要 Lv.${RULES.redNeedLv}<br>点击后选择要升级的土地</small></div><div class="price">🪙 ${fmt(CFG.redCost(nRed))}</div><button class="btn sm primary" id="buyred">选择土地</button></div>`;
+  } else {
+    const d = S.me.dog;
+    body = `<div class="row-item"><div class="ri-ic big">🐶</div><div class="ri-main"><b>${d.own ? `看家小狗 Lv.${d.lv}` : '领养小狗'}</b><small>${d.own ? '喂狗粮后会看家，有几率赶走来偷菜的好友（会咬掉对方一点金币）；喂得越多等级越高、拦截率越高' : '好友会来摘你的菜，有只小狗帮你看家吧'}${S.me.lv < RULES.dogNeedLv && !d.own ? ` · 需要 Lv.${RULES.dogNeedLv}` : ''}</small></div><div class="price">${d.own ? '' : '🪙 ' + RULES.dogPrice}</div><button class="btn sm primary" id="buydog" ${d.own ? 'disabled' : ''}>${d.own ? '已拥有' : '领养'}</button></div>`;
+  }
+  openModal(`<h2>🏪 商店</h2>${tabsHtml([['item', '道具'], ['land', '土地'], ['dog', '宠物']], tab)}<div class="mygold">我的金币：🪙 ${fmt(S.me.gold)}</div><div class="list">${body}</div>`, {
+    wide: true, mount: () => {
+      bindTabs(openShop);
+      qsa('[data-buy]').forEach(b => b.onclick = async () => { const r = await api('/api/shop/buy', { item: b.dataset.buy, n: +b.dataset.n }); if (r) { sfx('coin'); toast(`购买成功 ×${b.dataset.n}`); openShop('item'); } });
+      const bl = $('buyland'); if (bl) bl.onclick = async () => { if (view.key !== 'home') goHome(); await doExpand(-1); openShop('land'); };
+      const br = $('buyred'); if (br) br.onclick = () => { if (S.me.lv < RULES.redNeedLv) { toast(`红土地需要 Lv.${RULES.redNeedLv}`, 'warn'); sfx('err'); return; } closeModal(); if (view.key !== 'home') goHome(); tool = 'red'; renderToolbar(); updateCursor(); toast('点击一块已开垦的土地进行升级（右键或点「自动」取消）'); };
+      const bd = $('buydog'); if (bd) bd.onclick = async () => { const r = await api('/api/shop/dog'); if (r) { sfx('bark'); toast('🐶 小狗来啦！送你一份狗粮，记得喂它'); openShop('dog'); } };
+    }
+  });
+}
+
+/* ---------------- 任务 / 签到 / 赛季 ---------------- */
+async function openTasks(tab) {
+  const T = await getj('/api/tasks'); if (!T) return; const nbLeft = T.newbie.filter(x => !x.claimed).length;
+  tab = tab || (S.badges.newbie ? 'newbie' : 'daily');
+  const row = (def, st, kind) => { const p = Math.min(st.need, st.prog), ok = st.prog >= st.need; return `<div class="row-item task"><div class="ri-ic big">${def.ic || '🌱'}</div><div class="ri-main"><b>${def.tx}</b><div class="pbar"><i style="width:${p / st.need * 100}%"></i><span>${fmt(p)}/${fmt(st.need)}</span></div><small>奖励 🪙${def.gold}${def.exp ? ' · ✨' + def.exp : ''}</small></div><button class="btn sm ${ok && !st.claimed ? 'primary' : ''}" data-claim="${def.id}" data-kind="${kind}" ${ok && !st.claimed ? '' : 'disabled'}>${st.claimed ? '已领取' : ok ? '领取' : '进行中'}</button></div>`; };
+  let body = '';
+  if (tab === 'daily') {
+    const done = S.me.checkin.last === T.day, n = done ? ((S.me.checkin.streak - 1) % 7) + 1 : (S.me.checkin.streak % 7) + 1;
+    const days = [1, 2, 3, 4, 5, 6, 7].map(d => `<div class="day${(done ? d <= n : d < n) ? ' got' : ''}${!done && d === n ? ' today' : ''}"><small>第${d}天</small><b>🪙${d * 100}</b>${d % 3 === 0 ? '<em>+🧪</em>' : ''}${d === 7 ? '<em>+🍖</em>' : ''}</div>`).join('');
+    body = `<div class="checkin"><div class="cih"><b>📅 每日签到</b><span>已连续 ${S.me.checkin.streak} 天 · 每天 0 点（北京时间）刷新</span><button class="btn sm primary" id="checkin" ${done ? 'disabled' : ''}>${done ? '今日已签' : '签到'}</button></div><div class="days">${days}</div></div>
+      <div class="list">${CFG.TASKS.map(d => row(d, T.daily.find(x => x.id === d.id), 'daily')).join('')}</div>`;
+  } else if (tab === 'weekly') body = `<p class="sub">本周剩余 ${fmtTime((T.weekEnd - NET.now()) / 1000)}</p><div class="list">${CFG.WEEKLY.map(d => row(d, T.weekly.find(x => x.id === d.id), 'weekly')).join('')}</div>`;
+  else if (tab === 'newbie') body = `<p class="sub">跟着做，几分钟就能学会多人农场的玩法</p><div class="list">${CFG.NEWBIE.map(d => row(d, T.newbie.find(x => x.id === d.id), 'newbie')).join('')}</div>${T.newbie.find(x => x.id === 'n_friend' && x.prog < 1) ? '<div class="sellall"><button class="btn primary" id="tinv">📨 复制邀请链接</button></div>' : ''}`;
+  else {
+    const s = await getj('/api/season'); if (!s) return;
+    body = `<div class="season"><h3>🏆 本周赛季 ${s.week}</h3><p>赛季积分 = 本周获得的经验值。剩余 ${fmtTime((s.end - NET.now()) / 1000)}</p><div class="big">${fmt(s.pts)} <small>分</small></div>
+      <p>结算奖励（积分 ≥ 100）：第1名 🪙5000 · 2–3名 🪙3000 · 4–10名 🪙1500 · 11–50名 🪙800 · 其余 🪙300</p>
+      <div class="last">上赛季 ${s.last.week}：${s.last.pts ? `${fmt(s.last.pts)} 分 · 第 ${s.last.rank} 名 · 奖励 🪙${s.last.reward}` : '没有参加'}
+      ${s.last.reward ? `<button class="btn sm ${s.last.claimed ? '' : 'primary'}" id="sclaim" ${s.last.claimed ? 'disabled' : ''}>${s.last.claimed ? '已领取' : '领取'}</button>` : ''}</div>
+      <button class="btn" id="srank">查看赛季排行榜</button></div>`;
+  }
+  const tabs = [['daily', '每日'], ['weekly', '每周'], ['season', '赛季']]; if (nbLeft) tabs.unshift(['newbie', '新手', S.badges.newbie]);
+  openModal(`<h2>📜 任务</h2>${tabsHtml(tabs, tab)}${body}`, {
+    wide: true, mount: () => {
+      bindTabs(openTasks);
+      qsa('[data-claim]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/tasks/claim', { kind: b.dataset.kind, id: b.dataset.claim }); if (r) { sfx('coin'); toast(`领取成功！🪙+${r.result.gold}${r.result.exp ? '  ✨+' + r.result.exp : ''}`); } openTasks(tab); });
+      const ci = $('checkin'); if (ci) ci.onclick = async () => { ci.disabled = true; const r = await api('/api/checkin'); if (r) { sfx('level'); toast(`签到成功！第${r.result.day}天 🪙+${r.result.gold}${r.result.back ? `，回归奖励 🪙+${r.result.back}` : ''}`); } openTasks('daily'); };
+      const sc = $('sclaim'); if (sc) sc.onclick = async () => { const r = await api('/api/season/claim'); if (r) { sfx('level'); toast(`赛季奖励 🪙+${r.result.gold}`); } openTasks('season'); };
+      const sr = $('srank'); if (sr) sr.onclick = () => openRank('season', 'global'); const ti = $('tinv'); if (ti) ti.onclick = () => copyText(inviteLink());
+    }
+  });
+}
+
+/* ---------------- 好友 ---------------- */
+const inviteLink = () => location.origin + location.pathname + '?invite=' + S.me.code;
+async function openFriends(tab) {
+  await loadFriends(); tab = tab || (FR.requests.length ? 'req' : 'list');
+  let body = '';
+  const urow = (u, btns, sub) => `<div class="row-item">${avHtml(u.avatar, u.frame, 44)}<div class="ri-main"><b>${esc(u.name)}</b> <span class="lv">Lv.${u.lv}</span>${u.title ? ` <span class="ttl">${esc(u.title)}</span>` : ''}<small>${sub || '玩家号 ' + u.code}</small></div>${btns}</div>`;
+  if (tab === 'list') body = FR.list.length ? FR.list.map(f => urow(f, `<button class="btn sm primary" data-visit="${f.id}">串门${f.steal ? ` 🥷${f.steal}` : ''}</button><button class="btn sm" data-more="${f.id}">⋯</button>`, `${f.online ? '🟢 在线' : '最近 ' + ago(f.last)} · 玩家号 ${f.code}${f.soon ? ` · ${f.soon} 块快成熟` : ''}`)).join('') : '<div class="empty">还没有好友，去「添加」页邀请朋友吧</div>';
+  else if (tab === 'req') body = (FR.requests.length ? FR.requests.map(u => urow(u, `<button class="btn sm primary" data-acc="${u.id}">同意</button><button class="btn sm" data-rej="${u.id}">拒绝</button>`, `${ago(u.at)} 申请加你为好友`)).join('') : '<div class="empty">没有新的好友申请</div>')
+    + (FR.sent.length ? `<h4 class="sec">我发出的申请</h4>` + FR.sent.map(u => urow(u, '<span class="fine">等待对方同意</span>', ago(u.at))).join('') : '');
+  else if (tab === 'add') body = `<div class="invbox"><b>📨 邀请朋友</b><p>把链接发给朋友，对方打开后直接成为你的好友</p><div class="copyrow"><input readonly value="${esc(inviteLink())}" id="invl"><button class="btn sm primary" id="cpinv">复制</button></div><p>我的玩家号：<b class="code">${S.me.code}</b></p></div>
+    <div class="copyrow"><input id="fq" placeholder="输入玩家号（7 位数字）或昵称搜索"><button class="btn sm primary" id="fsearch">搜索</button></div><div id="fres"></div>`;
+  else body = FR.visitors.length ? FR.visitors.map(u => urow(u, FR.list.find(f => f.id === u.id) ? `<button class="btn sm" data-visit="${u.id}">回访</button>` : '', `${ago(u.at)} 来过你的农场`)).join('') : '<div class="empty">最近还没有人来串门</div>';
+  openModal(`<h2>👥 好友</h2>${tabsHtml([['list', `好友 ${FR.list.length}`], ['req', '申请', FR.requests.length], ['add', '添加'], ['visit', '来访']], tab)}<div class="list">${body}</div>`, {
+    wide: true, mount: () => {
+      bindTabs(openFriends);
+      qsa('[data-visit]').forEach(b => b.onclick = () => visit(FR.list.find(f => f.id === +b.dataset.visit)));
+      qsa('[data-acc]').forEach(b => b.onclick = async () => { const r = await api('/api/friends/respond', { id: +b.dataset.acc, accept: true }); if (r) { sfx('level'); toast('已成为好友'); refreshState(); } openFriends('req'); });
+      qsa('[data-rej]').forEach(b => b.onclick = async () => { await api('/api/friends/respond', { id: +b.dataset.rej, accept: false }); refreshState(); openFriends('req'); });
+      qsa('[data-more]').forEach(b => b.onclick = () => friendMore(FR.list.find(f => f.id === +b.dataset.more)));
+      const cp = $('cpinv'); if (cp) cp.onclick = () => copyText(inviteLink());
+      const fs = $('fsearch'); if (fs) { const go = async () => { const q = val('fq'); if (!q) return; const r = await getj('/api/friends/search?q=' + encodeURIComponent(q)); if (!r) return; $('fres').innerHTML = r.list.length ? r.list.map(u => urow(u, u.friend ? '<span class="fine">已是好友</span>' : u.pending ? '<span class="fine">已申请</span>' : `<button class="btn sm primary" data-req="${u.id}">加好友</button>`)).join('') : '<div class="empty">没有找到这个玩家</div>'; qsa('[data-req]').forEach(b => b.onclick = async () => { b.disabled = true; const x = await api('/api/friends/request', { id: +b.dataset.req }); if (x) { toast(x.friend ? '对方也申请过你，已直接成为好友！' : '申请已发送，等待对方同意'); if (x.friend) { loadFriends(); refreshState(); } b.textContent = x.friend ? '已是好友' : '已申请'; } }); }; fs.onclick = go; $('fq').onkeydown = e => { if (e.key === 'Enter') go(); }; }
+    }
+  });
+}
+function friendMore(f) {
+  openModal(`<div class="confirm">${avHtml(f.avatar, f.frame, 64)}<h3>${esc(f.name)}</h3><p>玩家号 ${f.code} · 成为好友于 ${new Date(f.since).toLocaleDateString()}</p>
+    <div class="row"><button class="btn primary" id="fvis">去串门</button><button class="btn" id="fgb">留言板</button></div><div class="row"><button class="btn danger sm" id="fdel">删除好友</button><button class="btn danger sm" id="fblk">拉黑</button></div></div>`, {
+    small: true, mount: () => {
+      $('fvis').onclick = () => visit(f); $('fgb').onclick = () => openGuestbook(f);
+      $('fdel').onclick = async () => { if (!confirm(`确定删除好友 ${f.name} 吗？`)) return; await api('/api/friends/remove', { id: f.id }); await loadFriends(); if (view.key === 'f' + f.id) goHome(); openFriends('list'); };
+      $('fblk').onclick = async () => { if (!confirm(`拉黑后将删除好友，且对方不能再向你发申请。确定吗？`)) return; await api('/api/friends/block', { id: f.id, on: true }); await loadFriends(); if (view.key === 'f' + f.id) goHome(); openFriends('list'); };
+    }
+  });
+}
+async function openMessages() {
+  await loadMessages(false);
+  const rows = MSGS.length ? MSGS.map(m => `<div class="row-item${m.read ? '' : ' new'}">${m.actor ? avHtml(m.avatar, '', 36) : '<span class="ii emo">📢</span>'}<div class="ri-main">${msgText(m)}<small>${ago(m.at)}</small></div>${m.friend && (m.kind === 'stolen' || m.kind === 'visit' || m.kind === 'dog') ? `<button class="btn sm primary" data-visit="${m.actor}">回访</button>` : ''}${m.friend && m.kind === 'helped' ? `<button class="btn sm" data-thank="${m.actor}">道谢</button>` : ''}</div>`).join('') : '<div class="empty">暂时没有消息</div>';
+  openModal(`<h2>📬 消息</h2><div class="list logfull">${rows}</div>`, {
+    mount: () => {
+      qsa('[data-visit]').forEach(b => b.onclick = () => { const f = FR.list.find(x => x.id === +b.dataset.visit); if (f) visit(f); });
+      qsa('[data-thank]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/guestbook/' + b.dataset.thank, { phrase: 5 }); if (r) toast('已发送感谢 🎁'); });
+    }, onclose: () => { }
+  });
+  if (S.badges.unread) { await api('/api/messages/read', {}, { quiet: true }); MSGS.forEach(m => m.read = true); S.badges.unread = 0; renderSide(); renderLog(); }
+}
+async function openGuestbook(f) {
+  const r = await getj('/api/guestbook/' + f.id); if (!r) return; const mine = f.id === S.me.id;
+  const rows = r.list.length ? r.list.map(g => `<div class="row-item">${avHtml(g.avatar, '', 36)}<div class="ri-main"><b>${esc(g.name)}</b>：${esc(CFG.PHRASES[g.phrase] || '')}<small>${ago(g.at)}</small></div>${mine ? `<button class="btn sm" data-hide="${g.id}">隐藏</button>` : ''}</div>`).join('') : '<div class="empty">留言板还是空的</div>';
+  openModal(`<h2>💌 ${esc(f.name)} 的留言板</h2>${mine ? '' : `<p class="sub">选一句话留给 ${esc(f.name)}</p><div class="phrases">${CFG.PHRASES.map((p, i) => `<button class="btn sm" data-ph="${i}">${esc(p)}</button>`).join('')}</div>`}<div class="list">${rows}</div>`, {
+    mount: () => {
+      qsa('[data-ph]').forEach(b => b.onclick = async () => { const x = await api('/api/guestbook/' + f.id, { phrase: +b.dataset.ph }); if (x) { toast('留言成功'); openGuestbook(f); } });
+      qsa('[data-hide]').forEach(b => b.onclick = async () => { await api('/api/guestbook/hide', { id: +b.dataset.hide }); openGuestbook(f); });
+    }
+  });
+}
+
+/* ---------------- 订单 / 集市 ---------------- */
+async function openOrders() {
+  const o = await getj('/api/orders'); if (!o) return;
+  const cards = o.list.map(x => { const ok = x.have >= x.qty; return `<div class="order${x.done ? ' done' : ''}"><div class="oi">${itemIcon(x.item)}</div><b>${itemName(x.item)} ×${x.qty}</b><small>仓库有 ${x.have}</small><div class="rw">🪙${fmt(x.gold)} · ✨${x.exp}</div>
+    ${x.done ? '<div class="stamp">已完成</div>' : `<button class="btn sm ${ok ? 'primary' : ''}" data-dl="${x.slot}" ${ok ? '' : 'disabled'}>交货</button><button class="btn sm" data-rf="${x.slot}" ${o.refreshLeft ? '' : 'disabled'} title="花 50 金币换一个订单">换一个</button>`}</div>`; }).join('');
+  openModal(`<h2>📦 订单</h2><p class="sub">村民们需要这些作物，交货能拿到比直接卖更多的金币和经验。每天刷新（今日还能换 ${o.refreshLeft} 次，每次 🪙50）</p><div class="orders">${cards}</div>`, {
+    wide: true, mount: () => {
+      qsa('[data-dl]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/orders/deliver', { slot: +b.dataset.dl }); if (r) { sfx('coin'); toast(`交货成功 🪙+${r.result.gold} ✨+${r.result.exp}`); } openOrders(); });
+      qsa('[data-rf]').forEach(b => b.onclick = async () => { b.disabled = true; await api('/api/orders/refresh', { slot: +b.dataset.rf }); openOrders(); });
+    }
+  });
+}
+async function openMarket(tab, item) {
+  tab = tab || 'buy'; const m = await getj('/api/market' + (item ? '?item=' + item : '')); if (!m) return; let body = '';
+  const ownCrops = Object.keys(S.inv).filter(k => cropOf(k) && S.inv[k] > 0);
+  if (tab === 'buy') {
+    const opts = CROPS.map(c => `<option value="c${c.id}" ${item === 'c' + c.id ? 'selected' : ''}>${c.name}</option>`).join('') + CROPS.map(c => `<option value="g${c.id}" ${item === 'g' + c.id ? 'selected' : ''}>金色${c.name}</option>`).join('');
+    body = `<div class="copyrow"><select id="mf"><option value="">全部商品（最新）</option>${opts}</select></div><div class="list">${m.list.length ? m.list.map(x => `<div class="row-item"><div class="ri-ic">${itemIcon(x.item)}</div><div class="ri-main"><b>${itemName(x.item)} ×${x.qty}</b><small>卖家 ${esc(x.seller.name)}${x.seller.friend ? ' · 好友' : ''} · 单价 🪙${x.price}（系统价 ${unitPrice(x.item)}）· ${fmtTime((x.expires - NET.now()) / 1000)}后下架</small></div><div class="price">🪙 ${fmt(x.qty * x.price)}</div><button class="btn sm primary" data-mbuy="${x.id}" ${S.me.gold >= x.qty * x.price ? '' : 'disabled'}>购买</button></div>`).join('') : '<div class="empty">暂时没有人在卖这个</div>'}</div>`;
+  } else {
+    const sel = ownCrops.map(k => `<option value="${k}">${itemName(k)}（有 ${S.inv[k]}）</option>`).join('');
+    body = `<div class="mform">${ownCrops.length ? `<b>上架作物</b><div class="copyrow"><select id="msel">${sel}</select><input id="mqty" type="number" min="1" placeholder="数量"><input id="mprice" type="number" min="1" placeholder="单价"><button class="btn sm primary" id="mlist">上架</button></div><p class="fine" id="mband"></p>` : '<p class="fine">仓库里没有可以上架的作物</p>'}
+      <p class="fine">成交后收取 ${Math.round(RULES.marketFee * 100)}% 手续费；最多同时上架 ${RULES.marketMaxListings} 件，${RULES.marketTtlHours} 小时未售出自动退回。单价限制在系统价的 ${RULES.marketMinMult}–${RULES.marketMaxMult} 倍，防止刷金币。</p></div>
+      <div class="list">${m.mine.length ? m.mine.map(x => `<div class="row-item"><div class="ri-ic">${itemIcon(x.item)}</div><div class="ri-main"><b>${itemName(x.item)} ×${x.qty}</b><small>单价 🪙${x.price} · ${({ open: '在售 · ' + fmtTime((x.expires - NET.now()) / 1000) + '后下架', sold: '✅ 已售出', cancelled: '已下架', expired: '已过期退回' })[x.status]}</small></div>${x.status === 'open' ? `<button class="btn sm" data-mcan="${x.id}">下架</button>` : ''}</div>`).join('') : '<div class="empty">还没有挂单</div>'}</div>`;
+  }
+  openModal(`<h2>🏷️ 集市</h2><p class="sub">玩家之间买卖作物，价格由卖家决定</p>${tabsHtml([['buy', '逛集市'], ['sell', '我的摊位']], tab)}${body}`, {
+    wide: true, mount: () => {
+      bindTabs(t => openMarket(t));
+      const mf = $('mf'); if (mf) mf.onchange = () => openMarket('buy', mf.value);
+      qsa('[data-mbuy]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/market/buy', { id: +b.dataset.mbuy }); if (r) { sfx('coin'); toast(`买到 ${itemName(r.result.item)} ×${r.result.qty}`); } openMarket('buy', item); });
+      qsa('[data-mcan]').forEach(b => b.onclick = async () => { const r = await api('/api/market/cancel', { id: +b.dataset.mcan }); if (r) toast('已下架，作物退回仓库'); openMarket('sell'); });
+      const ms = $('msel'); if (ms) {
+        const band = () => { const c = cropOf(ms.value), base = CROPS[c.id].price * (c.golden ? RULES.goldenPriceMult : 1); const lo = Math.max(1, Math.floor(base * RULES.marketMinMult)), hi = Math.ceil(base * RULES.marketMaxMult); $('mband').textContent = `单价范围 ${lo}–${hi}，今日系统收购价 ${unitPrice(ms.value)}`; $('mprice').value = Math.min(hi, Math.max(lo, Math.round(unitPrice(ms.value) * 1.2))); $('mqty').value = S.inv[ms.value]; };
+        ms.onchange = band; band();
+        $('mlist').onclick = async () => { const r = await api('/api/market/list', { item: ms.value, qty: +$('mqty').value, price: +$('mprice').value }); if (r) { sfx('coin'); toast('上架成功'); openMarket('sell'); } };
+      }
+    }
+  });
+}
+
+/* ---------------- 排行 / 成就 / 图鉴 ---------------- */
+async function openRank(dim, scope) {
+  dim = dim || 'lv'; scope = scope || 'friends'; const r = await getj(`/api/rank?dim=${dim}&scope=${scope}`); if (!r) return;
+  const unit = { lv: '级', gold: '金币', harvest: '次', steal: '次', help: '次', season: '分' }[dim];
+  const rows = r.list.map(u => `<div class="row-item rank${u.id === S.me.id ? ' me' : ''}"><div class="rk r${u.rank}">${u.rank <= 3 ? ['🥇', '🥈', '🥉'][u.rank - 1] : u.rank}</div>${avHtml(u.avatar, u.frame, 40)}<div class="ri-main"><b>${esc(u.name)}</b>${u.title ? ` <span class="ttl">${esc(u.title)}</span>` : ''}<small>Lv.${u.lv}</small></div><div class="ri-n">${dim === 'lv' ? 'Lv.' + u.score : fmt(u.score)} <small>${dim === 'lv' ? '' : unit}</small></div></div>`).join('');
+  const mine = r.mine && !r.list.find(u => u.id === S.me.id) ? `<div class="row-item rank me"><div class="rk">${r.mine.rank}</div>${avHtml(r.mine.avatar, r.mine.frame, 40)}<div class="ri-main"><b>${esc(r.mine.name)}（我）</b></div><div class="ri-n">${fmt(r.mine.score)}</div></div>` : '';
+  openModal(`<h2>🏆 排行榜</h2>${tabsHtml([['lv', '等级'], ['gold', '财富'], ['harvest', '本周收获'], ['steal', '本周摘菜'], ['help', '本周互助'], ['season', '赛季积分']], dim)}
+    <div class="scope"><button class="${scope === 'friends' ? 'on' : ''}" data-sc="friends">好友榜</button><button class="${scope === 'global' ? 'on' : ''}" data-sc="global">全服榜</button></div>
+    ${['harvest', 'steal', 'help', 'season'].includes(dim) ? `<p class="sub">每周一 0 点（北京时间）重新计算 · 本周剩余 ${fmtTime((r.weekEnd - NET.now()) / 1000)}</p>` : ''}<div class="list">${rows || '<div class="empty">还没有数据</div>'}${mine}</div>`, {
+    wide: true, mount: () => { bindTabs(d => openRank(d, scope)); qsa('[data-sc]').forEach(b => b.onclick = () => openRank(dim, b.dataset.sc)); }
+  });
+}
+async function openAch() {
+  const r = await getj('/api/achievements'); if (!r) return;
+  const rows = CFG.ACHIEVEMENTS.map(a => { const s = r.list.find(x => x.id === a.id), ok = s.prog >= s.need, frame = CFG.FRAMES.find(f => f.ach === a.id); return `<div class="row-item task${s.claimed ? ' got' : ''}"><div class="ri-ic big">${s.claimed ? '🏅' : ok ? '🎁' : '🔒'}</div><div class="ri-main"><b>${a.tx}</b>${a.title ? ` <span class="ttl">称号「${a.title}」</span>` : ''}${frame ? ` <span class="ttl">${frame.name}</span>` : ''}<div class="pbar"><i style="width:${Math.min(100, s.prog / s.need * 100)}%"></i><span>${fmt(Math.min(s.prog, s.need))}/${fmt(s.need)}</span></div><small>${a.desc} · 奖励 🪙${a.gold}</small></div><button class="btn sm ${ok && !s.claimed ? 'primary' : ''}" data-ach="${a.id}" ${ok && !s.claimed ? '' : 'disabled'}>${s.claimed ? '已领取' : ok ? '领取' : '未达成'}</button></div>`; }).join('');
+  openModal(`<h2>🏅 成就</h2><p class="sub">领取成就可以获得称号，在「装扮」里佩戴</p><div class="list">${rows}</div>`, {
+    wide: true, mount: () => qsa('[data-ach]').forEach(b => b.onclick = async () => { const x = await api('/api/achievements/claim', { id: b.dataset.ach }); if (x) { sfx('level'); toast(`成就达成！🪙+${x.result.gold}${x.result.title ? ` 获得称号「${x.result.title}」` : ''}`); } openAch(); })
+  });
+}
+async function openCodex() {
+  const r = await getj('/api/codex'); if (!r) return; const got = {}; r.list.forEach(x => got[x.item] = x);
+  const cell = (k, c, gold) => { const g = got[k]; return `<div class="cx${g ? ' on' : ''}${gold ? ' gold' : ''} r${c.rarity}" title="${g ? `首次获得：${new Date(g.first_at).toLocaleDateString()}，累计 ${g.n}` : '未获得'}">${iconImg(c.id)}<b>${gold ? '金色' : ''}${g ? c.name : '？？？'}</b><small>${CFG.RARITY[c.rarity]}${g ? ' · ×' + fmt(g.n) : ''}</small></div>`; };
+  const n = CROPS.filter(c => got['c' + c.id]).length, ng = CROPS.filter(c => got['g' + c.id]).length;
+  openModal(`<h2>📖 作物图鉴</h2><p class="sub">普通 ${n}/${CROPS.length} · 金色变异 ${ng}/${CROPS.length}（每次收获有 ${Math.round(RULES.goldenChance * 100)}% 几率变异）</p>
+    <h4 class="sec">普通作物</h4><div class="codex">${CROPS.map(c => cell('c' + c.id, c)).join('')}</div><h4 class="sec">✨ 金色变异</h4><div class="codex">${CROPS.map(c => cell('g' + c.id, c, true)).join('')}</div>`, { wide: true });
+}
+function openEvents() {
+  const rows = S.events.map(e => `<div class="row-item"><div class="ri-ic big">🎉</div><div class="ri-main"><b>${esc(e.name)}</b><small>${esc(e.descr || '')} ${({ exp_mult: '经验', price_mult: '收购价', golden_mult: '变异几率', yield_mult: '产量' })[e.kind]} ×${e.params.mult}${e.params.crop != null ? `（${CROPS[e.params.crop].name}）` : ''} · 剩余 ${fmtTime((e.end_at - NET.now()) / 1000)}</small></div></div>`).join('');
+  openModal(`<h2>🎉 限时活动</h2><div class="list">${rows || '<div class="empty">当前没有活动</div>'}</div>`, {});
+}
+
+/* ---------------- 装扮 ---------------- */
+async function openDress(tab, draft) {
+  tab = tab || 'avatar'; const own = new Set((await getj('/api/cosmetics') || { list: [] }).list); const me = S.me; let body = '';
+  if (tab === 'avatar') {
+    const a = draft || Object.assign({ skin: 0, hair: 0, hat: 1, fringe: 1, pig: 0, band: 0, shirt: 0, bg: 0 }, me.avatar);
+    const sw = (k, arr) => `<div class="swrow"><span>${({ skin: '肤色', hair: '发色', shirt: '衣服', band: '帽带', bg: '背景' })[k]}</span>${arr.map((c, i) => `<button class="sw${a[k] === i ? ' on' : ''}" data-k="${k}" data-v="${i}" style="background:${Array.isArray(c) ? `linear-gradient(${c[0]},${c[1]})` : c}"></button>`).join('')}</div>`;
+    body = `<div class="dress"><canvas id="avprev" width="160" height="160"></canvas><div>${sw('skin', AVO.skin)}${sw('shirt', AVO.shirt)}${sw('bg', AVO.bg)}
+      <div class="swrow"><span>造型</span><button class="btn sm ${a.hat ? 'primary' : ''}" data-tog="hat">草帽</button><button class="btn sm ${!a.hat && a.pig ? 'primary' : ''}" data-tog="pig">双马尾</button></div>${a.hat ? sw('band', AVO.band) : sw('hair', AVO.hair)}
+      <div class="swrow"><span>昵称</span><input id="dname" maxlength="10" value="${esc(me.name)}"></div></div></div><div class="sellall"><button class="btn big primary" id="dsave">保存</button></div>`;
+    openModal(`<h2>🎨 装扮</h2>${tabsHtml([['avatar', '形象'], ['theme', '农场主题'], ['frame', '头像框'], ['title', '称号']], tab)}${body}`, {
+      wide: true, mount: () => {
+        bindTabs(t => openDress(t)); drawAvatar($('avprev'), avStyle(a));
+        qsa('[data-k]').forEach(b => b.onclick = () => { a[b.dataset.k] = +b.dataset.v; openDress('avatar', a); });
+        qsa('[data-tog]').forEach(b => b.onclick = () => { const k = b.dataset.tog; if (k === 'hat') a.hat = a.hat ? 0 : 1; else { a.hat = 0; a.pig = a.pig ? 0 : 1; } openDress('avatar', a); });
+        $('dsave').onclick = async () => { const r = await api('/api/me/profile', { avatar: a, name: val('dname') }); if (r) { toast('形象已保存'); renderFriends(); renderTitle(); } };
+      }
+    }); return;
+  }
+  const list = tab === 'theme' ? CFG.THEMES : tab === 'frame' ? CFG.FRAMES : null;
+  if (list) body = `<div class="cosgrid">${list.map(it => { const has = own.has(tab + ':' + it.id), using = me[tab] === it.id, ach = it.ach && CFG.ACHIEVEMENTS.find(a => a.id === it.ach);
+    const prev = tab === 'theme' ? `<div class="thprev" style="--roof:${it.th.roof};--wall:${it.th.wall};--tree:${it.th.tree}"><i></i><b></b><em></em></div>` : `<div class="frprev" style="box-shadow:0 0 0 5px ${it.color || '#ddd'}">${avHtml(me.avatar, '', 56)}</div>`;
+    return `<div class="cos${using ? ' on' : ''}">${prev}<b>${it.name}</b>${using ? '<button class="btn sm" disabled>使用中</button>' : has ? `<button class="btn sm primary" data-use="${it.id}">使用</button>` : ach ? `<small>成就「${ach.tx}」解锁</small>` : `<button class="btn sm" data-cbuy="${it.id}">🪙 ${fmt(it.price)}</button>`}</div>`; }).join('')}</div>`;
+  else { const titles = CFG.ACHIEVEMENTS.filter(a => a.title); const claimed = new Set((await getj('/api/achievements') || { list: [] }).list.filter(x => x.claimed).map(x => x.id));
+    body = `<div class="titles"><button class="btn sm ${!me.title ? 'primary' : ''}" data-ttl="">不佩戴</button>${titles.map(a => claimed.has(a.id) ? `<button class="btn sm ${me.title === a.title ? 'primary' : ''}" data-ttl="${esc(a.title)}">${esc(a.title)}</button>` : `<button class="btn sm" disabled title="完成成就「${a.tx}」">🔒 ${esc(a.title)}</button>`).join('')}</div>`; }
+  openModal(`<h2>🎨 装扮</h2>${tabsHtml([['avatar', '形象'], ['theme', '农场主题'], ['frame', '头像框'], ['title', '称号']], tab)}<div class="mygold">我的金币：🪙 ${fmt(me.gold)}</div>${body}`, {
+    wide: true, mount: () => {
+      bindTabs(t => openDress(t));
+      qsa('[data-use]').forEach(b => b.onclick = async () => { const r = await api('/api/me/profile', { [tab]: b.dataset.use }); if (r) { bgDirty = true; toast('已更换'); openDress(tab); } });
+      qsa('[data-cbuy]').forEach(b => b.onclick = async () => { const r = await api('/api/cosmetics/buy', { kind: tab, id: b.dataset.cbuy }); if (r) { sfx('coin'); await api('/api/me/profile', { [tab]: b.dataset.cbuy }, { quiet: true }); bgDirty = true; toast('购买成功，已经换上了'); openDress(tab); } });
+      qsa('[data-ttl]').forEach(b => b.onclick = async () => { const r = await api('/api/me/profile', { title: b.dataset.ttl }); if (r) openDress('title'); });
+    }
+  });
+}
+
+/* ---------------- 资料 / 设置 / 账号 ---------------- */
+function openProfile() {
+  const me = S.me, st = me.stats;
+  openModal(`<div class="profile">${avHtml(me.avatar, me.frame, 84)}<h3>${esc(me.name)} <span class="lv">Lv.${me.lv}</span></h3>${me.title ? `<span class="ttl">${esc(me.title)}</span>` : ''}<p>玩家号 <b class="code">${me.code}</b> <button class="btn sm" id="pcp">复制邀请链接</button></p>
+    <div class="stats"><div><b>${fmt(st.harvest)}</b><small>收获</small></div><div><b>${fmt(st.steal)}</b><small>摘菜</small></div><div><b>${fmt(st.help)}</b><small>互助</small></div><div><b>${fmt(st.earned)}</b><small>累计金币</small></div><div><b>${fmt(st.stolenFrom)}</b><small>被摘走</small></div></div>
+    <div class="row"><button class="btn" id="pdress">🎨 装扮</button><button class="btn" id="pgb">💌 我的留言板</button><button class="btn" id="pacc">🔐 账号</button></div></div>`, {
+    small: true, mount: () => { $('pcp').onclick = () => copyText(inviteLink()); $('pdress').onclick = () => openDress(); $('pgb').onclick = () => openGuestbook(S.me); $('pacc').onclick = openAccount; }
+  });
+}
+function openMenu() {
+  if (!S) return;
+  const row = (t, s, btn) => `<div class="row-item"><div class="ri-main"><b>${t}</b>${s ? `<small>${s}</small>` : ''}</div>${btn}</div>`;
+  openModal(`<h2>⚙️ 设置</h2><div class="list">
+    ${row('游戏音效', '', `<button class="btn sm ${PREF.sound ? 'primary' : ''}" id="tsound">${PREF.sound ? '开启' : '关闭'}</button>`)}
+    ${row('昼夜', '', `<button class="btn sm" id="ttod">${({ auto: '跟随时间', day: '白天', dusk: '黄昏', night: '夜晚' })[PREF.tod] || '跟随时间'}</button>`)}
+    ${row('背景音乐', '', `<button class="btn sm ${PREF.music ? 'primary' : ''}" id="tmusic">${PREF.music ? '开启' : '关闭'}</button>`)}
+    ${row('成熟 / 被偷提醒', '页面在后台时，用浏览器通知提醒你（默认关闭）', `<button class="btn sm ${PREF.notify ? 'primary' : ''}" id="tnotify">${PREF.notify ? '开启' : '关闭'}</button>`)}
+    ${row('账号与数据', S.me.guest ? '⚠️ 游客账号只能在这个浏览器登录，建议绑定' : '已绑定账号：' + esc(S.me.username), '<button class="btn sm" id="tacc">管理</button>')}
+    ${row('玩法与规则', '', '<button class="btn sm" id="thelp">查看</button>')}
+    ${S.me.role === 'admin' ? row('运营后台', '', '<a class="btn sm" href="admin.html" target="_blank">打开</a>') : ''}
+    ${row('退出登录', '', '<button class="btn sm danger" id="tlogout">退出</button>')}</div>`, {
+    small: true, mount: () => {
+      $('tsound').onclick = () => { savePref({ sound: !PREF.sound }); renderHud(); openMenu(); }; $('tmusic').onclick = () => { savePref({ music: !PREF.music }); if (PREF.music) startMusic(); openMenu(); };
+      $('tnotify').onclick = async () => { if (!PREF.notify && 'Notification' in window) { const p = await Notification.requestPermission(); if (p !== 'granted') { toast('浏览器没有允许通知', 'warn'); return; } } else if (!('Notification' in window)) { toast('这个浏览器不支持通知', 'warn'); return; } savePref({ notify: !PREF.notify }); openMenu(); };
+      $('ttod').onclick = () => { const o = ['auto', 'day', 'dusk', 'night']; savePref({ tod: o[(o.indexOf(PREF.tod) + 1) % 4] }); renderTitle(); openMenu(); };
+      $('tacc').onclick = openAccount; $('thelp').onclick = openHelp; $('tlogout').onclick = logout;
+    }
+  });
+}
+async function logout() {
+  if (S.me.guest && !confirm('你还是游客账号，退出后将无法再登录这个农场（除非先绑定账号）。确定退出吗？')) return;
+  try { await NET.post('/api/auth/logout'); } catch (e) { } NET.setToken(''); location.reload();
+}
+function openAccount() {
+  const me = S.me;
+  const bind = me.guest ? `<div class="mform"><b>绑定账号</b><p class="fine">绑定后可以在手机、电脑等任意设备登录这个农场</p><input id="bu" placeholder="账号：4–20 位字母/数字/下划线" autocomplete="username"><input id="bp" type="password" placeholder="密码：至少 6 位" autocomplete="new-password"><button class="btn primary" id="bgo">绑定</button></div>`
+    : `<div class="mform"><b>修改密码</b><input id="po" type="password" placeholder="原密码"><input id="pn" type="password" placeholder="新密码"><button class="btn" id="pgo">修改</button></div>`;
+  openModal(`<h2>🔐 账号与数据</h2><div class="acct"><p>玩家号 <b>${me.code}</b> · ${me.guest ? '游客账号' : '账号 <b>' + esc(me.username) + '</b>'} · 注册于 ${new Date(me.created_at).toLocaleDateString()}</p>${bind}
+    <div class="mform"><b>我的数据</b><p class="fine">导出你在服务器上的全部游戏数据（JSON 文件）</p><button class="btn" id="exp">导出数据</button></div>
+    <div class="mform danger"><b>注销账号</b><p class="fine">永久删除你的农场、仓库、好友关系和记录，无法恢复</p>${me.guest ? '<input id="dc" placeholder="输入：确认注销">' : '<input id="dc" type="password" placeholder="输入密码确认">'}<button class="btn danger" id="del">注销账号</button></div></div>`, {
+    mount: () => {
+      const bg = $('bgo'); if (bg) bg.onclick = async () => { const r = await api('/api/auth/bind', { username: val('bu'), password: $('bp').value }); if (r) { await refreshState(); showRecovery(r.recovery); } };
+      const pg = $('pgo'); if (pg) pg.onclick = async () => { const r = await api('/api/auth/password', { old: $('po').value, password: $('pn').value }); if (r) { NET.setToken(r.token); toast('密码已修改，其他设备需要重新登录'); closeModal(); } };
+      $('exp').onclick = async () => { const d = await getj('/api/me/export'); if (!d) return; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' })); a.download = `harvest-farm-${me.code}.json`; a.click(); };
+      $('del').onclick = async () => { if (!confirm('真的要永久注销账号吗？此操作不能撤销。')) return; const v = $('dc').value; const r = await api('/api/me/delete', me.guest ? { confirm: v.trim() } : { password: v }); if (r) { NET.setToken(''); alert('账号已注销'); location.reload(); } };
+    }
+  });
+}
+function openHelp() {
+  const R = RULES;
+  openModal(`<h2>📖 玩法与规则</h2><div class="help">
+  <p><b>🖐️ 自动模式</b>：直接点击土地，系统按状态自动处理——空地播种、成熟收获、有💧🌿🐛就顺手处理。按住拖动可以连续操作。</p>
+  <p><b>🌱 生长</b>：所有作物的生长都由服务器计时，下线也会继续长。每出现一种问题（缺水/杂草/害虫）生长速度降到 ${Math.round(R.probSlow * 100)}%，下雨会防止缺水。红土地生长与产量 +20%。</p>
+  <p><b>✨ 变异</b>：每次收获有 ${Math.round(R.goldenChance * 100)}% 几率额外获得金色作物，价值 ${R.goldenPriceMult} 倍，可收集进图鉴。</p>
+  <h3>🥷 摘菜规则</h3>
+  <p>① 只能摘<b>好友</b>的作物；② 作物成熟后主人有 <b>${R.stealDelaySec} 秒</b>保护时间；③ 每块地每一季你只能摘一次，每次约为产量的 ${Math.round(R.stealPctMin * 100)}–${Math.round(R.stealPctMax * 100)}%；④ 一块地最多被摘走 <b>${Math.round(R.stealMaxPct * 100)}%</b>，主人至少保留 ${Math.round((1 - R.stealMaxPct) * 100)}%；Lv.${R.newbieLv} 以下的新手最多只会被摘 ${Math.round(R.newbieMaxPct * 100)}%；⑤ 每人每天最多成功摘 ${R.stealDailyLimit} 次；⑥ 主人的小狗吃饱时有 ${Math.round(R.dogBlockBase * 100)}%（1 级）–${Math.round(Math.min(R.dogBlockMax, R.dogBlockBase + R.dogBlockPerLv * 9) * 100)}%（10 级）几率把你赶走，并咬掉 ${R.dogBiteMin}–${R.dogBiteMax} 金币，这一季这块地你就不能再摘了。</p>
+  <p><b>🤝 互助</b>：帮好友浇水/除草/除虫，每次得 ${R.helpExp} 经验和 ${R.helpGold} 金币，每天最多 ${R.helpDailyLimit} 次。</p>
+  <h3>💰 经济</h3>
+  <p>作物可以卖给系统（每日行情🔥有两种作物涨价），也可以交给 📦订单（更高收益），或在 🏷️集市卖给其他玩家（手续费 ${Math.round(R.marketFee * 100)}%，价格限制在系统价 ${R.marketMinMult}–${R.marketMaxMult} 倍）。</p>
+  <p><b>📅 时间</b>：每日任务、签到和订单在每天 0 点（北京时间）刷新；每周任务、周排行和赛季在每周一 0 点结算。</p>
+  <p><b>⌨️ 快捷键</b>：1 自动 · 2 铲除 · 3 化肥 · Q 一键收获/摘取 · W 一键护理/帮忙 · E 一键种植 · H 回家 · Esc 关闭</p>
+  </div>`, { wide: true });
+}
 
 </script>
 </body>

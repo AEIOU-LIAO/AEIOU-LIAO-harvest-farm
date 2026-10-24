@@ -1,0 +1,11 @@
+services:
+  farm:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"   # 只暴露给本机的 Nginx；不用 Nginx 时改成 "80:3000"
+    volumes:
+      - ./data:/data            # 数据库与备份保存在宿主机 ./data
+    env_file:
+      - path: .env
+        required: false

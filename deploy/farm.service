@@ -1,0 +1,20 @@
+# systemd 服务：sudo cp deploy/farm.service /etc/systemd/system/harvest-farm.service
+[Unit]
+Description=Harvest Farm game server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/harvest-farm
+ExecStart=/usr/bin/env node --disable-warning=ExperimentalWarning server/index.js
+Restart=always
+RestartSec=3
+User=www-data
+Environment=NODE_ENV=production
+# 其余配置写在 /var/www/harvest-farm/.env
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/var/www/harvest-farm/data
+
+[Install]
+WantedBy=multi-user.target

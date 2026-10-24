@@ -354,7 +354,7 @@ function lockedTile(c, t, hover, price) {
   // 木牌
   c.save(); c.translate(0, -2); rrect(c, -2.5, -26, 5, 28, 2, '#8a5a2b', '#4a2d12', 1.4); rrect(c, -20, -42, 40, 22, 4, '#e8c07a', '#6a4220', 2);
   c.font = `15px ${EMOJI}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#6a4220'; c.fillText('🔒', 0, -31); c.restore();
-  if (hover) { c.save(); c.font = 'bold 14px "Microsoft YaHei",sans-serif'; c.textAlign = 'center'; c.lineWidth = 4; c.strokeStyle = 'rgba(60,40,10,.85)'; c.fillStyle = '#ffe27a'; const s = '扩建 ¥' + price; c.strokeText(s, 0, -52); c.fillText(s, 0, -52); c.restore(); }
+  if (hover && price != null) { c.save(); c.font = 'bold 14px "Microsoft YaHei",sans-serif'; c.textAlign = 'center'; c.lineWidth = 4; c.strokeStyle = 'rgba(60,40,10,.85)'; c.fillStyle = '#ffe27a'; const s = '扩建 🪙' + price; c.strokeText(s, 0, -52); c.fillText(s, 0, -52); c.restore(); }
 }
 function star4(c, x, y, r, a) {
   c.save(); c.translate(x, y); c.rotate(a); c.beginPath();

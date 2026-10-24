@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="farm-api" content="">
+<title>丰收农场 · 运营后台</title>
+<style>
+:root{--bg:#f6f3ea;--card:#fff;--ink:#3a2a14;--mut:#8a7a62;--line:#e6dcc6;--acc:#d9632a;--ok:#3a9a3c;--bad:#c8402a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 "PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:12px 20px;background:#3a2a14;color:#fff}header b{font-size:17px}header nav{display:flex;gap:4px;flex-wrap:wrap}
+header nav button{background:transparent;border:0;color:#e8d8b8;padding:6px 12px;border-radius:8px;cursor:pointer;font:inherit}header nav button.on{background:#d9632a;color:#fff}
+header .me{margin-left:auto;font-size:12px;opacity:.8}
+main{padding:18px 20px;max-width:1200px;margin:0 auto}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.card small{color:var(--mut);display:block}.card b{font-size:22px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{background:#efe6d2;font-weight:700;font-size:13px}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+input,select,textarea{font:inherit;padding:6px 9px;border:1px solid #cdbf9f;border-radius:8px;background:#fff;color:var(--ink)}textarea{width:100%;min-height:220px;font-family:ui-monospace,monospace;font-size:12.5px}
+button.b{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #a8916a;background:#fff8e8;cursor:pointer}button.b.p{background:var(--acc);border-color:#a8481a;color:#fff}button.b.d{background:var(--bad);border-color:#8a2010;color:#fff}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}.mut{color:var(--mut);font-size:12px}h2{margin:6px 0 12px;font-size:18px}h3{margin:14px 0 8px;font-size:15px}
+.bars{display:flex;align-items:flex-end;gap:4px;height:120px;padding:10px;background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:16px}.bars div{flex:1;background:#e8a060;border-radius:4px 4px 0 0;position:relative;min-height:2px}.bars div span{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--mut);white-space:nowrap}.bars div em{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:10px;font-style:normal}
+.tag{display:inline-block;padding:0 6px;border-radius:6px;font-size:12px;background:#eee}.tag.bad{background:#fbd8d0;color:#8a2010}.tag.ok{background:#d8f0d0;color:#2a6a1c}
+#login{max-width:360px;margin:60px auto;background:#fff;padding:24px;border-radius:14px;border:1px solid var(--line)}#login input{width:100%;margin:6px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:800px){.grid2{grid-template-columns:1fr}}
+#toast{position:fixed;right:16px;bottom:16px;background:#3a2a14;color:#fff;padding:10px 16px;border-radius:10px;display:none}
+</style>
+</head>
+<body>
+<header><b>🌾 丰收农场 · 运营后台</b><nav id="nav"></nav><span class="me" id="me"></span></header>
+<main id="main"></main>
+<div id="toast"></div>
+<script>
+'use strict';
+const meta = document.querySelector('meta[name="farm-api"]'), BASE = (new URLSearchParams(location.search).get('api') || meta.content || '').replace(/\/$/, '');
+let token = ''; try { token = localStorage.getItem('hf_token') || ''; } catch (e) { }
+const $ = id => document.getElementById(id), esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const dt = t => t ? new Date(t).toLocaleString() : '—', pct = v => v == null ? '—' : (v * 100).toFixed(1) + '%';
+function toast(m) { const t = $('toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(t._t); t._t = setTimeout(() => t.style.display = 'none', 2500); }
+async function call(method, path, body) {
+  const r = await fetch(BASE + path, { method, headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { Authorization: 'Bearer ' + token } : {}, method === 'POST' ? { 'Idempotency-Key': crypto.randomUUID ? crypto.randomUUID() : String(Math.random()) } : {}), body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json(); if (!j.ok) { if (r.status === 401 || r.status === 403) { if (path.startsWith('/api/admin/stats')) showLogin(j.error); } throw new Error(j.error || '请求失败'); } return j;
+}
+const TABS = [['stats', '数据概览'], ['players', '玩家'], ['events', '活动'], ['config', '数值配置'], ['risk', '风控'], ['audit', '审计日志'], ['errors', '错误']];
+let cur = 'stats';
+function nav() { $('nav').innerHTML = TABS.map(([k, t]) => `<button class="${k === cur ? 'on' : ''}" data-k="${k}">${t}</button>`).join(''); $('nav').querySelectorAll('button').forEach(b => b.onclick = () => go(b.dataset.k)); }
+function go(k) { cur = k; nav(); ({ stats, players, events, config, risk, audit, errors })[k]().catch(e => { $('main').innerHTML = `<p>${esc(e.message)}</p>`; }); }
+function showLogin(msg) {
+  $('nav').innerHTML = ''; $('main').innerHTML = `<div id="login"><h2>管理员登录</h2><p class="mut">${esc(msg || '')} 使用已被设为管理员的游戏账号登录（见 README：ADMIN_USERNAMES 或 node server/cli.js make-admin）。</p><input id="u" placeholder="账号"><input id="p" type="password" placeholder="密码"><button class="b p" id="go">登录</button></div>`;
+  $('go').onclick = async () => { try { const r = await call('POST', '/api/auth/login', { username: $('u').value, password: $('p').value }); token = r.token; try { localStorage.setItem('hf_token', token); } catch (e) { } boot(); } catch (e) { toast(e.message); } };
+}
+async function stats() {
+  const s = await call('GET', '/api/admin/stats'), t = s.totals, d = s.today, r = s.rates, mx = Math.max(1, ...s.series.map(x => x.dau));
+  $('main').innerHTML = `<h2>数据概览 <span class="mut">${dt(s.now)}</span></h2>
+  <div class="cards">${[['总玩家', t.users], ['已绑定账号', t.bound], ['封禁', t.banned], ['今日活跃 DAU', d.dau], ['今日注册', d.reg], ['次日留存', pct(r.d1)], ['七日留存', pct(r.d7)], ['好友添加率', pct(r.friendRate)], ['偷菜参与率(7日)', pct(r.stealRate)], ['订单完成率(7日)', pct(r.orderRate)], ['今日接口错误率', pct(d.errorRate)], ['接口平均耗时', d.avgMs.toFixed(1) + ' ms'], ['页面平均加载', d.avgLoadMs ? Math.round(d.avgLoadMs) + ' ms' : '—'], ['全服金币存量', t.gold.toLocaleString()], ['集市在售', t.openListings]].map(([a, b]) => `<div class="card"><small>${a}</small><b>${b}</b></div>`).join('')}</div>
+  <h3>近 14 天 DAU</h3><div class="bars">${s.series.map(x => `<div style="height:${x.dau / mx * 100}%"><em>${x.dau}</em><span>${x.day.slice(5)}</span></div>`).join('')}</div><br>
+  <table><tr><th>日期</th><th class="n">DAU</th><th class="n">注册</th><th class="n">加好友</th><th class="n">偷菜</th><th class="n">订单</th><th class="n">集市成交</th><th class="n">接口调用</th><th class="n">错误</th></tr>${s.series.slice().reverse().map(x => `<tr><td>${x.day}</td><td class="n">${x.dau}</td><td class="n">${x.reg}</td><td class="n">${x.friendAdds}</td><td class="n">${x.steals}</td><td class="n">${x.orders}</td><td class="n">${x.sales}</td><td class="n">${x.calls}</td><td class="n">${x.errors}</td></tr>`).join('')}</table>
+  <p class="mut">留存按最近 7 个注册日的新玩家计算；偷菜参与率 = 近 7 日成功偷菜的玩家数 / 近 7 日活跃玩家数。</p>`;
+}
+async function players(q) {
+  const l = (await call('GET', '/api/admin/players?q=' + encodeURIComponent(q || ''))).list;
+  $('main').innerHTML = `<h2>玩家</h2><div class="row"><input id="q" placeholder="玩家号 / 账号 / 昵称" value="${esc(q || '')}"><button class="b p" id="s">搜索</button></div>
+  <table><tr><th>ID</th><th>玩家号</th><th>昵称</th><th>账号</th><th class="n">等级</th><th class="n">金币</th><th>状态</th><th>最近活跃</th><th></th></tr>${l.map(u => `<tr><td>${u.id}</td><td>${u.code}</td><td>${esc(u.name)}</td><td>${esc(u.username || '游客')}</td><td class="n">${u.lv}</td><td class="n">${u.gold.toLocaleString()}</td><td>${u.banned ? '<span class="tag bad">封禁</span>' : u.role === 'admin' ? '<span class="tag ok">管理员</span>' : ''}</td><td>${dt(u.last_active)}</td><td><button class="b" data-id="${u.id}">详情</button></td></tr>`).join('')}</table><div id="detail"></div>`;
+  $('s').onclick = () => players($('q').value); $('q').onkeydown = e => { if (e.key === 'Enter') players($('q').value); };
+  document.querySelectorAll('[data-id]').forEach(b => b.onclick = () => player(+b.dataset.id));
+}
+async function player(id) {
+  const d = await call('GET', '/api/admin/player/' + id), u = d.user;
+  $('detail').innerHTML = `<h3>${esc(u.name)}（ID ${u.id} · 玩家号 ${u.code}）</h3><div class="grid2"><div>
+    <table><tr><th>项目</th><th>值</th></tr>${[['账号', u.username || '游客'], ['等级 / 经验', u.lv + ' / ' + u.exp], ['金币', u.gold], ['好友数', d.friends], ['登录设备数', d.sessions], ['累计收获 / 偷菜 / 互助', `${u.harvest_total} / ${u.steal_total} / ${u.help_total}`], ['被偷走', u.stolen_from_total], ['注册', dt(u.created_at)], ['封禁原因', u.ban_reason || '—']].map(([a, b]) => `<tr><td>${a}</td><td>${esc(b)}</td></tr>`).join('')}</table>
+    <h3>库存</h3><p>${Object.entries(d.inv).map(([k, v]) => `${esc(k)}×${v}`).join('　') || '空'}</p>
+    <h3>操作（全部记入审计日志）</h3>
+    <div class="row"><input id="br" placeholder="封禁原因"><button class="b d" id="ban">${u.banned ? '解除封禁' : '封禁'}</button></div>
+    <div class="row"><input id="ag" type="number" placeholder="金币 ±" style="width:110px"><input id="ai" placeholder="物品，如 c0 / fert" style="width:140px"><input id="aq" type="number" placeholder="数量 ±" style="width:90px"><input id="ar" placeholder="原因（必填）"><button class="b p" id="adj">调整</button></div>
+    <div class="row"><button class="b" id="role">${u.role === 'admin' ? '取消管理员' : '设为管理员'}</button></div></div>
+    <div><h3>金币流水（最近 60 条）</h3><table><tr><th>时间</th><th>原因</th><th class="n">变动</th></tr>${d.ledger.map(l => `<tr><td>${dt(l.at)}</td><td>${esc(l.reason)}</td><td class="n">${l.delta > 0 ? '+' : ''}${l.delta}</td></tr>`).join('')}</table>
+    <h3>偷菜记录</h3><table><tr><th>时间</th><th>被偷者</th><th class="n">数量</th></tr>${d.steals.map(s => `<tr><td>${dt(s.at)}</td><td>${esc(s.oname || '?')}</td><td class="n">${s.blocked ? '被狗拦' : s.qty}</td></tr>`).join('')}</table></div></div>`;
+  $('ban').onclick = async () => { if (!confirm('确定？')) return; try { await call('POST', '/api/admin/ban', { id, on: !u.banned, reason: $('br').value }); toast('已更新'); player(id); } catch (e) { toast(e.message); } };
+  $('adj').onclick = async () => { try { await call('POST', '/api/admin/adjust', { id, gold: +$('ag').value || 0, item: $('ai').value.trim() || undefined, qty: +$('aq').value || 0, reason: $('ar').value }); toast('已调整'); player(id); } catch (e) { toast(e.message); } };
+  $('role').onclick = async () => { if (!confirm('确定？')) return; try { await call('POST', '/api/admin/role', { id, role: u.role === 'admin' ? 'user' : 'admin' }); toast('已更新'); player(id); } catch (e) { toast(e.message); } };
+}
+const KINDS = { exp_mult: '经验倍率', price_mult: '收购价倍率', golden_mult: '变异几率倍率', yield_mult: '产量倍率' };
+async function events(edit) {
+  const l = (await call('GET', '/api/admin/events')).list, cfg = await call('GET', '/api/config'), e = edit || {}, now = Date.now();
+  const toLocal = t => { const d = new Date(t - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
+  $('main').innerHTML = `<h2>活动</h2><p class="mut">活动在服务器上实时生效，无需改代码或重新部署。倍率范围 0.5–5。</p>
+  <table><tr><th>名称</th><th>类型</th><th>参数</th><th>开始</th><th>结束</th><th>状态</th><th></th></tr>${l.map(x => `<tr><td>${esc(x.name)}<div class="mut">${esc(x.descr)}</div></td><td>${KINDS[x.kind]}</td><td>×${x.params.mult}${x.params.crop != null ? ' · ' + esc(cfg.CROPS[x.params.crop].name) : ''}</td><td>${dt(x.start_at)}</td><td>${dt(x.end_at)}</td><td>${!x.enabled ? '<span class="tag">停用</span>' : x.start_at > now ? '<span class="tag">未开始</span>' : x.end_at > now ? '<span class="tag ok">进行中</span>' : '<span class="tag">已结束</span>'}</td><td><button class="b" data-e="${x.id}">编辑</button> <button class="b d" data-d="${x.id}">删除</button></td></tr>`).join('') || '<tr><td colspan="7" class="mut">还没有活动</td></tr>'}</table>
+  <h3>${e.id ? '编辑活动 #' + e.id : '新建活动'}</h3>
+  <div class="row"><input id="en" placeholder="活动名称" value="${esc(e.name || '')}"><select id="ek">${Object.entries(KINDS).map(([k, t]) => `<option value="${k}" ${e.kind === k ? 'selected' : ''}>${t}</option>`).join('')}</select><input id="em" type="number" step="0.1" placeholder="倍率" style="width:90px" value="${e.params ? e.params.mult : 1.5}">
+  <select id="ec"><option value="">全部作物</option>${cfg.CROPS.map(c => `<option value="${c.id}" ${e.params && e.params.crop === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+  <div class="row">开始 <input id="es" type="datetime-local" value="${toLocal(e.start_at || now)}"> 结束 <input id="ee" type="datetime-local" value="${toLocal(e.end_at || now + 3 * 86400000)}"> <label><input id="eon" type="checkbox" ${e.enabled === 0 ? '' : 'checked'}> 启用</label></div>
+  <div class="row"><input id="ed" placeholder="活动说明（玩家可见）" style="flex:1" value="${esc(e.descr || '')}"><button class="b p" id="esave">保存</button>${e.id ? '<button class="b" id="enew">取消编辑</button>' : ''}</div>`;
+  document.querySelectorAll('[data-e]').forEach(b => b.onclick = () => events(l.find(x => x.id === +b.dataset.e)));
+  document.querySelectorAll('[data-d]').forEach(b => b.onclick = async () => { if (!confirm('删除这个活动？')) return; await call('POST', '/api/admin/events/delete', { id: +b.dataset.d }); events(); });
+  if ($('enew')) $('enew').onclick = () => events();
+  $('esave').onclick = async () => { try { await call('POST', '/api/admin/events', { id: e.id, name: $('en').value, kind: $('ek').value, mult: +$('em').value, crop: $('ec').value, start_at: new Date($('es').value).getTime(), end_at: new Date($('ee').value).getTime(), enabled: $('eon').checked, descr: $('ed').value }); toast('已保存'); events(); } catch (err) { toast(err.message); } };
+}
+async function config() {
+  const c = await call('GET', '/api/admin/config'), eff = c.effective;
+  $('main').innerHTML = `<h2>数值配置</h2><p class="mut">这里填写的是对默认值的<b>覆盖</b>，保存后立即对全服生效（玩家刷新页面后看到新数值）。只允许修改数字字段，改动会记入审计日志。</p>
+  <div class="grid2"><div><h3>作物覆盖（JSON：{"作物ID": {"seed","time","yield","price","exp","lv"}}）</h3><textarea id="cc">${esc(JSON.stringify(c.crops, null, 2))}</textarea><div class="row"><button class="b p" id="sc">保存作物配置</button></div>
+  <h3>规则覆盖（JSON：{"规则名": 数值}）</h3><textarea id="rc">${esc(JSON.stringify(c.rules, null, 2))}</textarea><div class="row"><button class="b p" id="sr">保存规则配置</button></div></div>
+  <div><h3>当前生效的作物</h3><table><tr><th>ID</th><th>作物</th><th class="n">等级</th><th class="n">种子</th><th class="n">时长(秒)</th><th class="n">产量</th><th class="n">单价</th><th class="n">经验</th></tr>${eff.CROPS.map(x => `<tr><td>${x.id}</td><td>${esc(x.name)}</td><td class="n">${x.lv}</td><td class="n">${x.seed}</td><td class="n">${x.time}</td><td class="n">${x.yield}</td><td class="n">${x.price}</td><td class="n">${x.exp}</td></tr>`).join('')}</table>
+  <h3>当前生效的规则</h3><table>${Object.entries(eff.RULES).map(([k, v]) => `<tr><td>${k}</td><td class="n">${v}</td></tr>`).join('')}</table></div></div>`;
+  const save = async (key, id) => { let v; try { v = JSON.parse($(id).value || '{}'); } catch (e) { return toast('JSON 格式错误'); } try { await call('POST', '/api/admin/config', { key, value: v }); toast('已保存并生效'); config(); } catch (e) { toast(e.message); } };
+  $('sc').onclick = () => save('crops', 'cc'); $('sr').onclick = () => save('rules', 'rc');
+}
+async function risk() {
+  const s = await call('GET', '/api/admin/suspects');
+  const t = (h, rows) => `<table><tr>${h.map(x => `<th>${x}</th>`).join('')}</tr>${rows.join('') || `<tr><td colspan="${h.length}" class="mut">暂无</td></tr>`}</table>`;
+  $('main').innerHTML = `<h2>风控</h2><div class="grid2"><div><h3>今日偷菜次数最多</h3>${t(['玩家', '次数'], s.stealers.map(x => `<tr><td>${esc(x.name)}（${x.code}）</td><td class="n">${x.val}</td></tr>`))}
+  <h3>今日金币收入最多</h3>${t(['玩家', '金币'], s.earners.map(x => `<tr><td>${esc(x.name)}（${x.code}）</td><td class="n">${x.gold.toLocaleString()}</td></tr>`))}</div>
+  <div><h3>近 7 日大额集市成交</h3>${t(['卖家', '买家', '物品', '金额'], s.trades.map(x => `<tr><td>${esc(x.sname)}</td><td>${esc(x.bname)}</td><td>${esc(x.item)}×${x.qty}</td><td class="n">${(x.qty * x.price).toLocaleString()}</td></tr>`))}
+  <h3>同一对玩家频繁交易（≥5 笔，可能是小号转移）</h3>${t(['卖家ID', '买家ID', '笔数', '总额'], s.pairs.map(x => `<tr><td>${x.seller}</td><td>${x.buyer}</td><td class="n">${x.n}</td><td class="n">${x.total.toLocaleString()}</td></tr>`))}</div></div>`;
+}
+async function audit() { const l = (await call('GET', '/api/admin/audit')).list; $('main').innerHTML = `<h2>审计日志</h2><table><tr><th>时间</th><th>管理员</th><th>操作</th><th>对象</th><th>内容</th></tr>${l.map(a => `<tr><td>${dt(a.at)}</td><td>${esc(a.name || a.admin_id)}</td><td>${esc(a.action)}</td><td>${esc(a.target)}</td><td class="mut">${esc(a.data).slice(0, 200)}</td></tr>`).join('')}</table>`; }
+async function errors() { const l = (await call('GET', '/api/admin/errors')).list; $('main').innerHTML = `<h2>服务器错误（最近 100 条）</h2><table><tr><th>时间</th><th>接口</th><th>信息</th></tr>${l.map(e => `<tr><td>${dt(e.at)}</td><td>${esc(e.route)}</td><td>${esc(e.msg)}</td></tr>`).join('') || '<tr><td colspan="3" class="mut">没有错误</td></tr>'}</table>`; }
+async function boot() {
+  if (!token) return showLogin();
+  try { const s = await call('GET', '/api/state'); if (s.me.role !== 'admin') return showLogin('当前登录的账号不是管理员。'); $('me').textContent = '管理员：' + s.me.name + '（' + (s.me.username || '') + '）'; go('stats'); }
+  catch (e) { showLogin(e.message); }
+}
+boot();
+</script>
+</body>
+</html>
