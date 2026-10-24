@@ -72,6 +72,7 @@ class Game {
     return Object.assign(this.publicUser(u), {
       gold: u.gold, exp: u.exp, expNeed: CFG.expNeed(u.lv), seed: u.seed, username: u.username || '', guest: !u.username, role: u.role, migrated: !!u.migrated,
       dog: { own: !!u.dog_own, lv: u.dog_lv, exp: u.dog_exp, need: CFG.dogExpNeed(u.dog_lv), until: u.dog_until },
+      dogs: this.dogsOf(u),
       checkin: { last: u.checkin_last, streak: u.checkin_streak }, settings: J(u.settings) || {}, created_at: u.created_at,
       stats: { harvest: u.harvest_total, steal: u.steal_total, help: u.help_total, plant: u.plant_total, earned: u.earned_total, golden: u.golden_total, order: u.order_total, stolenFrom: u.stolen_from_total },
     });
@@ -293,7 +294,7 @@ class Game {
 
   /* ---------- 自己农场 ---------- */
   scheduleEv(P, start) { const dur = CFG.plotDur(P), rem = 1 - P.p, cr = CROPS[P.c]; const n = (U.rand() < (cr.time < 60 ? 0.35 : 0.6) ? 1 : 0) + (U.rand() < 0.3 ? 1 : 0) + (cr.time >= 1800 && U.rand() < 0.4 ? 1 : 0); const ev = []; for (let i = 0; i < n; i++) ev.push([Math.round(start + dur * rem * (0.1 + U.rand() * 0.75)), pick(['d', 'w', 'b'])]); ev.sort((a, b) => a[0] - b[0]); return ev; }
-  async startCycle(P, now) { const cr = CROPS[P.c]; P.y0 = Math.max(1, Math.round(cr.yield * (P.soil ? RULES.soilYield : 1) * await this.evMult('yield_mult', P.c))); P.y = P.y0; P.stolen = 0; P.pr = { d: 0, w: 0, b: 0 }; P.t = now; P.ra = 0; P.cycle++; P.ev = this.scheduleEv(P, now); }
+  async startCycle(P, now) { const cr = CROPS[P.c]; P.y0 = Math.max(1, Math.round(cr.yield * CFG.soilOf(P).yield * await this.evMult('yield_mult', P.c))); P.y = P.y0; P.stolen = 0; P.pr = { d: 0, w: 0, b: 0 }; P.t = now; P.ra = 0; P.cycle++; P.ev = this.scheduleEv(P, now); }
   async plant(uid, idx, cropId, out) {
     const cr = CROPS[cropId]; if (!cr) throw bad('没有这种种子');
     const [u, P] = await all([this.user(uid), this.plot(uid, idx)]);
@@ -340,11 +341,14 @@ class Game {
     const need = CFG.plotNeedLv(owned), cost = CFG.plotCost(owned); if (u.lv < need) throw bad(`扩建需要 Lv.${need}`, 'locked');
     this.addGold(uid, -cost, 'expand'); P.u = 1; P.t = this.now(); this.savePlot(uid, P); await this.addExp(uid, 10, out); return { idx, cost };
   }
+  // 土地升级：普通 → 红土地 → 黑土地 → 金土地（接口名沿用 red）
   async red(uid, idx, out) {
-    const [u, plots] = await all([this.user(uid), this.plots(uid)]); if (u.lv < RULES.redNeedLv) throw bad(`红土地需要 Lv.${RULES.redNeedLv}`, 'locked');
-    const P = plots.find(p => p.idx === idx); if (!P) throw bad('土地不存在'); if (!P.u) throw bad('先开垦这块地'); if (P.soil) throw conflict('这块已经是红土地了', 'done');
-    const cost = CFG.redCost(plots.filter(p => p.soil).length);
-    this.addGold(uid, -cost, 'red'); P.soil = 1; this.savePlot(uid, P); await this.addExp(uid, 15, out); return { idx, cost };
+    const [u, plots] = await all([this.user(uid), this.plots(uid)]);
+    const P = plots.find(p => p.idx === idx); if (!P) throw bad('土地不存在'); if (!P.u) throw bad('先开垦这块地');
+    const next = (P.soil | 0) + 1, S = CFG.SOILS[next]; if (!S) throw conflict('这块已经是最高级的金土地了', 'done');
+    if (u.lv < S.lv) throw bad(`升级${S.name}需要 Lv.${S.lv}`, 'locked');
+    const cost = CFG.soilCost(next, plots.filter(p => (p.soil | 0) >= next).length);
+    this.addGold(uid, -cost, 'soil' + next); P.soil = next; this.savePlot(uid, P); await this.addExp(uid, 15 * next, out); return { idx, cost, soil: next, name: S.name };
   }
   // 批量操作：每一项一个保存点，单项失败只回滚该项
   async batch(uid, fn, list) {
@@ -362,13 +366,20 @@ class Game {
     const it = CFG.SHOP_ITEMS.find(x => x.id === item); if (!it) throw bad('商店没有这个商品'); n = U.int(n, '数量', 1, 99);
     this.addGold(uid, -it.price * n, 'shop:' + item); this.addInv(uid, item, n); return { item, n };
   }
-  async buyDog(uid) { const u = await this.user(uid); if (u.dog_own) throw conflict('已经有小狗了', 'done'); if (u.lv < RULES.dogNeedLv) throw bad(`需要 Lv.${RULES.dogNeedLv}`, 'locked'); this.addGold(uid, -RULES.dogPrice, 'dog'); this.db.w('UPDATE users SET dog_own=1 WHERE id=?', uid); this.pu(uid, x => x.dog_own = 1); this.addInv(uid, 'dogfood', 1); return {}; }
-  async feedDog(uid) {
-    const u = await this.user(uid); if (!u.dog_own) throw bad('还没有小狗'); this.addInv(uid, 'dogfood', -1);
-    const now = this.now(); let lv = u.dog_lv, exp = u.dog_exp + 1, up = false; if (lv < 10 && exp >= CFG.dogExpNeed(lv)) { exp -= CFG.dogExpNeed(lv); lv++; up = true; }
-    const until = Math.max(u.dog_until, now) + RULES.dogFeedMin * 60000; this.db.w('UPDATE users SET dog_until=?, dog_lv=?, dog_exp=? WHERE id=?', until, lv, exp, uid); this.pu(uid, x => { x.dog_until = until; x.dog_lv = lv; x.dog_exp = exp; }); return { lvUp: up ? lv : 0 };
+  /* ---------- 看家狗：福旺、睿宝 ---------- */
+  dogDef(kind) { const d = CFG.DOGS.find(x => x.id === (kind || 'fuwang')); if (!d) throw bad('没有这只狗'); return d; }
+  dogsOf(u) { const now = this.now(); return CFG.DOGS.map(d => { const lv = u[d.col + '_lv'] || 1, until = u[d.col + '_until'] || 0; return { id: d.id, name: d.name, own: !!u[d.col + '_own'], lv, exp: u[d.col + '_exp'] || 0, need: CFG.dogExpNeed(lv), until, fed: until > now, bite: d.bite, chance: CFG.dogChance(d, lv) }; }); }
+  async buyDog(uid, kind) {
+    const d = this.dogDef(kind), u = await this.user(uid), c = d.col;
+    if (u[c + '_own']) throw conflict(`已经有${d.name}了`, 'done'); if (u.lv < d.lv) throw bad(`领养${d.name}需要 Lv.${d.lv}`, 'locked');
+    this.addGold(uid, -d.price, 'dog:' + d.id); this.db.w(`UPDATE users SET ${c}_own=1 WHERE id=?`, uid); this.pu(uid, x => x[c + '_own'] = 1); this.addInv(uid, 'dogfood', 1); return { kind: d.id, name: d.name };
   }
-  dogChance(u) { return Math.min(RULES.dogBlockMax, RULES.dogBlockBase + RULES.dogBlockPerLv * (u.dog_lv - 1)); }
+  async feedDog(uid, kind) {
+    const d = this.dogDef(kind), u = await this.user(uid), c = d.col; if (!u[c + '_own']) throw bad(`还没有领养${d.name}`); this.addInv(uid, 'dogfood', -1);
+    const now = this.now(); let lv = u[c + '_lv'] || 1, exp = (u[c + '_exp'] || 0) + 1, up = false; if (lv < 10 && exp >= CFG.dogExpNeed(lv)) { exp -= CFG.dogExpNeed(lv); lv++; up = true; }
+    const until = Math.max(u[c + '_until'] || 0, now) + RULES.dogFeedMin * 60000; this.db.w(`UPDATE users SET ${c}_until=?, ${c}_lv=?, ${c}_exp=? WHERE id=?`, until, lv, exp, uid);
+    this.pu(uid, x => { x[c + '_until'] = until; x[c + '_lv'] = lv; x[c + '_exp'] = exp; }); return { kind: d.id, name: d.name, lvUp: up ? lv : 0, until };
+  }
 
   /* ---------- 签到 / 任务 / 成就 ---------- */
   claim(uid, key) { this.db.wx(conflict('已经领取过了', 'claimed'), 'INSERT INTO claims (user_id,key,at) VALUES (?,?,?)', uid, key, this.now()); }
@@ -503,7 +514,8 @@ class Game {
       }
       return v;
     });
-    return { owner: Object.assign(this.publicUser(o), { dog: !!(o.dog_own && o.dog_until > now), dogLv: o.dog_lv }), plots: list, steal, help, soon };
+    const dogs = this.dogsOf(o).filter(d => d.own).map(d => ({ id: d.id, name: d.name, lv: d.lv, fed: d.fed }));
+    return { owner: Object.assign(this.publicUser(o), { dog: dogs.some(d => d.fed), dogLv: o.dog_lv, dogs }), plots: list, steal, help, soon };
   }
   async farmView(uid, owner) { const [o, plots, mine] = await all([this.user(owner), this.plots(owner), this.myStealsMap(uid, owner)]); return this.viewOf(o, plots, mine); }
   // 一次查出很多人的农场概况（附近的人、好友列表）：两条查询代替 2N 条
@@ -545,11 +557,13 @@ class Game {
     const cap = Math.floor(P.y0 * CFG.stealCapPct(o.lv)), left = Math.min(cap - P.stolen, P.y - 1);
     if (left <= 0) throw conflict('已经被摘得差不多了，给主人留点吧', 'empty');
     const dupe = conflict('这块地你已经摘过了', 'done');
-    if (o.dog_own && o.dog_until > now && U.rand() < this.dogChance(o)) {
-      const me = await this.user(uid), bite = Math.min(me.gold, U.randInt(RULES.dogBiteMin, RULES.dogBiteMax));
+    // 看家狗：喂饱的每只狗各自判定，抓住的都会咬一口（福旺 5 金币、睿宝 15 金币）
+    const caught = this.dogsOf(o).filter(d => d.own && d.fed && U.rand() < d.chance);
+    if (caught.length) {
+      const me = await this.user(uid), bite = Math.min(me.gold, caught.reduce((a, d) => a + d.bite, 0)), dogs = caught.map(d => d.name);
       if (bite > 0) this.addGold(uid, -bite, 'dog_bite');
       this.db.wx(dupe, 'INSERT INTO steals (owner,thief,idx,cycle,crop,qty,blocked,at) VALUES (?,?,?,?,?,0,1,?)', owner, uid, idx, P.cycle, P.c, now); this.markSteal(uid, owner, idx, P.cycle, true);
-      await this.msg(owner, 'dog', uid, { crop: P.c, n: 1 }, true); return { idx, blocked: true, bite, crop: P.c };
+      await this.msg(owner, 'dog', uid, { crop: P.c, n: 1, dogs }, true); return { idx, blocked: true, bite, crop: P.c, dogs };
     }
     let qty = Math.round(P.y0 * (RULES.stealPctMin + U.rand() * (RULES.stealPctMax - RULES.stealPctMin)));
     const crit = U.rand() < RULES.stealCritChance; if (crit) qty *= 2; // 手气爆棚：一次摘两份

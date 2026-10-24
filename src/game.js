@@ -116,7 +116,9 @@ function applyState(st) {
   renderHud(); renderToolbar(); renderTitle(); renderSide();
   if (S.badges.unread > prevUnread) { loadMessages(true); loadFriends(); }
 }
-function applyFarm(farm) { view.farm = farm; view.friend = farm.owner; view.plots = farm.plots; renderTitle(); renderToolbar(); }
+function applyFarm(farm) { view.farm = farm; view.friend = farm.owner; view.plots = farm.plots; renderTitle(); renderToolbar(); syncSide(farm); }
+// 侧栏头像上的数字（可摘 / 要帮忙）：拿到某人农场的最新状态就立刻同步，不等定时刷新
+function syncSide(farm) { if (!farm || !farm.owner) return; const id = farm.owner.id; [FR.list, NB.list].forEach(l => { const f = l.find(x => x.id === id); if (f) { f.steal = farm.steal; f.help = farm.help; f.soon = farm.soon; } }); renderFriends(); }
 async function loadMessages(notifyNew) {
   try {
     const r = await NET.get('/api/messages'); const old = new Set(MSGS.map(m => m.id + ':' + m.at)); MSGS = r.list; renderLog();
@@ -137,7 +139,7 @@ function msgText(m) {
   switch (m.kind) {
     case 'stolen': return `${I('mask')}${n} 摘走了你的 ${items || (d.qty || '') + ' 个果实'}${d.n > 1 ? `（${d.n} 次）` : ''}`;
     case 'helped': return `${I('hands')}${n} 帮你打理了农田${d.n > 1 ? ` ×${d.n}` : ''}`;
-    case 'dog': return `${I('paw')}你家的狗赶走了来偷菜的 ${n}${d.n > 1 ? ` ×${d.n}` : ''}`;
+    case 'dog': return `${I('paw')}你家的${d.dogs && d.dogs.length ? d.dogs.join('和') : '狗'}赶走了来偷菜的 ${n}${d.n > 1 ? ` ×${d.n}` : ''}`;
     case 'visit': return `${I('home')}${n} 来你的农场逛了逛`;
     case 'friend_ok': return `${I('users')}你和 ${n} 成为了好友`;
     case 'gb': return `${I('mail')}${n} 留言：${esc(CFG.PHRASES[d.phrase] || '').replace(/^\S+\s/, '')}`;
@@ -193,8 +195,13 @@ async function doFert(i) {
   const P = view.plots[i]; if (P.c < 0 || P.p >= 1) return; if (!(S.inv.fert > 0)) { toast('化肥用完了，去商店买一些吧', 'warn'); sfx('err'); return; }
   const r = await api('/api/farm/fert', { idx: i }); if (!r) return; FX.stars(i, 12); FX.text(i, '成长加速', '#c8ff8a', 19); sfx('fert');
 }
-async function doRed(i) { const r = await api('/api/farm/red', { idx: i }); if (!r) return; FX.stars(i, 14); FX.text(i, '升级红土地', '#ffb08a', 21); sfx('level'); toast('红土地：生长更快，产量 +20%'); tool = 'auto'; renderToolbar(); }
-async function doExpand(i) { const r = await api('/api/farm/expand', { idx: i }); if (!r) return; FX.puff(r.result.idx); FX.stars(r.result.idx, 14); FX.text(r.result.idx, '开垦成功', '#ffe27a', 22); sfx('level'); }
+async function doRed(i) {
+  const P = view.plots[i], S1 = CFG.SOILS[(P.soil | 0) + 1]; if (!S1) { toast('这块已经是最高级的金土地了', 'warn'); return; }
+  const r = await api('/api/farm/red', { idx: i }); if (!r) return; const S2 = CFG.SOILS[r.result.soil];
+  FX.stars(i, 14 + 6 * r.result.soil); FX.text(i, `升级为${S2.name}`, ['', '#ffb08a', '#c8c0b0', '#ffd23a'][r.result.soil], 21); sfx('level');
+  toast(`${S2.name}：生长速度 +${Math.round((S2.speed - 1) * 100)}%，产量 +${Math.round((S2.yield - 1) * 100)}%`);
+}
+async function doExpand(i) { const r = await api('/api/farm/expand', i >= 0 ? { idx: i } : {}); if (!r) return; FX.puff(r.result.idx); FX.stars(r.result.idx, 14); FX.text(r.result.idx, '开垦成功', '#ffe27a', 22); sfx('level'); }
 function stagger(list, fn, gap) { list.forEach((x, k) => setTimeout(() => fn(x), k * (gap || 70))); }
 async function allHarvest() { if (view.key !== 'home') return; const r = await api('/api/farm/harvest-all', null, { lvDelay: 900 }); if (!r) return; sfx('harvest'); stagger(r.result.filter(x => !x.err), harvestFx); }
 async function allCare() { if (view.key !== 'home') return; const r = await api('/api/farm/care-all'); if (!r) return; stagger(r.result.filter(x => !x.err), x => careFx(x.idx, x.kind, true), 90); }
@@ -210,25 +217,25 @@ async function visit(f) {
   if (!f) return; closeModal(); $('tip').style.display = 'none';
   try {
     const r = await NET.get('/api/farm/' + f.id);
-    view = { key: 'f' + f.id, friend: r.farm.owner, plots: r.farm.plots, farm: r.farm }; tool = 'auto'; hoverIdx = -1; sfx('open');
+    view = { key: 'f' + f.id, friend: r.farm.owner, plots: r.farm.plots, farm: r.farm }; tool = 'auto'; hoverIdx = -1; sfx('open'); syncSide(r.farm);
     renderToolbar(); renderTitle(); renderFriends(); toast(`来到了 ${f.name} 的农场`); refreshState();
   } catch (e) { toast(e.message, 'warn'); }
 }
 function goHome() { if (!S) return; view = { key: 'home', friend: null, plots: S.plots, farm: null }; hoverIdx = -1; sfx('open'); renderToolbar(); renderTitle(); renderFriends(); refreshState(); }
 function stealFx(x) {
-  if (x.blocked) { dogBarkUntil = Date.now() + 2500; sfx('bark'); FX.text(x.idx, x.bite ? `被狗咬了 -${x.bite}金币` : '被狗赶走了', '#ff9a8a', 20); return; }
+  if (x.blocked) { const who = x.dogs && x.dogs.length ? x.dogs.join('和') : '狗'; dogBarkUntil = Date.now() + 2500; sfx('bark'); FX.text(x.idx, x.bite ? `被${who}咬了 -${x.bite}金币` : `被${who}赶走了`, '#ff9a8a', 20); return; }
   FX.stars(x.idx, x.crit ? 18 : 8); FX.text(x.idx, `${x.crit ? '手气爆棚！' : ''}${CROPS[x.crop].name} ×${x.qty}`, x.crit ? '#ffd23a' : '#fff2c4', x.crit ? 24 : 22);
   if (x.exp) FX.text(x.idx, `+${x.exp} 经验`, '#9fe4ff', 16, 1); else if (x.tired) FX.text(x.idx, '今日经验已满', '#c8c8c8', 14, 1);
   sfx(x.crit ? 'golden' : 'steal');
 }
-async function fSteal(i) { const r = await api(`/api/farm/${view.friend.id}/steal`, { idx: i }); if (r) { stealFx(r.result); if (r.result.blocked) toast(`${view.friend.name} 家的狗把你赶走了${r.result.bite ? `，损失 ${r.result.bite} 金币` : ''}`, 'warn'); } }
+async function fSteal(i) { const r = await api(`/api/farm/${view.friend.id}/steal`, { idx: i }); if (r) { stealFx(r.result); if (r.result.blocked) toast(`${view.friend.name} 家的${(r.result.dogs || ['狗']).join('和')}把你赶走了${r.result.bite ? `，被咬掉 ${r.result.bite} 金币` : ''}`, 'warn'); } }
 async function fHelp(i) { const r = await api(`/api/farm/${view.friend.id}/help`, { idx: i }); if (r) careFx(i, r.result.kind, false, r.result); }
 async function allSteal() { if (view.key === 'home') return; const r = await api(`/api/farm/${view.friend.id}/steal-all`); if (!r) return; const ok = r.result.filter(x => !x.err); stagger(ok, stealFx, 120); const got = ok.filter(x => !x.blocked).reduce((a, x) => a + x.qty, 0), crit = ok.filter(x => x.crit).length; if (got) setTimeout(() => toast(`一共摘到 ${got} 个果实${crit ? `，其中 ${crit} 次手气爆棚` : ''}`), ok.length * 120); }
 async function allHelp() { if (view.key === 'home') return; const r = await api(`/api/farm/${view.friend.id}/help-all`); if (!r) return; stagger(r.result.filter(x => !x.err), x => careFx(x.idx, x.kind, false, x), 120); }
 async function addFriendNow(u) { const r = await api('/api/friends/add', { id: u.id }); if (r) { sfx('level'); toast(`已添加 ${u.name} 为好友`); await loadFriends(); renderToolbar(); refreshState(); } }
 
 /* ============ 点击土地 ============ */
-async function clickPlot(i) {
+async function clickPlot(i, first) {
   if (i < 0 || !S) return; const P = view.plots[i]; if (busy.has(view.key + i)) return; busy.add(view.key + i);
   try {
     if (view.key !== 'home') {
@@ -241,7 +248,7 @@ async function clickPlot(i) {
       }
       if (P.pr.d || P.pr.w || P.pr.b) return await fHelp(i); return;
     }
-    if (!P.u) { if (tool === 'auto' && !painting) askExpand(i); return; }
+    if (!P.u) { if (first !== false) askExpand(i); return; } // 点荒地（任何工具下）都弹出开垦确认；拖动经过的荒地不弹
     switch (tool) {
       case 'shovel': return await doShovel(i);
       case 'fert': return await doFert(i);
@@ -268,7 +275,7 @@ function renderHud() {
 }
 function renderTitle() {
   if (view.key === 'home') $('title').innerHTML = S ? `<span>${esc(S.me.name)}的农场</span>` : '<span>丰收农场</span>';
-  else $('title').innerHTML = `<span>${esc(view.friend.name)}的农场</span><small>Lv.${view.friend.lv}${view.friend.title ? ' · ' + esc(view.friend.title) : ''}${view.friend.dog ? ' · 狗狗看家中' : ''}</small>`;
+  else $('title').innerHTML = `<span>${esc(view.friend.name)}的农场</span><small>Lv.${view.friend.lv}${view.friend.title ? ' · ' + esc(view.friend.title) : ''}${(view.friend.dogs || []).length ? ' · ' + view.friend.dogs.map(d => d.name + (d.fed ? '看家中' : '在睡觉')).join('，') : ''}</small>`;
   $('todbtn').innerHTML = ICON(({ auto: 'cloudsun', day: 'sun', dusk: 'sunset', night: 'moon' })[PREF.tod] || 'cloudsun');
 }
 function renderToolbar() {
@@ -344,10 +351,11 @@ function levelUp(lv) {
 /* ============ 3D 渲染循环 ============ */
 const cv = $('cv');
 function curHour() { const m = { day: 12.5, dusk: 18.4, night: 22.5 }; if (m[PREF.tod]) return m[PREF.tod]; const d = new Date(); return d.getHours() + d.getMinutes() / 60; }
+// 两只狗各自的状态：none 没养 / sleep 饿着在睡觉 / guard 看家 / bark 正在叫
 function dogMode() {
   const bark = Date.now() < dogBarkUntil;
-  if (view.key === 'home') return S && S.me.dog.own ? (bark ? 'bark' : S.me.dog.until > NET.now() ? 'guard' : 'sleep') : 'none';
-  return view.friend && view.friend.dog ? (bark ? 'bark' : 'guard') : 'none';
+  const dogs = view.key === 'home' ? (S && S.me.dogs || []).map(d => ({ id: d.id, own: d.own, fed: d.until > NET.now() })) : ((view.friend && view.friend.dogs) || []).map(d => ({ id: d.id, own: true, fed: d.fed }));
+  return CFG.DOGS.map(def => { const d = dogs.find(x => x.id === def.id); return !d || !d.own ? 'none' : !d.fed ? 'sleep' : bark ? 'bark' : 'guard'; });
 }
 let lastT = performance.now(), rainK = 0, wasRain = false;
 function frame(now) {
@@ -362,10 +370,10 @@ function frame(now) {
 
 /* ============ 指针 & 提示 ============ */
 const paintQ = []; let paintRunning = false;
-async function runPaint() { if (paintRunning) return; paintRunning = true; while (paintQ.length) { await clickPlot(paintQ.shift()); } paintRunning = false; }
+async function runPaint() { if (paintRunning) return; paintRunning = true; while (paintQ.length) { const q = paintQ.shift(); await clickPlot(q.i, q.first); } paintRunning = false; }
 function paintAt(ev, first) {
   if (!S) return; const i = W3.pick(ev.clientX, ev.clientY); if (i < 0 || (!first && i === lastPaint)) return; lastPaint = i; ac(); startMusic();
-  if (first) { paintQ.push(i); runPaint(); } else if (view.key === 'home' && view.plots[i].u && !paintQ.includes(i)) { paintQ.push(i); runPaint(); }
+  if (first) { paintQ.push({ i, first: true }); runPaint(); } else if (view.key === 'home' && view.plots[i].u && !paintQ.some(q => q.i === i)) { paintQ.push({ i, first: false }); runPaint(); }
 }
 let tipTimer = 0;
 const touches = new Map(); let pinch0 = 0;
@@ -392,10 +400,10 @@ function updateTip() {
   const tip = $('tip'); if (!S || !mouse.in || hoverIdx < 0 || painting) { tip.style.display = 'none'; return; }
   const P = view.plots[hoverIdx], home = view.key === 'home'; let h = '';
   if (!P.u) h = home ? `<b>荒地</b><div>开垦需要 ${fmt(CFG.plotCost(unlockedCount()))} 金币（Lv.${CFG.plotNeedLv(unlockedCount())}）</div>` : '<b>荒地</b>';
-  else if (P.c < 0) h = `<b>空地${P.soil ? '（红土地）' : ''}</b>${home ? `<div>点击种植 ${CROPS[S.me.seed].name}（${CROPS[S.me.seed].seed} 金币）</div>` : ''}`;
+  else if (P.c < 0) h = `<b>空地${P.soil ? `（${CFG.SOILS[P.soil].name}）` : ''}</b>${home ? `<div>点击种植 ${CROPS[S.me.seed].name}（${CROPS[S.me.seed].seed} 金币）</div>` : ''}`;
   else {
     const cr = CROPS[P.c], st = stageOf(P.p), pr = [P.pr.d && '缺水', P.pr.w && '杂草', P.pr.b && '害虫'].filter(Boolean);
-    h = `<b>${cr.name}${P.soil ? '（红土地）' : ''}</b><div>${STAGE_NAME[st]}${cr.seasons > 1 ? ` · 第${P.sea + 1}季` : ''}</div>`;
+    h = `<b>${cr.name}${P.soil ? `（${CFG.SOILS[P.soil].name}）` : ''}</b><div>${STAGE_NAME[st]}${cr.seasons > 1 ? ` · 第${P.sea + 1}季` : ''}</div>`;
     if (st === 4) {
       h += `<div>剩余 ×${P.y}${P.stolen ? `（被摘走 ${P.stolen}）` : ''}</div>`;
       if (!home) { const now = NET.now(); h += P.mine === 1 ? '<div class="warn">你已经摘过了</div>' : P.mine === 2 ? '<div class="warn">被狗赶走过，下季再来</div>' : P.left <= 0 ? '<div class="warn">已达保底，不能再摘</div>' : now < P.protectUntil ? `<div class="warn">主人保护中 ${Math.ceil((P.protectUntil - now) / 1000)} 秒</div>` : `<div class="ok">可以摘取（最多还能被摘 ${P.left}）</div>`; }

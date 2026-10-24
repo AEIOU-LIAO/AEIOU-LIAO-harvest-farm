@@ -72,9 +72,23 @@ __def("shared/config.js", function (module, exports, __req) {
   ];
   const RARITY = ['', '普通', '稀有', '史诗', '传说'];
 
+  // 土地等级：普通 → 红土地 → 黑土地 → 金土地（生长速度、产量逐级提高）
+  // 升级费用 = base + step × 已经达到该等级的地块数
+  const SOILS = [
+    { id: 0, name: '普通土地', lv: 0, speed: 1, yield: 1, base: 0, step: 0 },
+    { id: 1, name: '红土地', lv: 5, speed: 1.2, yield: 1.2, base: 1500, step: 600 },
+    { id: 2, name: '黑土地', lv: 15, speed: 1.35, yield: 1.4, base: 8000, step: 2000 },
+    { id: 3, name: '金土地', lv: 28, speed: 1.5, yield: 1.65, base: 30000, step: 6000 },
+  ];
+  // 看家狗：福旺、睿宝，可以都养；喂饱时各自独立判定能不能抓住来偷菜的人
+  const DOGS = [
+    { id: 'fuwang', name: '福旺', col: 'dog', price: 400, lv: 3, bite: 5, base: 0.3, perLv: 0.03, max: 0.6, desc: '土黄色的田园犬，机灵亲人，咬一口 5 金币' },
+    { id: 'ruibao', name: '睿宝', col: 'dog2', price: 3000, lv: 10, bite: 15, base: 0.4, perLv: 0.03, max: 0.7, desc: '黑白相间的大狗，威风凛凛，咬一口 15 金币' },
+  ];
+
   const RULES = {
     startGold: 300, startPlots: 6, maxLv: 45,
-    fertPrice: 60, fertBoost: 0.3, dogfoodPrice: 120, dogPrice: 400, dogNeedLv: 3, dogFeedMin: 120,
+    fertPrice: 60, fertBoost: 0.3, dogfoodPrice: 120, dogPrice: 400, dogNeedLv: 3, dogFeedMin: 120, // dogPrice/dogNeedLv 为旧字段，狗的数值见 DOGS
     redNeedLv: 5,
     // 偷菜
     stealDelaySec: 30,          // 成熟后的主人保护时间
@@ -90,7 +104,7 @@ __def("shared/config.js", function (module, exports, __req) {
     helpSoftLimit: 100, helpHardLimit: 600, helpExp: 4, helpGold: 6, // 超过软上限仍可帮忙，只是不再给奖励
     helpBoost: 0.03,            // 每次帮忙让对方作物多长 3%
     // 生长
-    probSlow: 0.62, soilSpeed: 1.2, soilYield: 1.2, season2Start: 0.45,
+    probSlow: 0.62, season2Start: 0.45,
     goldenChance: 0.04, goldenPriceMult: 5,
     bumperChance: 0.08, bumperBonus: 0.5, // 大丰收：额外多收 50%
     // 订单：Lv.10 / 20 / 30 各多一个订单位
@@ -186,7 +200,10 @@ __def("shared/config.js", function (module, exports, __req) {
   const dogExpNeed = lv => 3 + lv * 2;
   const plotCost = unlocked => Math.round(500 * Math.pow(1.28, unlocked - RULES.startPlots));
   const plotNeedLv = unlocked => 2 + Math.floor((unlocked - RULES.startPlots) * 0.8);
-  const redCost = nRed => 1500 + 600 * nRed;
+  const soilOf = P => SOILS[Math.max(0, Math.min(SOILS.length - 1, (P && P.soil) | 0))];
+  const soilCost = (tier, nAtLeast) => { const s = SOILS[tier]; return s ? s.base + s.step * nAtLeast : 0; };
+  const redCost = nRed => soilCost(1, nRed);
+  const dogChance = (d, lv) => Math.min(d.max, d.base + d.perLv * ((lv || 1) - 1));
   const stageOf = p => p >= 1 ? 4 : p < 0.1 ? 0 : p < 0.35 ? 1 : p < 0.65 ? 2 : 3;
   const STAGE_NAME = ['种子期', '发芽期', '成长期', '即将成熟', '已成熟'];
 
@@ -222,7 +239,7 @@ __def("shared/config.js", function (module, exports, __req) {
   // ---- 生长：时间戳懒计算 ----
   function plotDur(P) { return CROPS[P.c].time * 1000 * (P.sea > 0 ? 0.9 : 1); }
   function probCount(P) { return (P.pr.d ? 1 : 0) + (P.pr.w ? 1 : 0) + (P.pr.b ? 1 : 0); }
-  function plotSpeed(P) { return (P.soil ? RULES.soilSpeed : 1) * Math.pow(RULES.probSlow, probCount(P)); }
+  function plotSpeed(P) { return soilOf(P).speed * Math.pow(RULES.probSlow, probCount(P)); }
   function remainSec(P) { return (1 - P.p) * plotDur(P) / 1000 / plotSpeed(P); }
   // 将地块推进到 now；ev 为服务端预排的病虫害事件 [[时间,类型],...]
   function advancePlot(P, now) {
@@ -249,6 +266,7 @@ __def("shared/config.js", function (module, exports, __req) {
   function stealCapPct(ownerLv) { return ownerLv < RULES.newbieLv ? RULES.newbieMaxPct : RULES.stealMaxPct; }
 
   const CFG = { COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
+    SOILS, DOGS, soilOf, soilCost, dogChance,
     expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };
   if (typeof module !== 'undefined' && module.exports) module.exports = CFG; else root.GAMECFG = CFG;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -408,6 +426,11 @@ const MIGRATIONS = [
   `,
   // v2 无服务器部署：后台任务（NPC、清理）用的租约表
   `CREATE TABLE IF NOT EXISTS leases (name TEXT PRIMARY KEY, until INTEGER NOT NULL, at INTEGER NOT NULL DEFAULT 0);`,
+  // v3 第二只看家狗「睿宝」（第一只「福旺」沿用 dog_* 字段）；土地等级 soil 扩展为 0–3（字段不变）
+  `ALTER TABLE users ADD COLUMN dog2_own INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN dog2_lv INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE users ADD COLUMN dog2_exp INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN dog2_until INTEGER NOT NULL DEFAULT 0;`,
 ];
 
 const BUSY = /SQLITE_BUSY|database is locked|SQLITE_LOCKED|BUSY_SNAPSHOT/i;
@@ -773,6 +796,7 @@ class Game {
     return Object.assign(this.publicUser(u), {
       gold: u.gold, exp: u.exp, expNeed: CFG.expNeed(u.lv), seed: u.seed, username: u.username || '', guest: !u.username, role: u.role, migrated: !!u.migrated,
       dog: { own: !!u.dog_own, lv: u.dog_lv, exp: u.dog_exp, need: CFG.dogExpNeed(u.dog_lv), until: u.dog_until },
+      dogs: this.dogsOf(u),
       checkin: { last: u.checkin_last, streak: u.checkin_streak }, settings: J(u.settings) || {}, created_at: u.created_at,
       stats: { harvest: u.harvest_total, steal: u.steal_total, help: u.help_total, plant: u.plant_total, earned: u.earned_total, golden: u.golden_total, order: u.order_total, stolenFrom: u.stolen_from_total },
     });
@@ -994,7 +1018,7 @@ class Game {
 
   /* ---------- 自己农场 ---------- */
   scheduleEv(P, start) { const dur = CFG.plotDur(P), rem = 1 - P.p, cr = CROPS[P.c]; const n = (U.rand() < (cr.time < 60 ? 0.35 : 0.6) ? 1 : 0) + (U.rand() < 0.3 ? 1 : 0) + (cr.time >= 1800 && U.rand() < 0.4 ? 1 : 0); const ev = []; for (let i = 0; i < n; i++) ev.push([Math.round(start + dur * rem * (0.1 + U.rand() * 0.75)), pick(['d', 'w', 'b'])]); ev.sort((a, b) => a[0] - b[0]); return ev; }
-  async startCycle(P, now) { const cr = CROPS[P.c]; P.y0 = Math.max(1, Math.round(cr.yield * (P.soil ? RULES.soilYield : 1) * await this.evMult('yield_mult', P.c))); P.y = P.y0; P.stolen = 0; P.pr = { d: 0, w: 0, b: 0 }; P.t = now; P.ra = 0; P.cycle++; P.ev = this.scheduleEv(P, now); }
+  async startCycle(P, now) { const cr = CROPS[P.c]; P.y0 = Math.max(1, Math.round(cr.yield * CFG.soilOf(P).yield * await this.evMult('yield_mult', P.c))); P.y = P.y0; P.stolen = 0; P.pr = { d: 0, w: 0, b: 0 }; P.t = now; P.ra = 0; P.cycle++; P.ev = this.scheduleEv(P, now); }
   async plant(uid, idx, cropId, out) {
     const cr = CROPS[cropId]; if (!cr) throw bad('没有这种种子');
     const [u, P] = await all([this.user(uid), this.plot(uid, idx)]);
@@ -1041,11 +1065,14 @@ class Game {
     const need = CFG.plotNeedLv(owned), cost = CFG.plotCost(owned); if (u.lv < need) throw bad(`扩建需要 Lv.${need}`, 'locked');
     this.addGold(uid, -cost, 'expand'); P.u = 1; P.t = this.now(); this.savePlot(uid, P); await this.addExp(uid, 10, out); return { idx, cost };
   }
+  // 土地升级：普通 → 红土地 → 黑土地 → 金土地（接口名沿用 red）
   async red(uid, idx, out) {
-    const [u, plots] = await all([this.user(uid), this.plots(uid)]); if (u.lv < RULES.redNeedLv) throw bad(`红土地需要 Lv.${RULES.redNeedLv}`, 'locked');
-    const P = plots.find(p => p.idx === idx); if (!P) throw bad('土地不存在'); if (!P.u) throw bad('先开垦这块地'); if (P.soil) throw conflict('这块已经是红土地了', 'done');
-    const cost = CFG.redCost(plots.filter(p => p.soil).length);
-    this.addGold(uid, -cost, 'red'); P.soil = 1; this.savePlot(uid, P); await this.addExp(uid, 15, out); return { idx, cost };
+    const [u, plots] = await all([this.user(uid), this.plots(uid)]);
+    const P = plots.find(p => p.idx === idx); if (!P) throw bad('土地不存在'); if (!P.u) throw bad('先开垦这块地');
+    const next = (P.soil | 0) + 1, S = CFG.SOILS[next]; if (!S) throw conflict('这块已经是最高级的金土地了', 'done');
+    if (u.lv < S.lv) throw bad(`升级${S.name}需要 Lv.${S.lv}`, 'locked');
+    const cost = CFG.soilCost(next, plots.filter(p => (p.soil | 0) >= next).length);
+    this.addGold(uid, -cost, 'soil' + next); P.soil = next; this.savePlot(uid, P); await this.addExp(uid, 15 * next, out); return { idx, cost, soil: next, name: S.name };
   }
   // 批量操作：每一项一个保存点，单项失败只回滚该项
   async batch(uid, fn, list) {
@@ -1063,13 +1090,20 @@ class Game {
     const it = CFG.SHOP_ITEMS.find(x => x.id === item); if (!it) throw bad('商店没有这个商品'); n = U.int(n, '数量', 1, 99);
     this.addGold(uid, -it.price * n, 'shop:' + item); this.addInv(uid, item, n); return { item, n };
   }
-  async buyDog(uid) { const u = await this.user(uid); if (u.dog_own) throw conflict('已经有小狗了', 'done'); if (u.lv < RULES.dogNeedLv) throw bad(`需要 Lv.${RULES.dogNeedLv}`, 'locked'); this.addGold(uid, -RULES.dogPrice, 'dog'); this.db.w('UPDATE users SET dog_own=1 WHERE id=?', uid); this.pu(uid, x => x.dog_own = 1); this.addInv(uid, 'dogfood', 1); return {}; }
-  async feedDog(uid) {
-    const u = await this.user(uid); if (!u.dog_own) throw bad('还没有小狗'); this.addInv(uid, 'dogfood', -1);
-    const now = this.now(); let lv = u.dog_lv, exp = u.dog_exp + 1, up = false; if (lv < 10 && exp >= CFG.dogExpNeed(lv)) { exp -= CFG.dogExpNeed(lv); lv++; up = true; }
-    const until = Math.max(u.dog_until, now) + RULES.dogFeedMin * 60000; this.db.w('UPDATE users SET dog_until=?, dog_lv=?, dog_exp=? WHERE id=?', until, lv, exp, uid); this.pu(uid, x => { x.dog_until = until; x.dog_lv = lv; x.dog_exp = exp; }); return { lvUp: up ? lv : 0 };
+  /* ---------- 看家狗：福旺、睿宝 ---------- */
+  dogDef(kind) { const d = CFG.DOGS.find(x => x.id === (kind || 'fuwang')); if (!d) throw bad('没有这只狗'); return d; }
+  dogsOf(u) { const now = this.now(); return CFG.DOGS.map(d => { const lv = u[d.col + '_lv'] || 1, until = u[d.col + '_until'] || 0; return { id: d.id, name: d.name, own: !!u[d.col + '_own'], lv, exp: u[d.col + '_exp'] || 0, need: CFG.dogExpNeed(lv), until, fed: until > now, bite: d.bite, chance: CFG.dogChance(d, lv) }; }); }
+  async buyDog(uid, kind) {
+    const d = this.dogDef(kind), u = await this.user(uid), c = d.col;
+    if (u[c + '_own']) throw conflict(`已经有${d.name}了`, 'done'); if (u.lv < d.lv) throw bad(`领养${d.name}需要 Lv.${d.lv}`, 'locked');
+    this.addGold(uid, -d.price, 'dog:' + d.id); this.db.w(`UPDATE users SET ${c}_own=1 WHERE id=?`, uid); this.pu(uid, x => x[c + '_own'] = 1); this.addInv(uid, 'dogfood', 1); return { kind: d.id, name: d.name };
   }
-  dogChance(u) { return Math.min(RULES.dogBlockMax, RULES.dogBlockBase + RULES.dogBlockPerLv * (u.dog_lv - 1)); }
+  async feedDog(uid, kind) {
+    const d = this.dogDef(kind), u = await this.user(uid), c = d.col; if (!u[c + '_own']) throw bad(`还没有领养${d.name}`); this.addInv(uid, 'dogfood', -1);
+    const now = this.now(); let lv = u[c + '_lv'] || 1, exp = (u[c + '_exp'] || 0) + 1, up = false; if (lv < 10 && exp >= CFG.dogExpNeed(lv)) { exp -= CFG.dogExpNeed(lv); lv++; up = true; }
+    const until = Math.max(u[c + '_until'] || 0, now) + RULES.dogFeedMin * 60000; this.db.w(`UPDATE users SET ${c}_until=?, ${c}_lv=?, ${c}_exp=? WHERE id=?`, until, lv, exp, uid);
+    this.pu(uid, x => { x[c + '_until'] = until; x[c + '_lv'] = lv; x[c + '_exp'] = exp; }); return { kind: d.id, name: d.name, lvUp: up ? lv : 0, until };
+  }
 
   /* ---------- 签到 / 任务 / 成就 ---------- */
   claim(uid, key) { this.db.wx(conflict('已经领取过了', 'claimed'), 'INSERT INTO claims (user_id,key,at) VALUES (?,?,?)', uid, key, this.now()); }
@@ -1204,7 +1238,8 @@ class Game {
       }
       return v;
     });
-    return { owner: Object.assign(this.publicUser(o), { dog: !!(o.dog_own && o.dog_until > now), dogLv: o.dog_lv }), plots: list, steal, help, soon };
+    const dogs = this.dogsOf(o).filter(d => d.own).map(d => ({ id: d.id, name: d.name, lv: d.lv, fed: d.fed }));
+    return { owner: Object.assign(this.publicUser(o), { dog: dogs.some(d => d.fed), dogLv: o.dog_lv, dogs }), plots: list, steal, help, soon };
   }
   async farmView(uid, owner) { const [o, plots, mine] = await all([this.user(owner), this.plots(owner), this.myStealsMap(uid, owner)]); return this.viewOf(o, plots, mine); }
   // 一次查出很多人的农场概况（附近的人、好友列表）：两条查询代替 2N 条
@@ -1246,11 +1281,13 @@ class Game {
     const cap = Math.floor(P.y0 * CFG.stealCapPct(o.lv)), left = Math.min(cap - P.stolen, P.y - 1);
     if (left <= 0) throw conflict('已经被摘得差不多了，给主人留点吧', 'empty');
     const dupe = conflict('这块地你已经摘过了', 'done');
-    if (o.dog_own && o.dog_until > now && U.rand() < this.dogChance(o)) {
-      const me = await this.user(uid), bite = Math.min(me.gold, U.randInt(RULES.dogBiteMin, RULES.dogBiteMax));
+    // 看家狗：喂饱的每只狗各自判定，抓住的都会咬一口（福旺 5 金币、睿宝 15 金币）
+    const caught = this.dogsOf(o).filter(d => d.own && d.fed && U.rand() < d.chance);
+    if (caught.length) {
+      const me = await this.user(uid), bite = Math.min(me.gold, caught.reduce((a, d) => a + d.bite, 0)), dogs = caught.map(d => d.name);
       if (bite > 0) this.addGold(uid, -bite, 'dog_bite');
       this.db.wx(dupe, 'INSERT INTO steals (owner,thief,idx,cycle,crop,qty,blocked,at) VALUES (?,?,?,?,?,0,1,?)', owner, uid, idx, P.cycle, P.c, now); this.markSteal(uid, owner, idx, P.cycle, true);
-      await this.msg(owner, 'dog', uid, { crop: P.c, n: 1 }, true); return { idx, blocked: true, bite, crop: P.c };
+      await this.msg(owner, 'dog', uid, { crop: P.c, n: 1, dogs }, true); return { idx, blocked: true, bite, crop: P.c, dogs };
     }
     let qty = Math.round(P.y0 * (RULES.stealPctMin + U.rand() * (RULES.stealPctMax - RULES.stealPctMin)));
     const crit = U.rand() < RULES.stealCritChance; if (crit) qty *= 2; // 手气爆棚：一次摘两份
@@ -1578,14 +1615,16 @@ class Villagers {
     const harvest = Math.round(Math.pow(lv, 1.7) * 7 * (0.7 + r() * 0.6)), steal = Math.round(harvest * (0.15 + r() * 0.35)), help = Math.round(harvest * (0.1 + r() * 0.3));
     const owned = Math.min(NPLOTS, RULES.startPlots + Math.floor(Math.max(0, lv - 2) / 0.8 * (0.5 + r() * 0.45)));
     const gold = Math.round(lv * lv * 35 + lv * 150 + r() * lv * 300 + 200);
-    const dog = lv >= 3 && r() < 0.45 ? 1 : 0, persona = pickPersona(r);
+    // 看家狗：Lv.3 起多数养福旺，Lv.10 起一部分还养睿宝；入场时都是喂饱的
+    const dog = lv >= 3 && r() < 0.7 ? 1 : 0, dog2 = lv >= 10 && r() < 0.45 ? 1 : 0, persona = pickPersona(r);
+    const dogUntil = () => now + Math.floor((1 + r() * 7) * 3600000);
     const yest = CFG.dayKey(now - 86400000);
     const fields = { name, lv, exp: Math.floor(CFG.expNeed(lv) * r() * 0.9), gold, avatar: JSON.stringify(av), dog_own: dog, dog_lv: dog ? 1 + Math.floor(r() * Math.min(9, lv / 3)) : 1,
       harvest_total: harvest, steal_total: steal, help_total: help, plant_total: Math.round(harvest * 1.1), golden_total: Math.round(harvest * 0.03 * r()), order_total: Math.round(lv * 1.5 * r()), earned_total: Math.round(gold * (3 + r() * 4)), stolen_from_total: Math.round(harvest * 2 * r()),
       checkin_last: r() < 0.6 ? yest : CFG.dayKey(now - Math.floor(2 + r() * 5) * 86400000), checkin_streak: Math.floor(r() * Math.min(lv, 9)), created_at: created, last_active: now - Math.floor(r() * 20 * 3600000) };
-    this.db.w(`UPDATE users SET role='npc', name=?, lv=?, exp=?, gold=?, title='', theme='classic', frame='none', avatar=?, dog_own=?, dog_lv=?, dog_exp=0, dog_until=0,
+    this.db.w(`UPDATE users SET role='npc', name=?, lv=?, exp=?, gold=?, title='', theme='classic', frame='none', avatar=?, dog_own=?, dog_lv=?, dog_exp=0, dog_until=?, dog2_own=?, dog2_lv=?, dog2_exp=0, dog2_until=?,
       harvest_total=?, steal_total=?, help_total=?, plant_total=?, golden_total=?, order_total=?, earned_total=?, stolen_from_total=?, checkin_last=?, checkin_streak=?, created_at=?, last_active=?, seed=0 WHERE id=?`,
-      fields.name, fields.lv, fields.exp, fields.gold, fields.avatar, fields.dog_own, fields.dog_lv, fields.harvest_total, fields.steal_total, fields.help_total, fields.plant_total, fields.golden_total, fields.order_total, fields.earned_total, fields.stolen_from_total, fields.checkin_last, fields.checkin_streak, fields.created_at, fields.last_active, uid);
+      fields.name, fields.lv, fields.exp, fields.gold, fields.avatar, fields.dog_own, fields.dog_lv, dog ? dogUntil() : 0, dog2, dog2 ? 1 + Math.floor(r() * Math.min(9, lv / 4)) : 1, dog2 ? dogUntil() : 0, fields.harvest_total, fields.steal_total, fields.help_total, fields.plant_total, fields.golden_total, fields.order_total, fields.earned_total, fields.stolen_from_total, fields.checkin_last, fields.checkin_streak, fields.created_at, fields.last_active, uid);
     // 图鉴、成就、称号、装扮
     let codexN = 0;
     CROPS.filter(c => c.lv <= lv).forEach(c => { if (r() < 0.9) { codexN++; this.db.w('INSERT OR IGNORE INTO codex (user_id,item,first_at,n) VALUES (?,?,?,?)', uid, 'c' + c.id, created + Math.floor(r() * (now - created)), 5 + Math.floor(r() * 200)); } if (r() < 0.06) { codexN++; this.db.w('INSERT OR IGNORE INTO codex (user_id,item,first_at,n) VALUES (?,?,?,?)', uid, 'g' + c.id, now - Math.floor(r() * days) * 86400000, 1 + Math.floor(r() * 3)); } });
@@ -1597,7 +1636,8 @@ class Villagers {
     // 土地与作物：大部分地在种，一部分已经成熟（主人还没上线收）
     this.db.w('UPDATE plots SET u=0, soil=0, c=-1, p=0, y=0, y0=0, stolen=0 WHERE user_id=?', uid);
     const nRed = lv >= 6 ? Math.floor(r() * Math.min(owned, (lv - 5) / 2)) : 0;
-    UNLOCK_ORDER.slice(0, owned).forEach((idx, k) => this.db.w('UPDATE plots SET u=1, soil=?, t=? WHERE user_id=? AND idx=?', k < nRed ? 1 : 0, now, uid, idx));
+    const tier = () => lv >= 28 && r() < 0.4 ? 3 : lv >= 15 && r() < 0.5 ? 2 : 1;
+    UNLOCK_ORDER.slice(0, owned).forEach((idx, k) => this.db.w('UPDATE plots SET u=1, soil=?, t=? WHERE user_id=? AND idx=?', k < nRed ? tier() : 0, now, uid, idx));
     const pool = CROPS.filter(c => c.lv <= lv).sort((a, b) => b.lv - a.lv), main = pool[Math.floor(r() * Math.min(3, pool.length))], alt = pool[Math.floor(r() * Math.min(6, pool.length))];
     for (const P of await g.plots(uid)) {
       if (!P.u || r() < 0.12) continue;
@@ -1606,7 +1646,7 @@ class Villagers {
       if (P.p < 1 && r() < 0.25) P.pr[['d', 'w', 'b'][Math.floor(r() * 3)]] = 1;
       g.savePlot(uid, P);
     }
-    this.db.w('DELETE FROM inventory WHERE user_id=?', uid); g.addInv(uid, 'fert', Math.floor(r() * 8)); if (dog) g.addInv(uid, 'dogfood', Math.floor(r() * 4));
+    this.db.w('DELETE FROM inventory WHERE user_id=?', uid); g.addInv(uid, 'fert', Math.floor(r() * 8)); if (dog || dog2) g.addInv(uid, 'dogfood', 2 + Math.floor(r() * 5));
     pool.slice(0, 3).forEach(c => { if (r() < 0.6) g.addInv(uid, 'c' + c.id, 5 + Math.floor(r() * 40)); });
     this.db.w('UPDATE users SET settings=? WHERE id=?', JSON.stringify({ sound: true, music: true, tut: 1, npc: { v: 2, persona, until: 0, seed: Math.floor(r() * 1e9) } }), uid);
   }
@@ -1656,12 +1696,17 @@ class Villagers {
     for (const [item, q] of Object.entries(inv)) { if (/^[cg]\d+$/.test(item) && q > 0) { const keep = /^g/.test(item) ? 0 : Math.min(q, U.randInt(0, 25)); if (q - keep > 0) await this.sp(() => g.sell(id, item, q - keep, q)); } }
     await this.tidy(id, P, true);
     [u, inv] = await Promise.all([g.user(id), g.inv(id)]);
-    if (u.dog_own && u.dog_until < g.now() + 15 * 60000) { if (!inv.dogfood && u.gold > 1500) { const n = U.randInt(1, 3); if (await this.sp(() => g.buy(id, 'dogfood', n))) inv.dogfood = n; } if (inv.dogfood) await this.sp(() => g.feedDog(id)); }
-    if (!u.dog_own && u.lv >= RULES.dogNeedLv && u.gold > 1800 && U.rand() < 0.25) await this.sp(() => g.buyDog(id));
+    // 喂狗：快饿了就喂（狗粮不够先买）；有钱了再领养新狗
+    for (const d of CFG.DOGS) {
+      if (u[d.col + '_own'] && (u[d.col + '_until'] || 0) < g.now() + 30 * 60000) { if (!inv.dogfood && u.gold > 800) { const n = U.randInt(2, 5); if (await this.sp(() => g.buy(id, 'dogfood', n))) inv.dogfood = n; } if (inv.dogfood && await this.sp(() => g.feedDog(id, d.id))) inv.dogfood--; }
+      else if (!u[d.col + '_own'] && u.lv >= d.lv && u.gold > d.price * 4 && U.rand() < 0.25) await this.sp(() => g.buyDog(id, d.id));
+    }
     let plots; [u, plots] = await Promise.all([g.user(id), g.plots(id)]); const owned = plots.filter(p => p.u).length;
     if (owned < NPLOTS && u.lv >= CFG.plotNeedLv(owned) && u.gold > CFG.plotCost(owned) * 1.4 && U.rand() < 0.5) await this.sp(() => g.expand(id, -1, out));
     [u, plots] = await Promise.all([g.user(id), g.plots(id)]);
-    if (u.lv >= RULES.redNeedLv && u.gold > CFG.redCost(plots.filter(p => p.soil).length) * 2.5 && U.rand() < 0.15) { const p = plots.find(x => x.u && !x.soil); if (p) await this.sp(() => g.red(id, p.idx, out)); }
+    // 升级土地：从等级最低的地开始，一级一级往上升
+    { const p = plots.filter(x => x.u).sort((a, b) => (a.soil | 0) - (b.soil | 0))[0], next = p ? (p.soil | 0) + 1 : 0, S = CFG.SOILS[next];
+      if (S && u.lv >= S.lv && u.gold > CFG.soilCost(next, plots.filter(x => (x.soil | 0) >= next).length) * 2.5 && U.rand() < 0.15) await this.sp(() => g.red(id, p.idx, out)); }
     if (!inv.fert && u.gold > 3000 && U.rand() < 0.2) await this.sp(() => g.buy(id, 'fert', U.randInt(2, 6)));
     await this.replant(id);
     u = await g.user(id); if (u.lv >= 6 && U.rand() < 0.03) { const own = new Set(await g.cosmetics(id)); const th = CFG.THEMES.filter(t => t.price && !own.has('theme:' + t.id) && t.price * 3 < u.gold); if (th.length) { const t = th[U.randInt(0, th.length - 1)]; if (await this.sp(() => g.buyCosmetic(id, 'theme', t.id))) this.db.w('UPDATE users SET theme=? WHERE id=?', t.id, id); } }
@@ -1858,8 +1903,8 @@ async function createCore(opts) {
   R('POST', '/api/farm/care-all', { auth: 1 }, async (c) => { const l = [].concat(...(await game.plots(c.uid)).map(sick)); if (!l.length) throw U.conflict('农田都很健康', 'none'); const b = await game.batch(c.uid, (i, o) => game.care(c.uid, i, o), l); return own(c.uid, b.res, b.out); });
   R('POST', '/api/farm/plant-all', { auth: 1 }, async (c) => { const crop = U.int(c.body.crop, '种子', 0, CFG.CROPS.length - 1); const l = (await game.plots(c.uid)).filter(P => P.u && P.c < 0).map(P => P.idx); if (!l.length) throw U.conflict('没有空地了', 'none'); const b = await game.batch(c.uid, (i, o) => game.plant(c.uid, i, crop, o), l); if (!b.res.some(r => !r.err)) throw U.conflict(b.res[0].err, b.res[0].code); return own(c.uid, b.res, b.out); });
   R('POST', '/api/shop/buy', { auth: 1 }, async (c) => own(c.uid, await game.buy(c.uid, String(c.body.item), c.body.n)));
-  R('POST', '/api/shop/dog', { auth: 1 }, async (c) => own(c.uid, await game.buyDog(c.uid)));
-  R('POST', '/api/dog/feed', { auth: 1 }, async (c) => own(c.uid, await game.feedDog(c.uid)));
+  R('POST', '/api/shop/dog', { auth: 1 }, async (c) => own(c.uid, await game.buyDog(c.uid, c.body.kind ? String(c.body.kind) : 'fuwang')));
+  R('POST', '/api/dog/feed', { auth: 1 }, async (c) => own(c.uid, await game.feedDog(c.uid, c.body.kind ? String(c.body.kind) : 'fuwang')));
   R('POST', '/api/wh/sell', { auth: 1 }, async (c) => own(c.uid, await game.sell(c.uid, String(c.body.item), c.body.n)));
   R('POST', '/api/wh/sell-all', { auth: 1 }, async (c) => own(c.uid, await game.sellAll(c.uid)));
   R('POST', '/api/checkin', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.checkin(c.uid, o), o); });

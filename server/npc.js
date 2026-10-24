@@ -80,14 +80,16 @@ class Villagers {
     const harvest = Math.round(Math.pow(lv, 1.7) * 7 * (0.7 + r() * 0.6)), steal = Math.round(harvest * (0.15 + r() * 0.35)), help = Math.round(harvest * (0.1 + r() * 0.3));
     const owned = Math.min(NPLOTS, RULES.startPlots + Math.floor(Math.max(0, lv - 2) / 0.8 * (0.5 + r() * 0.45)));
     const gold = Math.round(lv * lv * 35 + lv * 150 + r() * lv * 300 + 200);
-    const dog = lv >= 3 && r() < 0.45 ? 1 : 0, persona = pickPersona(r);
+    // 看家狗：Lv.3 起多数养福旺，Lv.10 起一部分还养睿宝；入场时都是喂饱的
+    const dog = lv >= 3 && r() < 0.7 ? 1 : 0, dog2 = lv >= 10 && r() < 0.45 ? 1 : 0, persona = pickPersona(r);
+    const dogUntil = () => now + Math.floor((1 + r() * 7) * 3600000);
     const yest = CFG.dayKey(now - 86400000);
     const fields = { name, lv, exp: Math.floor(CFG.expNeed(lv) * r() * 0.9), gold, avatar: JSON.stringify(av), dog_own: dog, dog_lv: dog ? 1 + Math.floor(r() * Math.min(9, lv / 3)) : 1,
       harvest_total: harvest, steal_total: steal, help_total: help, plant_total: Math.round(harvest * 1.1), golden_total: Math.round(harvest * 0.03 * r()), order_total: Math.round(lv * 1.5 * r()), earned_total: Math.round(gold * (3 + r() * 4)), stolen_from_total: Math.round(harvest * 2 * r()),
       checkin_last: r() < 0.6 ? yest : CFG.dayKey(now - Math.floor(2 + r() * 5) * 86400000), checkin_streak: Math.floor(r() * Math.min(lv, 9)), created_at: created, last_active: now - Math.floor(r() * 20 * 3600000) };
-    this.db.w(`UPDATE users SET role='npc', name=?, lv=?, exp=?, gold=?, title='', theme='classic', frame='none', avatar=?, dog_own=?, dog_lv=?, dog_exp=0, dog_until=0,
+    this.db.w(`UPDATE users SET role='npc', name=?, lv=?, exp=?, gold=?, title='', theme='classic', frame='none', avatar=?, dog_own=?, dog_lv=?, dog_exp=0, dog_until=?, dog2_own=?, dog2_lv=?, dog2_exp=0, dog2_until=?,
       harvest_total=?, steal_total=?, help_total=?, plant_total=?, golden_total=?, order_total=?, earned_total=?, stolen_from_total=?, checkin_last=?, checkin_streak=?, created_at=?, last_active=?, seed=0 WHERE id=?`,
-      fields.name, fields.lv, fields.exp, fields.gold, fields.avatar, fields.dog_own, fields.dog_lv, fields.harvest_total, fields.steal_total, fields.help_total, fields.plant_total, fields.golden_total, fields.order_total, fields.earned_total, fields.stolen_from_total, fields.checkin_last, fields.checkin_streak, fields.created_at, fields.last_active, uid);
+      fields.name, fields.lv, fields.exp, fields.gold, fields.avatar, fields.dog_own, fields.dog_lv, dog ? dogUntil() : 0, dog2, dog2 ? 1 + Math.floor(r() * Math.min(9, lv / 4)) : 1, dog2 ? dogUntil() : 0, fields.harvest_total, fields.steal_total, fields.help_total, fields.plant_total, fields.golden_total, fields.order_total, fields.earned_total, fields.stolen_from_total, fields.checkin_last, fields.checkin_streak, fields.created_at, fields.last_active, uid);
     // 图鉴、成就、称号、装扮
     let codexN = 0;
     CROPS.filter(c => c.lv <= lv).forEach(c => { if (r() < 0.9) { codexN++; this.db.w('INSERT OR IGNORE INTO codex (user_id,item,first_at,n) VALUES (?,?,?,?)', uid, 'c' + c.id, created + Math.floor(r() * (now - created)), 5 + Math.floor(r() * 200)); } if (r() < 0.06) { codexN++; this.db.w('INSERT OR IGNORE INTO codex (user_id,item,first_at,n) VALUES (?,?,?,?)', uid, 'g' + c.id, now - Math.floor(r() * days) * 86400000, 1 + Math.floor(r() * 3)); } });
@@ -99,7 +101,8 @@ class Villagers {
     // 土地与作物：大部分地在种，一部分已经成熟（主人还没上线收）
     this.db.w('UPDATE plots SET u=0, soil=0, c=-1, p=0, y=0, y0=0, stolen=0 WHERE user_id=?', uid);
     const nRed = lv >= 6 ? Math.floor(r() * Math.min(owned, (lv - 5) / 2)) : 0;
-    UNLOCK_ORDER.slice(0, owned).forEach((idx, k) => this.db.w('UPDATE plots SET u=1, soil=?, t=? WHERE user_id=? AND idx=?', k < nRed ? 1 : 0, now, uid, idx));
+    const tier = () => lv >= 28 && r() < 0.4 ? 3 : lv >= 15 && r() < 0.5 ? 2 : 1;
+    UNLOCK_ORDER.slice(0, owned).forEach((idx, k) => this.db.w('UPDATE plots SET u=1, soil=?, t=? WHERE user_id=? AND idx=?', k < nRed ? tier() : 0, now, uid, idx));
     const pool = CROPS.filter(c => c.lv <= lv).sort((a, b) => b.lv - a.lv), main = pool[Math.floor(r() * Math.min(3, pool.length))], alt = pool[Math.floor(r() * Math.min(6, pool.length))];
     for (const P of await g.plots(uid)) {
       if (!P.u || r() < 0.12) continue;
@@ -108,7 +111,7 @@ class Villagers {
       if (P.p < 1 && r() < 0.25) P.pr[['d', 'w', 'b'][Math.floor(r() * 3)]] = 1;
       g.savePlot(uid, P);
     }
-    this.db.w('DELETE FROM inventory WHERE user_id=?', uid); g.addInv(uid, 'fert', Math.floor(r() * 8)); if (dog) g.addInv(uid, 'dogfood', Math.floor(r() * 4));
+    this.db.w('DELETE FROM inventory WHERE user_id=?', uid); g.addInv(uid, 'fert', Math.floor(r() * 8)); if (dog || dog2) g.addInv(uid, 'dogfood', 2 + Math.floor(r() * 5));
     pool.slice(0, 3).forEach(c => { if (r() < 0.6) g.addInv(uid, 'c' + c.id, 5 + Math.floor(r() * 40)); });
     this.db.w('UPDATE users SET settings=? WHERE id=?', JSON.stringify({ sound: true, music: true, tut: 1, npc: { v: 2, persona, until: 0, seed: Math.floor(r() * 1e9) } }), uid);
   }
@@ -158,12 +161,17 @@ class Villagers {
     for (const [item, q] of Object.entries(inv)) { if (/^[cg]\d+$/.test(item) && q > 0) { const keep = /^g/.test(item) ? 0 : Math.min(q, U.randInt(0, 25)); if (q - keep > 0) await this.sp(() => g.sell(id, item, q - keep, q)); } }
     await this.tidy(id, P, true);
     [u, inv] = await Promise.all([g.user(id), g.inv(id)]);
-    if (u.dog_own && u.dog_until < g.now() + 15 * 60000) { if (!inv.dogfood && u.gold > 1500) { const n = U.randInt(1, 3); if (await this.sp(() => g.buy(id, 'dogfood', n))) inv.dogfood = n; } if (inv.dogfood) await this.sp(() => g.feedDog(id)); }
-    if (!u.dog_own && u.lv >= RULES.dogNeedLv && u.gold > 1800 && U.rand() < 0.25) await this.sp(() => g.buyDog(id));
+    // 喂狗：快饿了就喂（狗粮不够先买）；有钱了再领养新狗
+    for (const d of CFG.DOGS) {
+      if (u[d.col + '_own'] && (u[d.col + '_until'] || 0) < g.now() + 30 * 60000) { if (!inv.dogfood && u.gold > 800) { const n = U.randInt(2, 5); if (await this.sp(() => g.buy(id, 'dogfood', n))) inv.dogfood = n; } if (inv.dogfood && await this.sp(() => g.feedDog(id, d.id))) inv.dogfood--; }
+      else if (!u[d.col + '_own'] && u.lv >= d.lv && u.gold > d.price * 4 && U.rand() < 0.25) await this.sp(() => g.buyDog(id, d.id));
+    }
     let plots; [u, plots] = await Promise.all([g.user(id), g.plots(id)]); const owned = plots.filter(p => p.u).length;
     if (owned < NPLOTS && u.lv >= CFG.plotNeedLv(owned) && u.gold > CFG.plotCost(owned) * 1.4 && U.rand() < 0.5) await this.sp(() => g.expand(id, -1, out));
     [u, plots] = await Promise.all([g.user(id), g.plots(id)]);
-    if (u.lv >= RULES.redNeedLv && u.gold > CFG.redCost(plots.filter(p => p.soil).length) * 2.5 && U.rand() < 0.15) { const p = plots.find(x => x.u && !x.soil); if (p) await this.sp(() => g.red(id, p.idx, out)); }
+    // 升级土地：从等级最低的地开始，一级一级往上升
+    { const p = plots.filter(x => x.u).sort((a, b) => (a.soil | 0) - (b.soil | 0))[0], next = p ? (p.soil | 0) + 1 : 0, S = CFG.SOILS[next];
+      if (S && u.lv >= S.lv && u.gold > CFG.soilCost(next, plots.filter(x => (x.soil | 0) >= next).length) * 2.5 && U.rand() < 0.15) await this.sp(() => g.red(id, p.idx, out)); }
     if (!inv.fert && u.gold > 3000 && U.rand() < 0.2) await this.sp(() => g.buy(id, 'fert', U.randInt(2, 6)));
     await this.replant(id);
     u = await g.user(id); if (u.lv >= 6 && U.rand() < 0.03) { const own = new Set(await g.cosmetics(id)); const th = CFG.THEMES.filter(t => t.price && !own.has('theme:' + t.id) && t.price * 3 < u.gold); if (th.length) { const t = th[U.randInt(0, th.length - 1)]; if (await this.sp(() => g.buyCosmetic(id, 'theme', t.id))) this.db.w('UPDATE users SET theme=? WHERE id=?', t.id, id); } }

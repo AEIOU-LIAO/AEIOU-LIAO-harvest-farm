@@ -161,7 +161,7 @@ b{font-weight:700}
 .row-item.new{background:linear-gradient(90deg,rgba(230,196,122,.1),transparent)}
 .ri-ic{width:50px;height:50px;flex:none;border-radius:12px;background:radial-gradient(circle at 50% 35%,rgba(255,240,200,.16),rgba(0,0,0,.25));border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;overflow:hidden}
 .ii{width:46px;height:46px;display:flex;align-items:center;justify-content:center;border-radius:10px}.ii .cimg{width:44px;height:44px;object-fit:contain}
-.ii.emo{color:var(--gold)}.ii.emo .ico{width:24px;height:24px}.ii.gold{background:radial-gradient(rgba(255,220,120,.35),transparent 70%)}.ii.red{color:#ff8a6a}
+.ii.emo{color:var(--gold)}.ii.emo .ico{width:24px;height:24px}.ii.gold{background:radial-gradient(rgba(255,220,120,.35),transparent 70%)}.ii.red{color:#ff8a6a}.ii.soil1{color:#ff8a6a}.ii.soil2{color:#b8aa98}.ii.soil3{color:#ffd23a;background:radial-gradient(rgba(255,210,60,.3),transparent 70%)}.ii.dog-fuwang{color:#ffb84a}.ii.dog-ruibao{color:#9fd0ff}
 .ri-main{flex:1;min-width:0;line-height:1.5}.ri-main b{font-size:14.5px;color:var(--ink)}.ri-main small{display:block;color:var(--mut);font-size:12px}
 .ri-n{font-weight:700;font-size:16px;min-width:52px;text-align:right;color:var(--gold);font-variant-numeric:tabular-nums}
 .price{font-weight:700;color:#ffe7a6;min-width:80px;text-align:right;font-variant-numeric:tabular-nums}

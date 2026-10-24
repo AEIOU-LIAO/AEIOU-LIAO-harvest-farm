@@ -44,9 +44,23 @@
   ];
   const RARITY = ['', '普通', '稀有', '史诗', '传说'];
 
+  // 土地等级：普通 → 红土地 → 黑土地 → 金土地（生长速度、产量逐级提高）
+  // 升级费用 = base + step × 已经达到该等级的地块数
+  const SOILS = [
+    { id: 0, name: '普通土地', lv: 0, speed: 1, yield: 1, base: 0, step: 0 },
+    { id: 1, name: '红土地', lv: 5, speed: 1.2, yield: 1.2, base: 1500, step: 600 },
+    { id: 2, name: '黑土地', lv: 15, speed: 1.35, yield: 1.4, base: 8000, step: 2000 },
+    { id: 3, name: '金土地', lv: 28, speed: 1.5, yield: 1.65, base: 30000, step: 6000 },
+  ];
+  // 看家狗：福旺、睿宝，可以都养；喂饱时各自独立判定能不能抓住来偷菜的人
+  const DOGS = [
+    { id: 'fuwang', name: '福旺', col: 'dog', price: 400, lv: 3, bite: 5, base: 0.3, perLv: 0.03, max: 0.6, desc: '土黄色的田园犬，机灵亲人，咬一口 5 金币' },
+    { id: 'ruibao', name: '睿宝', col: 'dog2', price: 3000, lv: 10, bite: 15, base: 0.4, perLv: 0.03, max: 0.7, desc: '黑白相间的大狗，威风凛凛，咬一口 15 金币' },
+  ];
+
   const RULES = {
     startGold: 300, startPlots: 6, maxLv: 45,
-    fertPrice: 60, fertBoost: 0.3, dogfoodPrice: 120, dogPrice: 400, dogNeedLv: 3, dogFeedMin: 120,
+    fertPrice: 60, fertBoost: 0.3, dogfoodPrice: 120, dogPrice: 400, dogNeedLv: 3, dogFeedMin: 120, // dogPrice/dogNeedLv 为旧字段，狗的数值见 DOGS
     redNeedLv: 5,
     // 偷菜
     stealDelaySec: 30,          // 成熟后的主人保护时间
@@ -62,7 +76,7 @@
     helpSoftLimit: 100, helpHardLimit: 600, helpExp: 4, helpGold: 6, // 超过软上限仍可帮忙，只是不再给奖励
     helpBoost: 0.03,            // 每次帮忙让对方作物多长 3%
     // 生长
-    probSlow: 0.62, soilSpeed: 1.2, soilYield: 1.2, season2Start: 0.45,
+    probSlow: 0.62, season2Start: 0.45,
     goldenChance: 0.04, goldenPriceMult: 5,
     bumperChance: 0.08, bumperBonus: 0.5, // 大丰收：额外多收 50%
     // 订单：Lv.10 / 20 / 30 各多一个订单位
@@ -158,7 +172,10 @@
   const dogExpNeed = lv => 3 + lv * 2;
   const plotCost = unlocked => Math.round(500 * Math.pow(1.28, unlocked - RULES.startPlots));
   const plotNeedLv = unlocked => 2 + Math.floor((unlocked - RULES.startPlots) * 0.8);
-  const redCost = nRed => 1500 + 600 * nRed;
+  const soilOf = P => SOILS[Math.max(0, Math.min(SOILS.length - 1, (P && P.soil) | 0))];
+  const soilCost = (tier, nAtLeast) => { const s = SOILS[tier]; return s ? s.base + s.step * nAtLeast : 0; };
+  const redCost = nRed => soilCost(1, nRed);
+  const dogChance = (d, lv) => Math.min(d.max, d.base + d.perLv * ((lv || 1) - 1));
   const stageOf = p => p >= 1 ? 4 : p < 0.1 ? 0 : p < 0.35 ? 1 : p < 0.65 ? 2 : 3;
   const STAGE_NAME = ['种子期', '发芽期', '成长期', '即将成熟', '已成熟'];
 
@@ -194,7 +211,7 @@
   // ---- 生长：时间戳懒计算 ----
   function plotDur(P) { return CROPS[P.c].time * 1000 * (P.sea > 0 ? 0.9 : 1); }
   function probCount(P) { return (P.pr.d ? 1 : 0) + (P.pr.w ? 1 : 0) + (P.pr.b ? 1 : 0); }
-  function plotSpeed(P) { return (P.soil ? RULES.soilSpeed : 1) * Math.pow(RULES.probSlow, probCount(P)); }
+  function plotSpeed(P) { return soilOf(P).speed * Math.pow(RULES.probSlow, probCount(P)); }
   function remainSec(P) { return (1 - P.p) * plotDur(P) / 1000 / plotSpeed(P); }
   // 将地块推进到 now；ev 为服务端预排的病虫害事件 [[时间,类型],...]
   function advancePlot(P, now) {
@@ -221,6 +238,7 @@
   function stealCapPct(ownerLv) { return ownerLv < RULES.newbieLv ? RULES.newbieMaxPct : RULES.stealMaxPct; }
 
   const CFG = { COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
+    SOILS, DOGS, soilOf, soilCost, dogChance,
     expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };
   if (typeof module !== 'undefined' && module.exports) module.exports = CFG; else root.GAMECFG = CFG;
 })(typeof window !== 'undefined' ? window : globalThis);

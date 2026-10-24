@@ -283,6 +283,50 @@ test('v2.3 玩法：软上限、手气爆棚、大丰收、帮忙加速、订单
   } finally { Object.assign(CFG.RULES, keep); await t.close(); }
 });
 
+test('v2.4：开垦、土地四级升级、福旺和睿宝两只狗、NPC 养狗', async () => {
+  const t = await start({ npcCount: 8 });
+  const keep = CFG.DOGS.map(d => Object.assign({}, d));
+  try {
+    const a = await t.guest('主人'), b = await t.guest('小偷');
+    await t.app.db.run('UPDATE users SET lv=30, gold=500000 WHERE id=?', a.id);
+    // 1. 开垦：不指定土地（商店按钮）和指定某块荒地（点击农场）都可以
+    const e1 = await t.call('POST', '/api/farm/expand', {}, a.token); assert.ok(e1.ok, e1.error);
+    const wild = e1.state.plots.find(p => !p.u); const e2 = await t.call('POST', '/api/farm/expand', { idx: wild.idx }, a.token); assert.ok(e2.ok, e2.error);
+    assert.equal(e2.state.plots.filter(p => p.u).length, CFG.RULES.startPlots + 2);
+    // 2. 土地一级一级升到金土地，产量逐级提高，再升报“已是最高级”
+    const idx = CFG.UNLOCK_ORDER[0]; let st;
+    for (let k = 1; k <= 3; k++) { const r = await t.call('POST', '/api/farm/red', { idx }, a.token); assert.ok(r.ok, r.error); assert.equal(r.result.soil, k); assert.equal(r.result.name, CFG.SOILS[k].name); st = r.state; }
+    assert.equal((await t.call('POST', '/api/farm/red', { idx }, a.token)).code, 'done');
+    const pl = await t.call('POST', '/api/farm/plant', { idx, crop: 0 }, a.token); assert.equal(pl.state.plots.find(p => p.idx === idx).y0, Math.round(CFG.CROPS[0].yield * CFG.SOILS[3].yield), '金土地产量 +65%');
+    await t.app.db.run('UPDATE users SET lv=10, gold=5000 WHERE id=?', b.id);
+    assert.equal((await t.call('POST', '/api/farm/red', { idx: CFG.UNLOCK_ORDER[1] }, b.token)).status, 200, 'Lv.10 可以升红土地');
+    assert.equal((await t.call('POST', '/api/farm/red', { idx: CFG.UNLOCK_ORDER[1] }, b.token)).code, 'locked', '黑土地需要 Lv.15');
+    // 3. 两只狗：领养、喂食；喂饱后两只都抓住时一共咬 5 + 15 = 20 金币
+    for (const k of ['fuwang', 'ruibao']) { const r = await t.call('POST', '/api/shop/dog', { kind: k }, a.token); assert.ok(r.ok, r.error); }
+    assert.equal((await t.call('POST', '/api/shop/dog', { kind: 'ruibao' }, a.token)).code, 'done');
+    await t.call('POST', '/api/shop/buy', { item: 'dogfood', n: 2 }, a.token);
+    for (const k of ['fuwang', 'ruibao']) { const r = await t.call('POST', '/api/dog/feed', { kind: k }, a.token); assert.ok(r.ok, r.error); }
+    const me = (await t.call('GET', '/api/state', null, a.token)).me; assert.deepEqual(me.dogs.map(d => [d.name, d.own, d.fed]), [['福旺', true, true], ['睿宝', true, true]]);
+    await t.plantAll(a, 0); await t.clock(200000);
+    CFG.DOGS.forEach(d => { d.base = 1; d.max = 1; });
+    const g0 = (await t.call('GET', '/api/state', null, b.token)).me.gold;
+    const s = await t.call('POST', `/api/farm/${a.id}/steal`, { idx: CFG.UNLOCK_ORDER[2] }, b.token); assert.ok(s.ok, s.error);
+    assert.ok(s.result.blocked); assert.deepEqual(s.result.dogs, ['福旺', '睿宝']); assert.equal(s.result.bite, 20); assert.equal(s.me.gold, g0 - 20);
+    assert.deepEqual(s.farm.owner.dogs.map(d => d.name), ['福旺', '睿宝'], '串门时能看到两只狗');
+    const msg = (await t.call('GET', '/api/messages', null, a.token)).list.find(m => m.kind === 'dog'); assert.deepEqual(msg.data.dogs, ['福旺', '睿宝']);
+    CFG.DOGS.forEach((d, i) => Object.assign(d, keep[i]));
+    // 4. 摘菜结果里带着最新的“可摘数量”，用于立即刷新侧栏
+    CFG.DOGS.forEach(d => { d.base = 0; d.max = 0; });
+    const before = (await t.call('GET', `/api/farm/${a.id}`, null, b.token)).farm.steal;
+    const sa = await t.call('POST', `/api/farm/${a.id}/steal-all`, null, b.token); assert.ok(sa.ok, sa.error); assert.ok(before > 0 && sa.farm.steal === 0, `摘完后可摘数量归零（${before} → ${sa.farm.steal}）`);
+    CFG.DOGS.forEach((d, i) => Object.assign(d, keep[i]));
+    // 5. NPC：多数养了狗，而且是喂饱的
+    const nb = await t.call('GET', '/api/neighbors', null, b.token); let dogs = 0, fed = 0;
+    for (const u of nb.list) { const f = (await t.call('GET', '/api/farm/' + u.id, null, b.token)).farm; if (f.owner.dogs) { dogs += f.owner.dogs.length; fed += f.owner.dogs.filter(d => d.fed).length; } }
+    assert.ok(dogs > 0 && fed === dogs, `NPC 的狗：${dogs} 只，喂饱 ${fed} 只`);
+  } finally { CFG.DOGS.forEach((d, i) => Object.assign(d, keep[i])); await t.close(); }
+});
+
 test('互助：真实修改好友农田并给奖励', async () => {
   const t = await start();
   try {

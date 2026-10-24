@@ -107,16 +107,17 @@ function openWarehouse(tab) {
       <button class="btn sm" data-sell="${k}" data-n="1">卖 1 个</button><button class="btn sm primary" data-sell="${k}" data-n="${inv[k]}">全部卖出</button></div>`; }).join('') : '<div class="empty">仓库空空的，去收获一些作物吧</div>';
     if (crops.length) body += `<div class="sellall"><button class="btn big primary" id="sellall">一键卖出全部 · 约 ${G(total)}</button><p class="fine">想卖个好价钱，也可以去集市挂单卖给其他玩家</p></div>`;
   } else {
-    const d = S.me.dog, now = NET.now();
+    const now = NET.now(), dogs = S.me.dogs || [];
     body = `<div class="row-item"><div class="ri-ic">${itemIcon('fert')}</div><div class="ri-main"><b>化肥</b><small>选择工具栏的「化肥」后点击作物，进度 +30%</small></div><div class="ri-n">×${inv.fert || 0}</div></div>
-      <div class="row-item"><div class="ri-ic">${itemIcon('dogfood')}</div><div class="ri-main"><b>狗粮</b><small>${d.own ? `看家狗 Lv.${d.lv}（${d.exp}/${d.need}）· 拦截率 ${Math.round(Math.min(RULES.dogBlockMax, RULES.dogBlockBase + RULES.dogBlockPerLv * (d.lv - 1)) * 100)}%${d.until > now ? ` · 还能看家 ${fmtTime((d.until - now) / 1000)}` : ' · 饿着肚子在睡觉'}` : '需要先在商店领养一只狗'}</small></div><div class="ri-n">×${inv.dogfood || 0}</div><button class="btn sm primary" id="feeddog" ${d.own ? '' : 'disabled'}>喂食</button></div>`;
+      <div class="row-item"><div class="ri-ic">${itemIcon('dogfood')}</div><div class="ri-main"><b>狗粮</b><small>喂一次看家 ${RULES.dogFeedMin / 60} 小时，还能让狗升级</small></div><div class="ri-n">×${inv.dogfood || 0}</div></div>
+      ${dogs.map(d => `<div class="row-item"><div class="ri-ic"><span class="ii emo">${ICON('paw')}</span></div><div class="ri-main"><b>${d.name}${d.own ? ` Lv.${d.lv}` : ''}</b><small>${d.own ? `经验 ${d.exp}/${d.need} · 拦截率 ${Math.round(d.chance * 100)}% · 咬一口 ${d.bite} 金币${d.until > now ? ` · 还能看家 ${fmtTime((d.until - now) / 1000)}` : ' · 饿着肚子在睡觉'}` : '还没有领养，去商店的「宠物」看看'}</small></div><button class="btn sm primary" data-feed="${d.id}" ${d.own && inv.dogfood > 0 ? '' : 'disabled'}>喂食</button></div>`).join('')}`;
   }
   openModal(`${H2('bag', '仓库')}${tabsHtml([['fruit', '果实'], ['item', '道具']], tab)}<div class="hots">${bonusTxt ? '今日行情 ' + bonusTxt : ''}</div><div class="list">${body}</div>`, {
     wide: true, mount: () => {
       bindTabs(openWarehouse);
       qsa('[data-sell]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/wh/sell', { item: b.dataset.sell, n: +b.dataset.n }); if (r) { sfx('coin'); toast(`卖出获得 ${r.result.gold} 金币`); } openWarehouse(tab); });
       const sa = $('sellall'); if (sa) sa.onclick = async () => { sa.disabled = true; const r = await api('/api/wh/sell-all'); if (r) { sfx('coin'); toast(`一共卖出 ${r.result.gold} 金币`); } openWarehouse(tab); };
-      const fd = $('feeddog'); if (fd) fd.onclick = async () => { const r = await api('/api/dog/feed'); if (r) { sfx('bark'); toast(r.result.lvUp ? `看家狗升到 Lv.${r.result.lvUp}，看家更厉害了` : `狗吃饱了，接下来 ${RULES.dogFeedMin} 分钟会帮你看家`); } openWarehouse('item'); };
+      qsa('[data-feed]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/dog/feed', { kind: b.dataset.feed }); if (r) { sfx('bark'); toast(r.result.lvUp ? `${r.result.name}升到 Lv.${r.result.lvUp}，看家更厉害了` : `${r.result.name}吃饱了，接下来 ${RULES.dogFeedMin / 60} 小时会帮你看家`); } openWarehouse('item'); });
     }
   });
 }
@@ -124,20 +125,22 @@ function openShop(tab) {
   tab = tab || 'item'; let body = '';
   if (tab === 'item') body = CFG.SHOP_ITEMS.map(it => `<div class="row-item"><div class="ri-ic">${itemIcon(it.id)}</div><div class="ri-main"><b>${it.name}</b><small>${it.desc} · 已有 ${S.inv[it.id] || 0}</small></div><div class="price">${G(it.price)}</div><button class="btn sm primary" data-buy="${it.id}" data-n="1">购买</button><button class="btn sm" data-buy="${it.id}" data-n="10">×10</button></div>`).join('');
   else if (tab === 'land') {
-    const owned = unlockedCount(), can = owned < CFG.NPLOTS, nRed = S.plots.filter(p => p.soil).length;
-    body = `<div class="row-item"><div class="ri-ic"><span class="ii emo">${ICON('grid')}</span></div><div class="ri-main"><b>开垦荒地</b><small>已开垦 ${owned}/${CFG.NPLOTS} 块 · 需要 Lv.${CFG.plotNeedLv(owned)}</small></div><div class="price">${can ? G(CFG.plotCost(owned)) : '—'}</div><button class="btn sm primary" id="buyland" ${can ? '' : 'disabled'}>开垦</button></div>
-    <div class="row-item"><div class="ri-ic"><span class="ii emo red">${ICON('sparkle')}</span></div><div class="ri-main"><b>红土地升级</b><small>生长速度 +20%，产量 +20% · 需要 Lv.${RULES.redNeedLv}<br>点击后选择要升级的土地</small></div><div class="price">${G(CFG.redCost(nRed))}</div><button class="btn sm primary" id="buyred">选择土地</button></div>`;
+    const owned = unlockedCount(), can = owned < CFG.NPLOTS;
+    const tiers = CFG.SOILS.slice(1).map(T => { const have = S.plots.filter(p => p.u && (p.soil | 0) >= T.id).length, cost = CFG.soilCost(T.id, have), lock = S.me.lv < T.lv;
+      return `<div class="row-item"><div class="ri-ic"><span class="ii emo soil${T.id}">${ICON('sparkle')}</span></div><div class="ri-main"><b>${T.name}</b><small>生长速度 +${Math.round((T.speed - 1) * 100)}%，产量 +${Math.round((T.yield - 1) * 100)}% · 需要 Lv.${T.lv}${T.id > 1 ? ` · 由${CFG.SOILS[T.id - 1].name}升级` : ' · 由普通土地升级'} · 已有 ${have} 块</small></div><div class="price">${G(cost)}</div><button class="btn sm primary" data-soil="${T.id}" ${lock ? 'disabled' : ''}>${lock ? `Lv.${T.lv}` : '选择土地'}</button></div>`; }).join('');
+    body = `<div class="row-item"><div class="ri-ic"><span class="ii emo">${ICON('grid')}</span></div><div class="ri-main"><b>开垦荒地</b><small>已开垦 ${owned}/${CFG.NPLOTS} 块 · 需要 Lv.${CFG.plotNeedLv(owned)}（也可以直接点农场里的荒地）</small></div><div class="price">${can ? G(CFG.plotCost(owned)) : '—'}</div><button class="btn sm primary" id="buyland" ${can ? '' : 'disabled'}>开垦</button></div>
+    <p class="fine">土地可以一级一级升级：普通土地 → 红土地 → 黑土地 → 金土地。选好等级后点击农场里要升级的那块地。</p>${tiers}`;
   } else {
-    const d = S.me.dog;
-    body = `<div class="row-item"><div class="ri-ic"><span class="ii emo">${ICON('paw')}</span></div><div class="ri-main"><b>${d.own ? `看家狗 Lv.${d.lv}` : '领养一只看家狗'}</b><small>${d.own ? '喂狗粮后会看家，有几率赶走来偷菜的人（还会咬掉对方一点金币）；喂得越多等级越高、拦截率越高' : '别人会来摘你的菜，养只狗帮你看家吧'}${S.me.lv < RULES.dogNeedLv && !d.own ? ` · 需要 Lv.${RULES.dogNeedLv}` : ''}</small></div><div class="price">${d.own ? '' : G(RULES.dogPrice)}</div><button class="btn sm primary" id="buydog" ${d.own ? 'disabled' : ''}>${d.own ? '已拥有' : '领养'}</button></div>`;
+    body = (S.me.dogs || []).map(d => { const def = CFG.DOGS.find(x => x.id === d.id), lock = !d.own && S.me.lv < def.lv;
+      return `<div class="row-item"><div class="ri-ic"><span class="ii emo dog-${d.id}">${ICON('paw')}</span></div><div class="ri-main"><b>${d.name}${d.own ? ` Lv.${d.lv}` : ''}</b><small>${def.desc}。喂饱后看家，拦截率 ${Math.round(d.chance * 100)}%（喂得越多等级越高、拦截率越高）${lock ? ` · 需要 Lv.${def.lv}` : ''}</small></div><div class="price">${d.own ? '' : G(def.price)}</div><button class="btn sm primary" data-dog="${d.id}" ${d.own || lock ? 'disabled' : ''}>${d.own ? '已领养' : lock ? `Lv.${def.lv}` : '领养'}</button></div>`; }).join('') + `<p class="fine">两只狗可以都养。喂饱的狗会各自判定能不能抓住来摘菜的人，两只一起抓住时两口都要咬。</p>`;
   }
   openModal(`${H2('store', '商店')}${tabsHtml([['item', '道具'], ['land', '土地'], ['dog', '宠物']], tab)}<div class="mygold">我的金币 ${G(S.me.gold)}</div><div class="list">${body}</div>`, {
     wide: true, mount: () => {
       bindTabs(openShop);
       qsa('[data-buy]').forEach(b => b.onclick = async () => { const r = await api('/api/shop/buy', { item: b.dataset.buy, n: +b.dataset.n }); if (r) { sfx('coin'); toast(`购买成功 ×${b.dataset.n}`); openShop('item'); } });
       const bl = $('buyland'); if (bl) bl.onclick = async () => { if (view.key !== 'home') goHome(); await doExpand(-1); openShop('land'); };
-      const br = $('buyred'); if (br) br.onclick = () => { if (S.me.lv < RULES.redNeedLv) { toast(`红土地需要 Lv.${RULES.redNeedLv}`, 'warn'); sfx('err'); return; } closeModal(); if (view.key !== 'home') goHome(); tool = 'red'; renderToolbar(); updateCursor(); toast('点击一块已开垦的土地进行升级（右键或点「自动」取消）'); };
-      const bd = $('buydog'); if (bd) bd.onclick = async () => { const r = await api('/api/shop/dog'); if (r) { sfx('bark'); toast('看家狗来了，送你一份狗粮，记得喂它'); openShop('dog'); } };
+      qsa('[data-soil]').forEach(b => b.onclick = () => { const T = CFG.SOILS[+b.dataset.soil]; closeModal(); if (view.key !== 'home') goHome(); tool = 'red'; renderToolbar(); updateCursor(); toast(`点击一块${CFG.SOILS[T.id - 1].name}升级为${T.name}（右键或点「自动」取消）`); });
+      qsa('[data-dog]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/shop/dog', { kind: b.dataset.dog }); if (r) { sfx('bark'); toast(`${r.result.name}来到你的农场了，送你一份狗粮，记得去仓库喂它`); } openShop('dog'); });
     }
   });
 }
@@ -394,11 +397,11 @@ function openHelp() {
   openModal(`${H2('help', '玩法与规则')}<div class="help">
   <h3>基础</h3>
   <p><b>自动模式</b>：直接点击土地，系统按状态自动处理：空地播种、成熟收获、有缺水/杂草/害虫就顺手处理。按住拖动可以连续操作，滚轮可以缩放视角。</p>
-  <p><b>生长</b>：所有作物的生长由服务器计时，下线也会继续长。每出现一种问题（缺水、杂草、害虫），生长速度降到 ${P(R.probSlow)}；下雨可以防止缺水。红土地生长与产量 +20%。</p>
+  <p><b>生长</b>：所有作物的生长由服务器计时，下线也会继续长。每出现一种问题（缺水、杂草、害虫），生长速度降到 ${P(R.probSlow)}；下雨可以防止缺水。土地可以升级为红土地、黑土地、金土地，生长和产量逐级提高。红土地生长与产量 +20%。</p>
   <p><b>变异</b>：每次收获有 ${P(R.goldenChance)} 几率额外获得金色作物，价值是普通作物的 ${R.goldenPriceMult} 倍，可以收集进图鉴。</p>
   <p><b>大丰收</b>：每次收获有 ${P(R.bumperChance)} 几率额外多收 ${P(R.bumperBonus)}。等级上限 Lv.${R.maxLv}，后期还有更多高级作物等你解锁。</p>
   <h3>摘菜</h3>
-  <p>不用加好友，任何玩家的农场都可以去串门。① 作物成熟后，主人有 <b>${R.stealDelaySec} 秒</b>保护时间；② 每块地每一季你只能摘一次，每次约为产量的 ${P(R.stealPctMin)}–${P(R.stealPctMax)}；③ 一块地最多被摘走 <b>${P(R.stealMaxPct)}</b>，主人至少保留 ${P(1 - R.stealMaxPct)}，Lv.${R.newbieLv} 以下的新手最多被摘 ${P(R.newbieMaxPct)}；④ 每天前 ${R.stealSoftLimit} 次摘取有经验，之后照样能摘，只是不再加经验；每次有 ${P(R.stealCritChance)} 几率<b>手气爆棚</b>，一次摘两份；⑤ 主人的狗吃饱时有 ${P(R.dogBlockBase)}（1 级）到 ${P(Math.min(R.dogBlockMax, R.dogBlockBase + R.dogBlockPerLv * 9))}（10 级）的几率把你赶走，并咬掉 ${R.dogBiteMin}–${R.dogBiteMax} 金币，这一季这块地你就不能再摘了。</p>
+  <p>不用加好友，任何玩家的农场都可以去串门。① 作物成熟后，主人有 <b>${R.stealDelaySec} 秒</b>保护时间；② 每块地每一季你只能摘一次，每次约为产量的 ${P(R.stealPctMin)}–${P(R.stealPctMax)}；③ 一块地最多被摘走 <b>${P(R.stealMaxPct)}</b>，主人至少保留 ${P(1 - R.stealMaxPct)}，Lv.${R.newbieLv} 以下的新手最多被摘 ${P(R.newbieMaxPct)}；④ 每天前 ${R.stealSoftLimit} 次摘取有经验，之后照样能摘，只是不再加经验；每次有 ${P(R.stealCritChance)} 几率<b>手气爆棚</b>，一次摘两份；⑤ 主人家的看家狗<b>福旺</b>（咬一口 5 金币）和<b>睿宝</b>（咬一口 15 金币）吃饱时会各自判定能不能抓住你，抓住了就要被咬，这一季这块地你也不能再摘了。</p>
   <p><b>互助</b>：帮别人浇水、除草、除虫，对方的作物会顺带多长 ${P(R.helpBoost)}。每天前 ${R.helpSoftLimit} 次你能得到 ${R.helpExp} 经验和 ${R.helpGold} 金币，之后仍然可以继续帮忙。</p>
   <h3>经济</h3>
   <p>作物可以卖给系统（每天有两种作物涨价），也可以交给订单（收益更高），或在集市卖给其他玩家（手续费 ${P(R.marketFee)}，价格限制在系统价的 ${R.marketMinMult}–${R.marketMaxMult} 倍）。</p>

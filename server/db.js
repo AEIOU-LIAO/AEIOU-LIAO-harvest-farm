@@ -88,6 +88,11 @@ const MIGRATIONS = [
   `,
   // v2 无服务器部署：后台任务（NPC、清理）用的租约表
   `CREATE TABLE IF NOT EXISTS leases (name TEXT PRIMARY KEY, until INTEGER NOT NULL, at INTEGER NOT NULL DEFAULT 0);`,
+  // v3 第二只看家狗「睿宝」（第一只「福旺」沿用 dog_* 字段）；土地等级 soil 扩展为 0–3（字段不变）
+  `ALTER TABLE users ADD COLUMN dog2_own INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN dog2_lv INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE users ADD COLUMN dog2_exp INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN dog2_until INTEGER NOT NULL DEFAULT 0;`,
 ];
 
 const BUSY = /SQLITE_BUSY|database is locked|SQLITE_LOCKED|BUSY_SNAPSHOT/i;

@@ -201,7 +201,7 @@ const W3 = (() => {
   }
 
   /* ---------------- 环境 ---------------- */
-  const anim = { windmill: null, smoke: [], chickens: [], butterflies: [], clouds: [], dog: null, water: null, grassU: { value: 0 }, lamps: [], windows: [], fireflies: null, rain: null, house: null };
+  const anim = { windmill: null, smoke: [], chickens: [], butterflies: [], clouds: [], dogs: [], water: null, grassU: { value: 0 }, lamps: [], windows: [], fireflies: null, rain: null, house: null };
   function tree(x, z, s, col, apples) {
     const g = new T.Group(), r = CFG3.rng(Math.round(x * 13 + z * 7));
     const trunk = new T.CylinderGeometry(0.16, 0.28, 2.2, 8, 3); displace(trunk, 0.03, 2, 5);
@@ -261,13 +261,25 @@ const W3 = (() => {
   }
   function buildScarecrow() { const g = new T.Group(), w = mat('#7a5232', { p: { map: TX.wood } }); g.add(mesh(new T.CylinderGeometry(0.07, 0.08, 2.4, 6), w, 0, 1.2, 0)); g.add(mesh(new T.CylinderGeometry(0.05, 0.05, 1.8, 6), w, 0, 1.75, 0).rotateZ(Math.PI / 2)); g.add(mesh(new T.BoxGeometry(0.75, 0.8, 0.35), mat('#b8503a', { p: { roughness: 0.9 } }), 0, 1.55, 0)); g.add(mesh(new T.BoxGeometry(1.5, 0.22, 0.3), mat('#b8503a'), 0, 1.78, 0)); g.add(blob(mat('#e0c898', { p: { roughness: 1 } }), 0, 2.25, 0, 0.28)); g.add(mesh(new T.CylinderGeometry(0.5, 0.5, 0.04, 20), mat('#c8a050'), 0, 2.48, 0)); g.add(mesh(new T.ConeGeometry(0.28, 0.35, 16), mat('#c8a050'), 0, 2.66, 0)); const m = merge(g); return m; }
   function buildDoghouse() { const g = new T.Group(), w = mat('#9a6a3a', { p: { map: TX.wood } }); g.add(mesh(new T.BoxGeometry(1.3, 1.0, 1.2), w, 0, 0.5, 0)); [-1, 1].forEach(s => { const r = mesh(new T.BoxGeometry(1.5, 0.08, 0.9), mat('#b8473a', { p: { map: TX.tiles } }), 0, 1.15, s * 0.32); r.rotation.x = s * 0.7; g.add(r); }); g.add(mesh(new T.CircleGeometry(0.3, 16), mat('#1a1008', { ds: 1 }), 0, 0.42, 0.61)); g.add(mesh(new T.BoxGeometry(0.66, 0.42, 0.02), mat('#1a1008', { ds: 1 }), 0, 0.22, 0.61)); return merge(g); }
-  function buildDog() {
-    const g = new T.Group(), fur = mat('#d89a4a', { p: { roughness: 0.9 } }), white = mat('#f6ead2', { p: { roughness: 0.9 } }), dark = mat('#2a1a10');
+  // 名字牌：画在画布上的文字精灵
+  function nameTag(text, col) {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 96; const x = c.getContext('2d');
+    x.fillStyle = 'rgba(20,14,8,0.72)'; const r = 30; x.beginPath(); x.moveTo(r, 8); x.arcTo(248, 8, 248, 88, r); x.arcTo(248, 88, 8, 88, r); x.arcTo(8, 88, 8, 8, r); x.arcTo(8, 8, 248, 8, r); x.fill();
+    x.strokeStyle = col; x.lineWidth = 4; x.stroke(); x.fillStyle = '#fff4d8'; x.font = 'bold 50px "PingFang SC","Microsoft YaHei",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, 128, 50);
+    const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; const sp = new T.Sprite(new T.SpriteMaterial({ map: t, depthTest: false, transparent: true })); sp.scale.set(0.95, 0.36, 1); sp.renderOrder = 10; return sp;
+  }
+  // 两只看家狗：福旺（土黄色田园犬）、睿宝（黑白相间的大狗）
+  const DOG_LOOK = { fuwang: { fur: '#d89a4a', white: '#f6ead2', ear: '#a86a2a', s: 1, tag: '#ffb84a', name: '福旺' }, ruibao: { fur: '#2e2c33', white: '#f2f0ea', ear: '#1a181e', s: 1.18, tag: '#9fd0ff', name: '睿宝' } };
+  function buildDog(kind) {
+    const L = DOG_LOOK[kind || 'fuwang'];
+    const g = new T.Group(), fur = mat(L.fur, { p: { roughness: 0.9 } }), white = mat(L.white, { p: { roughness: 0.9 } }), dark = mat('#2a1a10');
     const body = blob(fur, 0, 0.42, 0, 0.42, 0.28, 0.26); g.add(body); g.add(blob(white, 0.18, 0.36, 0, 0.22, 0.2, 0.2));
-    const head = new T.Group(); head.position.set(0.45, 0.75, 0); head.add(blob(fur, 0, 0, 0, 0.24)); head.add(blob(white, 0.18, -0.06, 0, 0.13, 0.1, 0.12)); head.add(blob(dark, 0.3, -0.02, 0, 0.04)); [-0.1, 0.1].forEach(z => { head.add(blob(dark, 0.18, 0.06, z, 0.03)); const ear = blob(mat('#a86a2a'), -0.05, 0.12, z * 1.8, 0.07, 0.16, 0.05); ear.rotation.x = z * 3; head.add(ear); }); g.add(head);
+    const head = new T.Group(); head.position.set(0.45, 0.75, 0); head.add(blob(fur, 0, 0, 0, 0.24)); head.add(blob(white, 0.18, -0.06, 0, 0.13, 0.1, 0.12)); head.add(blob(dark, 0.3, -0.02, 0, 0.04)); [-0.1, 0.1].forEach(z => { head.add(blob(dark, 0.18, 0.06, z, 0.03)); const ear = blob(mat(L.ear), -0.05, 0.12, z * 1.8, 0.07, 0.16, 0.05); ear.rotation.x = z * 3; head.add(ear); }); g.add(head);
     [[0.25, 0.14], [0.25, -0.14], [-0.25, 0.14], [-0.25, -0.14]].forEach(([x, z]) => g.add(mesh(new T.CapsuleGeometry(0.06, 0.25, 4, 8), fur, x, 0.18, z)));
     const tail = mesh(new T.CapsuleGeometry(0.04, 0.3, 4, 8), fur, -0.45, 0.58, 0); tail.rotation.z = 0.9; g.add(tail);
-    g.traverse(o => { if (o.isMesh) o.castShadow = true; }); anim.dog = { g, head, tail, body }; return g;
+    g.traverse(o => { if (o.isMesh) o.castShadow = true; }); g.scale.setScalar(L.s);
+    const tag = nameTag(L.name, L.tag); tag.position.set(0.1, 1.35, 0); g.add(tag);
+    const d = { g, head, tail, body, tag, kind }; anim.dogs.push(d); return g;
   }
   function buildChicken() { const g = new T.Group(); g.add(blob(mat('#fbf6ec', { p: { roughness: 0.9 } }), 0, 0.3, 0, 0.22, 0.2, 0.18)); g.add(blob(mat('#fbf6ec'), -0.2, 0.38, 0, 0.1, 0.14, 0.08)); const h = blob(mat('#fbf6ec'), 0.16, 0.5, 0, 0.12); g.add(h); g.add(blob(mat('#e0302a'), 0.18, 0.62, 0, 0.05, 0.06, 0.03)); const bk = mesh(new T.ConeGeometry(0.035, 0.09, 6), mat('#f0a020'), 0.29, 0.5, 0); bk.rotation.z = -Math.PI / 2; g.add(bk); g.add(blob(mat('#1a1008'), 0.23, 0.53, 0.07, 0.018)); g.add(blob(mat('#1a1008'), 0.23, 0.53, -0.07, 0.018)); [0.06, -0.06].forEach(z => g.add(mesh(new T.CylinderGeometry(0.012, 0.012, 0.16, 4), mat('#e0a020'), 0, 0.08, z))); const m = merge(g); m.scale.setScalar(0.9); return m; }
   function buildButterfly(col) { const g = new T.Group(), wm = mat(col, { ds: 1, p: { roughness: 0.6 } }); const wg = new T.CircleGeometry(0.12, 10); const l = mesh(wg, wm, -0.08, 0, 0), r = mesh(wg, wm, 0.08, 0, 0); l.castShadow = r.castShadow = false; const lp = new T.Group(), rp = new T.Group(); lp.add(l); rp.add(r); g.add(lp, rp); g.add(blob(mat('#2a1a10'), 0, 0, 0, 0.015, 0.015, 0.08)); return { g, lp, rp }; }
@@ -305,7 +317,9 @@ const W3 = (() => {
   function soilMat(col) { return new T.MeshStandardMaterial({ color: new T.Color(col), map: TX.soil, normalMap: TX.soilN, roughness: 0.96 }); }
   function buildPlotsBase() {
     BED_G = bedGeo(); RIDGE_G = new T.CapsuleGeometry(0.075, PLOT - 0.55, 4, 10); RIDGE_G.rotateZ(Math.PI / 2); RIDGE_G.scale(1, 0.55, 1);
-    soilMats = { 0: { n: soilMat('#5c4130'), wet: soilMat('#3a281c'), dry: soilMat('#8c7258') }, 1: { n: soilMat('#86402a'), wet: soilMat('#5a2618'), dry: soilMat('#a8644a') } };
+    soilMats = { 0: { n: soilMat('#5c4130'), wet: soilMat('#3a281c'), dry: soilMat('#8c7258') }, 1: { n: soilMat('#86402a'), wet: soilMat('#5a2618'), dry: soilMat('#a8644a') },
+      2: { n: soilMat('#2e2622'), wet: soilMat('#1c1714'), dry: soilMat('#4e4238') }, 3: { n: soilMat('#b08a3a'), wet: soilMat('#80622a'), dry: soilMat('#ccab62') } };
+    [3].forEach(k => Object.values(soilMats[k]).forEach(m => { m.emissive = new T.Color('#5a4010'); m.emissiveIntensity = 0.35; m.metalness = 0.25; }));
     ['d', 'w', 'b', 's'].forEach(k => BADGE[k] = new T.SpriteMaterial({ map: badgeTex(k), depthTest: false, transparent: true }));
     sparkTex = starTex();
     const hb = new T.BoxGeometry(PITCH - 0.05, 1.4, PITCH - 0.05); hb.translate(0, 0.7, 0); const hm = new T.MeshBasicMaterial({ visible: false });
@@ -325,7 +339,7 @@ const W3 = (() => {
       const tm = mat('#4f8a34', { vc: 1, ds: 1 }), r = CFG3.rng(i * 7); for (let k = 0; k < 7; k++) { const tx = (r() - 0.5) * 1.5, tz = (r() - 0.5) * 1.5; for (let j = 0; j < 3; j++) addLeaf(g, leafGeo(0.22 + r() * 0.12, 0.035, 0.6, 0, 'blade'), tm, tx, 0.04, tz, r() * 6, 0.3 + r() * 0.4); }
       node.add(merge(g)); return;
     }
-    const sm = soilMats[P.soil ? 1 : 0][P.pr && P.pr.d ? 'dry' : (P.wet ? 'wet' : 'n')];
+    const sm = (soilMats[P.soil | 0] || soilMats[0])[P.pr && P.pr.d ? 'dry' : (P.wet ? 'wet' : 'n')];
     const bed = new T.Mesh(BED_G, sm); bed.receiveShadow = true; node.add(bed);
     [-0.6, -0.2, 0.2, 0.6].forEach(z => { const r = new T.Mesh(RIDGE_G, sm); r.position.set(0, BED_H, z); r.receiveShadow = true; r.castShadow = true; node.add(r); });
     if (P.pr && P.pr.w) { const g = new T.Group(), wm = mat('#6a9a2a', { vc: 1, ds: 1 }), r = CFG3.rng(i * 11 + 3); [[-0.7, -0.65], [0.72, 0.5], [-0.55, 0.72], [0.6, -0.6], [0.05, 0.78]].forEach(([x, z]) => { for (let j = 0; j < 5; j++) addLeaf(g, leafGeo(0.28 + r() * 0.15, 0.05, 0.9, 0.1, 'blade'), wm, x, BED_H, z, r() * 6, 0.4 + r() * 0.5); }); node.add(merge(g)); }
@@ -422,7 +436,8 @@ const W3 = (() => {
     scene.add(buildPond(-5.5, 13.5));
     const scare = buildScarecrow(); scare.position.set(-10.5, 0, 6.5); scene.add(scare);
     const dh = buildDoghouse(); dh.position.set(11.2, 0, -3.8); dh.rotation.y = -0.6; scene.add(dh);
-    const dog = buildDog(); dog.position.set(10.6, 0, -2.2); dog.rotation.y = -2.2; dog.visible = false; scene.add(dog);
+    const dog = buildDog('fuwang'); dog.position.set(9.6, 0, 1.0); dog.rotation.y = -2.9; dog.visible = false; scene.add(dog);
+    const dog2 = buildDog('ruibao'); dog2.position.set(9.4, 0, -0.6); dog2.rotation.y = -2.6; dog2.visible = false; scene.add(dog2);
     [[-17, -10, 1.2, '#4f9a3a', 1], [-20, 2, 1.1, '#5aa840', 0], [-9, -14, 1.0, '#4a9238', 1], [12, -13, 1.25, '#4f9a3a', 0], [17, -6, 1.05, '#5aa840', 1], [24, 4, 1.2, '#4a9238', 0], [17, 15, 1.0, '#5aa840', 1], [-24, 16, 1.15, '#4f9a3a', 0], [9, 22, 0.9, '#5aa840', 0], [-24, -5, 1.3, '#467f36', 0], [24, 0, 1.25, '#467f36', 1], [-2, -20, 1.2, '#4f9a3a', 0], [26, 18, 1.1, '#4a9238', 0]].forEach(([x, z, s, c, ap]) => scene.add(tree(x, z, s, c, ap)));
     [[-9.6, -6.5, 0.9], [9.4, 7.2, 1], [-15.5, 3.5, 0.8], [14, 3, 0.9], [7, -8, 0.7], [-7, -8.2, 0.8], [0, 9.5, 0.6], [15, -10, 1]].forEach(([x, z, s]) => scene.add(bushAt(x, z, s, '#4f9a3a')));
     [[-9.2, 9.8, 0.5], [10.5, 9.5, 0.4], [-2.2, 10.8, 0.3], [14.5, -1, 0.35], [-16, -6, 0.45], [6, 11, 0.3]].forEach(([x, z, s]) => scene.add(rock(x, z, s)));
@@ -440,10 +455,10 @@ const W3 = (() => {
   }
 
   /* ---------------- 每帧更新 ---------------- */
-  let curView = { plots: [], home: true }, envState = { hour: 12, rain: 0 }, dogMode = 'none';
+  let curView = { plots: [], home: true }, envState = { hour: 12, rain: 0 }, dogMode = ['none', 'none'];
   function setPlots(list, home) { curView = { plots: list, home }; list.forEach((P, i) => { const o = { mine: !home && P.mine }; const k = plotKey(P, o); if (plots[i].key !== k) { plots[i].key = k; rebuildPlot(i, P, o); } }); }
   function setHover(i) { hoverIdx = i; }
-  function setDog(mode) { dogMode = mode; }
+  function setDog(mode) { dogMode = Array.isArray(mode) ? mode : [mode, 'none']; }
   function setEnv(h, rain) { envState.hour = h; envState.rain = rain; }
   const ray = new T.Raycaster(), ndc = new T.Vector2();
   function pick(cx, cy) { if (!ready) return -1; const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); const h = ray.intersectObjects(hitBoxes, false); return h.length ? h[0].object.userData.idx : -1; }
@@ -469,7 +484,9 @@ const W3 = (() => {
     anim.smoke.forEach(s => { const k = (t * 0.25 + s.userData.ph) % 1; s.position.copy(anim.house.smokeAt).applyMatrix4(new T.Matrix4().makeRotationY(0.15)).add(v3(-13, 0, -2.5)); s.position.y += k * 3; s.position.x += Math.sin(k * 4 + s.userData.ph * 6) * 0.3 + k * 0.6; s.scale.setScalar(0.5 + k * 1.4); s.material.opacity = 0.45 * (1 - k) * (1 - nightK * 0.5); });
     anim.chickens.forEach(c => { c.pk -= dt; const m = c.m; if (c.pk > 0) { m.rotation.z = Math.sin(t * 12) * 0.05; return; } const dx = c.tx - m.position.x, dz = c.tz - m.position.z, d = Math.hypot(dx, dz); if (d < 0.1) { if (Math.random() < 0.5) c.pk = 1 + Math.random() * 2.5; else { c.tx = c.home.x + (Math.random() - 0.5) * 5; c.tz = c.home.z + (Math.random() - 0.5) * 3; } } else { const s = Math.min(d, dt * 0.9); m.position.x += dx / d * s; m.position.z += dz / d * s; m.rotation.y = Math.atan2(-dz, dx); m.position.y = Math.abs(Math.sin(t * 10)) * 0.04; } });
     anim.butterflies.forEach(b => { const p = b.ph; b.g.position.set(Math.sin(t * 0.3 + p) * 9, 1.2 + Math.sin(t * 1.3 + p) * 0.4, Math.cos(t * 0.23 + p * 2) * 6.5); b.g.rotation.y = t * 0.3 + p; const f = Math.sin(t * 18 + p) * 1.1; b.lp.rotation.y = f; b.rp.rotation.y = -f; });
-    const dg = anim.dog; if (dg) { dg.g.visible = curView.home ? dogMode !== 'none' : dogMode !== 'none'; if (dg.g.visible) { if (dogMode === 'sleep') { dg.g.rotation.z = 0; dg.body.scale.y = 0.24 + Math.sin(t * 2) * 0.01; dg.head.position.y = 0.45; dg.head.rotation.z = -0.3; dg.tail.rotation.z = 1.4; } else { dg.head.position.y = 0.75; dg.body.scale.y = 0.28; dg.head.rotation.y = Math.sin(t * 0.8) * 0.5; dg.tail.rotation.z = 0.9 + Math.sin(t * (dogMode === 'bark' ? 30 : 10)) * 0.35; dg.g.position.y = dogMode === 'bark' ? Math.abs(Math.sin(t * 14)) * 0.15 : 0; dg.head.rotation.z = dogMode === 'bark' ? Math.sin(t * 20) * 0.15 : 0; } } }
+    anim.dogs.forEach((dg, k) => { const m = dogMode[k] || 'none'; dg.g.visible = m !== 'none'; if (!dg.g.visible) return; const ph = t + k * 1.7;
+      if (m === 'sleep') { dg.g.rotation.z = 0; dg.g.position.y = 0; dg.body.scale.y = 0.24 + Math.sin(ph * 2) * 0.01; dg.head.position.y = 0.45; dg.head.rotation.z = -0.3; dg.tail.rotation.z = 1.4; }
+      else { dg.head.position.y = 0.75; dg.body.scale.y = 0.28; dg.head.rotation.y = Math.sin(ph * 0.8) * 0.5; dg.tail.rotation.z = 0.9 + Math.sin(ph * (m === 'bark' ? 30 : 10)) * 0.35; dg.g.position.y = m === 'bark' ? Math.abs(Math.sin(ph * 14)) * 0.15 : 0; dg.head.rotation.z = m === 'bark' ? Math.sin(ph * 20) * 0.15 : 0; } });
     // 农田动态
     plots.forEach((pl, i) => {
       if (pl.crop) { pl.crop.rotation.z = Math.sin(t * 1.4 + pl.sway) * 0.025; pl.crop.rotation.x = Math.cos(t * 1.1 + pl.sway) * 0.02; }
