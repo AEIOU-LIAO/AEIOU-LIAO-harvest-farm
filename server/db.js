@@ -91,6 +91,8 @@ const MIGRATIONS = [
 ];
 
 const BUSY = /SQLITE_BUSY|database is locked|SQLITE_LOCKED|BUSY_SNAPSHOT/i;
+// 远端数据库的临时性故障（网络抖动、连接被回收、事务超时等）：整个事务重来一次是安全的（POST 有幂等键兜底）
+const TRANSIENT = /无法连接数据库|数据库请求失败（HTTP (5\d\d|400|404|408|429)|stream|baton|timed?[- ]?out|TRANSACTION_TIMEOUT|ECONNRESET|socket hang up|fetch failed|提交失败/i;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const splitSql = s => s.split(/;\s*(?:\n|$)/).map(x => x.trim()).filter(Boolean);
 
@@ -136,6 +138,7 @@ function wrap(B) {
       } catch (e) {
         if (t) await B.rollback(t).catch(() => { });
         if (BUSY.test(String(e && e.message)) && attempt < 6) { db.stats.retries++; if (!unlock) await sleep(5 + Math.random() * 20); continue; }
+        if (TRANSIENT.test(String(e && e.message)) && !BUSY.test(String(e && e.message)) && attempt < 5 && !(t && t.committed)) { db.stats.retries++; db.stats.transient = (db.stats.transient || 0) + 1; console.error('[db] 临时故障，重试', attempt + 1, String(e && e.message).slice(0, 160)); await sleep(100 + Math.random() * 200); continue; }
         throw e;
       } finally { if (t && B.release) B.release(t); if (unlock) unlock(); }
     }
@@ -149,8 +152,17 @@ function wrap(B) {
   };
   db.close = () => B.close && B.close();
   db.migrate = async () => {
-    await B.exec(null, 'CREATE TABLE IF NOT EXISTS schema_version (v INTEGER NOT NULL)');
-    const v0 = (await db.get('SELECT v FROM schema_version') || {}).v; if (v0 === MIGRATIONS.length) return db; // 已是最新：冷启动不加锁
+    const retry = async fn => { for (let i = 0; ; i++) { try { return await fn(); } catch (e) { if (i >= 5 || !(TRANSIENT.test(String(e.message)) || BUSY.test(String(e.message)))) throw e; await sleep(200 * (i + 1) + Math.random() * 300); } } };
+    await retry(() => B.exec(null, 'CREATE TABLE IF NOT EXISTS schema_version (v INTEGER NOT NULL)'));
+    const ver = async () => (await db.get('SELECT v FROM schema_version') || {}).v;
+    const v0 = await retry(ver); if (v0 === MIGRATIONS.length) return db; // 已是最新：冷启动不加锁
+    if (B.migrateBatch) { // 远端：整套迁移打包成一次请求，在一个事务里执行；失败整体回滚后重试（多个实例同时冷启动也安全）
+      for (let i = 0; ; i++) {
+        const v = await retry(ver); if (v === MIGRATIONS.length) return db;
+        try { await B.migrateBatch(v, MIGRATIONS); }
+        catch (e) { if (i >= 5) throw new Error('数据库初始化失败：' + e.message); await sleep(200 * (i + 1) + Math.random() * 300); }
+      }
+    }
     await db.tx(async () => {
       let v = (await db.get('SELECT v FROM schema_version') || {}).v;
       if (v === undefined) { await db.run('INSERT INTO schema_version (v) VALUES (0)'); v = 0; }
@@ -321,6 +333,18 @@ function tursoBackend(url, token, opts) {
       }
     },
     async begin(o) { return { baton: null, base: null, began: false, write: !!o.write, queue: [], seq: 0, sent: 0, spn: 0, risky: false, wrote: false, inflight: null, tick: false }; },
+    // 一次请求完成迁移：BEGIN IMMEDIATE → 各版本语句 → 写版本号 → COMMIT；任一步失败则 ROLLBACK
+    async migrateBatch(fromV, list) {
+      const steps = [{ stmt: stmt('BEGIN IMMEDIATE') }];
+      if (fromV === undefined) steps.push({ stmt: stmt('INSERT INTO schema_version (v) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM schema_version)') });
+      for (let i = fromV || 0; i < list.length; i++) { splitSql(list[i]).forEach(q => steps.push({ stmt: stmt(q) })); steps.push({ stmt: stmt('UPDATE schema_version SET v = ?', [i + 1]) }); }
+      steps.push({ stmt: stmt('COMMIT') });
+      steps.forEach((x, i) => { if (i > 0) x.condition = { type: 'ok', step: i - 1 }; });
+      const ci = steps.length - 1; steps.push({ stmt: stmt('ROLLBACK'), condition: { type: 'and', conds: [{ type: 'ok', step: 0 }, { type: 'not', cond: { type: 'ok', step: ci } }] } });
+      const res = (await pipeline(null, [{ type: 'batch', batch: { steps } }, { type: 'close' }]))[0];
+      if (!res || res.type !== 'ok') throw hErr(res && res.error);
+      const R = res.response.result; if (!R.step_results[ci]) { const e = R.step_errors.find(Boolean); throw hErr(e || { message: '迁移未完成' }); }
+    },
     finalize(t) { t.closing = true; },
     async commit(t) {
       if (t.inflight) await t.inflight;

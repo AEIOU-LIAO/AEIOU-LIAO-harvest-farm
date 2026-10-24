@@ -275,7 +275,8 @@ async function createCore(opts) {
       if (e && /SQLITE_BUSY|database is locked/i.test(e.message)) { status = 503; return json(503, { ok: false, code: 'busy', error: '服务器有点忙，请稍后重试' }, cors); }
       status = 500; if (!opts.quiet) console.error('[error]', req.method, p, e && e.stack || e);
       db.bg('INSERT INTO errors (at,route,msg) VALUES (?,?,?)', game.now(), req.method + ' ' + (route ? route.re.source : p), String(e && e.message || e).slice(0, 500));
-      return json(500, { ok: false, code: 'server', error: '服务器开小差了，请稍后再试' }, cors);
+      // detail：错误原因的第一行（测试阶段用于定位问题，不含堆栈）
+      return json(500, { ok: false, code: 'server', error: '服务器开小差了，请稍后再试', detail: String(e && e.message || e).split('\n')[0].slice(0, 120) }, cors);
     } finally {
       mbump('api_calls'); if (status >= 500) mbump('api_errors'); mbump('api_ms', Date.now() - t0); flushMetrics();
     }

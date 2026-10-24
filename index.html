@@ -580,7 +580,8 @@ const NET = (() => {
       const sn = j.now || (j.state && j.state.now); if (sn) offset = sn - (t0 + Date.now()) / 2;
       if (!r.ok || !j.ok) {
         if (r.status === 401 && path !== '/api/auth/login' && path !== '/api/auth/recover') { setToken(''); onAuthLost && onAuthLost(); }
-        throw new ApiErr(r.status, j.code || 'error', j.error || '请求失败');
+        if (j.detail) console.error('[server]', path, j.detail);
+        throw new ApiErr(r.status, j.code || 'error', (j.error || '请求失败') + (j.detail ? '（' + String(j.detail).slice(0, 60) + '）' : ''));
       }
       return j;
     } catch (e) {

@@ -16,7 +16,9 @@ function startMock(o) {
   const streams = new Map(); const stats = { requests: 0, statements: 0, busy: 0 };
   const conn = () => { const d = new DatabaseSync(file); d.exec('PRAGMA busy_timeout = 0'); return d; };
   const val = v => v === null || v === undefined ? { type: 'null' } : typeof v === 'bigint' ? { type: 'integer', value: v.toString() } : typeof v === 'number' ? (Number.isInteger(v) ? { type: 'integer', value: String(v) } : { type: 'float', value: v }) : Buffer.isBuffer(v) || v instanceof Uint8Array ? { type: 'blob', base64: Buffer.from(v).toString('base64') } : { type: 'text', value: String(v) };
-  const arg = a => a.type === 'null' ? null : a.type === 'integer' ? (Number.isSafeInteger(Number(a.value)) ? Number(a.value) : BigInt(a.value)) : a.type === 'float' ? Number(a.value) : a.type === 'blob' ? Buffer.from(a.base64, 'base64') : a.value;
+  // 和真实 Turso 一样严格：参数类型不对直接报错（例如 NaN 序列化后变成 null 的 float）
+  const arg = a => { if (a.type === 'float' && typeof a.value !== 'number') throw new Error('Invalid float value: ' + JSON.stringify(a.value)); if (a.type === 'integer' && !/^-?\d+$/.test(String(a.value))) throw new Error('Invalid integer value: ' + JSON.stringify(a.value)); return arg0(a); };
+  const arg0 = a => a.type === 'null' ? null : a.type === 'integer' ? (Number.isSafeInteger(Number(a.value)) ? Number(a.value) : BigInt(a.value)) : a.type === 'float' ? Number(a.value) : a.type === 'blob' ? Buffer.from(a.base64, 'base64') : a.value;
   function exec(db, s) {
     stats.statements++;
     const st = db.prepare(s.sql); const args = (s.args || []).map(arg);
