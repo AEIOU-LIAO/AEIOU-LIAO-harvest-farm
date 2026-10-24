@@ -81,27 +81,26 @@
     redNeedLv: 5,
     // 偷菜
     stealDelaySec: 30,          // 成熟后的主人保护时间
-    stealPctMin: 0.08, stealPctMax: 0.15, // 每次偷取占原始产量比例
-    stealMaxPct: 0.4,           // 一块地最多被偷走的比例（主人保底 60%）
-    newbieLv: 5, newbieMaxPct: 0.2, // 主人低于此等级时保底更高
-    stealSoftLimit: 150,        // 每天前这么多次摘取有经验；之后照样能摘、能拿到果实，只是不加经验
-    stealHardLimit: 600,        // 防外挂的硬上限（正常玩家碰不到）
+    stealPctMin: 0.1, stealPctMax: 0.2, // 每次偷取占原始产量比例
+    stealMaxPct: 0.5,           // 一块地最多被偷走的比例（主人保底 50%）
+    newbieLv: 5, newbieMaxPct: 0.25, // 主人低于此等级时保底更高
+    // v2.7 起偷菜、帮忙都没有每日次数和经验上限（自家私服，玩得开心最重要）
     stealExp: 3,
     stealCritChance: 0.1,       // 手气爆棚：一次摘两份（仍受主人保底限制）
     dogBlockBase: 0.35, dogBlockPerLv: 0.03, dogBlockMax: 0.7, dogBiteMin: 10, dogBiteMax: 40,
     // 互助
-    helpSoftLimit: 100, helpHardLimit: 600, helpExp: 4, helpGold: 6, // 超过软上限仍可帮忙，只是不再给奖励
+    helpExp: 4, helpGold: 6,
     helpBoost: 0.03,            // 每次帮忙让对方作物多长 3%
     // 生长
     probSlow: 0.62, season2Start: 0.45,
     goldenChance: 0.04, goldenPriceMult: 5,
     bumperChance: 0.08, bumperBonus: 0.5, // 大丰收：额外多收 50%
     // 订单：Lv.10 / 20 / 30 各多一个订单位
-    orderSlots: 3, orderSlotEvery: 10, orderSlotsMax: 6, orderRefresh: 5, orderRefreshCost: 50,
+    orderSlots: 3, orderSlotEvery: 10, orderSlotsMax: 6, orderRefresh: 20, orderRefreshCost: 30,
     // 市场
-    marketFee: 0.05, marketMinMult: 0.8, marketMaxMult: 2.0, marketMaxListings: 12, marketTtlHours: 48,
+    marketFee: 0.05, marketMinMult: 0.5, marketMaxMult: 5.0, marketMaxListings: 30, marketTtlHours: 168,
     // 留言
-    gbDailyLimit: 50,
+    gbDailyLimit: 500,
   };
 
   const TASKS = [
@@ -254,7 +253,7 @@
   const orderSlots = lv => Math.min(RULES.orderSlotsMax, RULES.orderSlots + Math.floor(Math.max(0, lv) / RULES.orderSlotEvery));
   function stealCapPct(ownerLv) { return ownerLv < RULES.newbieLv ? RULES.newbieMaxPct : RULES.stealMaxPct; }
 
-  const VERSION = '2.6.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const VERSION = '2.7.0'; // 每次发布改这里；设置页和 /api/health 会显示
   const CFG = { VERSION, COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
     expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };

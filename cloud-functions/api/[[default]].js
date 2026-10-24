@@ -109,27 +109,26 @@ __def("shared/config.js", function (module, exports, __req) {
     redNeedLv: 5,
     // 偷菜
     stealDelaySec: 30,          // 成熟后的主人保护时间
-    stealPctMin: 0.08, stealPctMax: 0.15, // 每次偷取占原始产量比例
-    stealMaxPct: 0.4,           // 一块地最多被偷走的比例（主人保底 60%）
-    newbieLv: 5, newbieMaxPct: 0.2, // 主人低于此等级时保底更高
-    stealSoftLimit: 150,        // 每天前这么多次摘取有经验；之后照样能摘、能拿到果实，只是不加经验
-    stealHardLimit: 600,        // 防外挂的硬上限（正常玩家碰不到）
+    stealPctMin: 0.1, stealPctMax: 0.2, // 每次偷取占原始产量比例
+    stealMaxPct: 0.5,           // 一块地最多被偷走的比例（主人保底 50%）
+    newbieLv: 5, newbieMaxPct: 0.25, // 主人低于此等级时保底更高
+    // v2.7 起偷菜、帮忙都没有每日次数和经验上限（自家私服，玩得开心最重要）
     stealExp: 3,
     stealCritChance: 0.1,       // 手气爆棚：一次摘两份（仍受主人保底限制）
     dogBlockBase: 0.35, dogBlockPerLv: 0.03, dogBlockMax: 0.7, dogBiteMin: 10, dogBiteMax: 40,
     // 互助
-    helpSoftLimit: 100, helpHardLimit: 600, helpExp: 4, helpGold: 6, // 超过软上限仍可帮忙，只是不再给奖励
+    helpExp: 4, helpGold: 6,
     helpBoost: 0.03,            // 每次帮忙让对方作物多长 3%
     // 生长
     probSlow: 0.62, season2Start: 0.45,
     goldenChance: 0.04, goldenPriceMult: 5,
     bumperChance: 0.08, bumperBonus: 0.5, // 大丰收：额外多收 50%
     // 订单：Lv.10 / 20 / 30 各多一个订单位
-    orderSlots: 3, orderSlotEvery: 10, orderSlotsMax: 6, orderRefresh: 5, orderRefreshCost: 50,
+    orderSlots: 3, orderSlotEvery: 10, orderSlotsMax: 6, orderRefresh: 20, orderRefreshCost: 30,
     // 市场
-    marketFee: 0.05, marketMinMult: 0.8, marketMaxMult: 2.0, marketMaxListings: 12, marketTtlHours: 48,
+    marketFee: 0.05, marketMinMult: 0.5, marketMaxMult: 5.0, marketMaxListings: 30, marketTtlHours: 168,
     // 留言
-    gbDailyLimit: 50,
+    gbDailyLimit: 500,
   };
 
   const TASKS = [
@@ -282,7 +281,7 @@ __def("shared/config.js", function (module, exports, __req) {
   const orderSlots = lv => Math.min(RULES.orderSlotsMax, RULES.orderSlots + Math.floor(Math.max(0, lv) / RULES.orderSlotEvery));
   function stealCapPct(ownerLv) { return ownerLv < RULES.newbieLv ? RULES.newbieMaxPct : RULES.stealMaxPct; }
 
-  const VERSION = '2.6.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const VERSION = '2.7.0'; // 每次发布改这里；设置页和 /api/health 会显示
   const CFG = { VERSION, COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
     expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };
@@ -1201,7 +1200,7 @@ class Game {
   async makeFriends(a, b) {
     if (a === b) throw bad('不能加自己为好友');
     const [isF, na, nb] = await all([this.isFriend(a, b), this.db.get('SELECT COUNT(*) n FROM friends WHERE a=?', a), this.db.get('SELECT COUNT(*) n FROM friends WHERE a=?', b)]);
-    if (isF) return false; if (na.n >= 200 || nb.n >= 200) throw conflict('好友数量已达上限 200', 'limit');
+    if (isF) return false; if (na.n >= 1000 || nb.n >= 1000) throw conflict('好友数量已达上限 1000', 'limit');
     const now = this.now(); this.db.w('INSERT OR IGNORE INTO friends (a,b,since) VALUES (?,?,?),(?,?,?)', a, b, now, b, a, now);
     this.db.w('DELETE FROM friend_requests WHERE (src=? AND dst=?) OR (src=? AND dst=?)', a, b, b, a);
     this.bump(a, 'friend', 1, 'all'); this.bump(b, 'friend', 1, 'all'); this.metric('friend_adds');
@@ -1293,7 +1292,6 @@ class Game {
   }
   async steal(uid, owner, idx, out) {
     const [o, n, P, mine] = await all([this.canSee(uid, owner), this.cnt(uid, 'steal_n', 'day'), this.plot(owner, idx), this.myStealsMap(uid, owner)]);
-    if (n >= RULES.stealHardLimit) throw conflict(`今天已经摘了 ${n} 次，手都酸了，明天再来吧`, 'limit');
     const now = this.now();
     if (!P.u || P.c < 0 || P.p < 1) throw conflict('这块地没有成熟的果实', 'not_ripe');
     if (now < P.ra + RULES.stealDelaySec * 1000) throw conflict(`刚成熟，主人保护中，${Math.ceil((P.ra + RULES.stealDelaySec * 1000 - now) / 1000)} 秒后才能摘`, 'protected');
@@ -1317,14 +1315,13 @@ class Game {
     this.addInv(uid, 'c' + P.c, qty);
     this.db.w('UPDATE users SET steal_total=steal_total+1 WHERE id=?', uid); this.db.w('UPDATE users SET stolen_from_total=stolen_from_total+? WHERE id=?', qty, owner); this.pu(uid, x => x.steal_total++); this.pu(owner, x => x.stolen_from_total += qty);
     // 软上限：超过后照样能摘、能拿到果实，只是不再加经验
-    const tired = n >= RULES.stealSoftLimit;
+    const tired = false; // 不设每日经验上限
     this.bump(uid, 'steal'); this.bump(uid, 'steal_n', 1, 'day'); this.bump(uid, 'social', 1, 'all'); const exp = tired ? 0 : await this.addExp(uid, RULES.stealExp, out); this.metric('steals');
     await this.msg(owner, 'stolen', uid, { qty, items: { ['c' + P.c]: qty } }, true);
     return { idx, qty, crop: P.c, left: P.y, crit, exp, tired };
   }
   async help(uid, owner, idx, out) {
     const [, n, P] = await all([this.canSee(uid, owner), this.cnt(uid, 'help_n', 'day'), this.plot(owner, idx)]);
-    if (n >= RULES.helpHardLimit) throw conflict(`今天已经帮忙 ${n} 次了，休息一下吧`, 'limit');
     const k = P.pr.d ? 'd' : P.pr.w ? 'w' : P.pr.b ? 'b' : null; if (!k) throw conflict('这块地不需要帮忙', 'healthy');
     P.pr[k] = 0; const now = this.now();
     // 邻居帮忙：作物顺带多长一点
@@ -1332,7 +1329,7 @@ class Game {
     this.savePlot(owner, P);
     this.db.w('INSERT OR IGNORE INTO helps (owner,helper,idx,cycle,kind,at) VALUES (?,?,?,?,?,?)', owner, uid, idx, P.cycle, k, now);
     // 软上限：超过后仍然可以帮忙，只是不再给奖励
-    const tired = n >= RULES.helpSoftLimit; let gold = 0, exp = 0;
+    const tired = false; let gold = 0, exp = 0;
     if (!tired) { gold = RULES.helpGold; this.addGold(uid, gold, 'help'); exp = await this.addExp(uid, RULES.helpExp, out); }
     this.db.w('UPDATE users SET help_total=help_total+1 WHERE id=?', uid); this.pu(uid, x => x.help_total++); this.bump(uid, 'help'); this.bump(uid, 'help_n', 1, 'day'); this.bump(uid, 'social', 1, 'all');
     await this.msg(owner, 'helped', uid, { kinds: k }, true); return { idx, kind: k, gold, exp, tired };

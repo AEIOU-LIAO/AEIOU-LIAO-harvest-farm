@@ -459,7 +459,7 @@ class Game {
   async makeFriends(a, b) {
     if (a === b) throw bad('不能加自己为好友');
     const [isF, na, nb] = await all([this.isFriend(a, b), this.db.get('SELECT COUNT(*) n FROM friends WHERE a=?', a), this.db.get('SELECT COUNT(*) n FROM friends WHERE a=?', b)]);
-    if (isF) return false; if (na.n >= 200 || nb.n >= 200) throw conflict('好友数量已达上限 200', 'limit');
+    if (isF) return false; if (na.n >= 1000 || nb.n >= 1000) throw conflict('好友数量已达上限 1000', 'limit');
     const now = this.now(); this.db.w('INSERT OR IGNORE INTO friends (a,b,since) VALUES (?,?,?),(?,?,?)', a, b, now, b, a, now);
     this.db.w('DELETE FROM friend_requests WHERE (src=? AND dst=?) OR (src=? AND dst=?)', a, b, b, a);
     this.bump(a, 'friend', 1, 'all'); this.bump(b, 'friend', 1, 'all'); this.metric('friend_adds');
@@ -551,7 +551,6 @@ class Game {
   }
   async steal(uid, owner, idx, out) {
     const [o, n, P, mine] = await all([this.canSee(uid, owner), this.cnt(uid, 'steal_n', 'day'), this.plot(owner, idx), this.myStealsMap(uid, owner)]);
-    if (n >= RULES.stealHardLimit) throw conflict(`今天已经摘了 ${n} 次，手都酸了，明天再来吧`, 'limit');
     const now = this.now();
     if (!P.u || P.c < 0 || P.p < 1) throw conflict('这块地没有成熟的果实', 'not_ripe');
     if (now < P.ra + RULES.stealDelaySec * 1000) throw conflict(`刚成熟，主人保护中，${Math.ceil((P.ra + RULES.stealDelaySec * 1000 - now) / 1000)} 秒后才能摘`, 'protected');
@@ -575,14 +574,13 @@ class Game {
     this.addInv(uid, 'c' + P.c, qty);
     this.db.w('UPDATE users SET steal_total=steal_total+1 WHERE id=?', uid); this.db.w('UPDATE users SET stolen_from_total=stolen_from_total+? WHERE id=?', qty, owner); this.pu(uid, x => x.steal_total++); this.pu(owner, x => x.stolen_from_total += qty);
     // 软上限：超过后照样能摘、能拿到果实，只是不再加经验
-    const tired = n >= RULES.stealSoftLimit;
+    const tired = false; // 不设每日经验上限
     this.bump(uid, 'steal'); this.bump(uid, 'steal_n', 1, 'day'); this.bump(uid, 'social', 1, 'all'); const exp = tired ? 0 : await this.addExp(uid, RULES.stealExp, out); this.metric('steals');
     await this.msg(owner, 'stolen', uid, { qty, items: { ['c' + P.c]: qty } }, true);
     return { idx, qty, crop: P.c, left: P.y, crit, exp, tired };
   }
   async help(uid, owner, idx, out) {
     const [, n, P] = await all([this.canSee(uid, owner), this.cnt(uid, 'help_n', 'day'), this.plot(owner, idx)]);
-    if (n >= RULES.helpHardLimit) throw conflict(`今天已经帮忙 ${n} 次了，休息一下吧`, 'limit');
     const k = P.pr.d ? 'd' : P.pr.w ? 'w' : P.pr.b ? 'b' : null; if (!k) throw conflict('这块地不需要帮忙', 'healthy');
     P.pr[k] = 0; const now = this.now();
     // 邻居帮忙：作物顺带多长一点
@@ -590,7 +588,7 @@ class Game {
     this.savePlot(owner, P);
     this.db.w('INSERT OR IGNORE INTO helps (owner,helper,idx,cycle,kind,at) VALUES (?,?,?,?,?,?)', owner, uid, idx, P.cycle, k, now);
     // 软上限：超过后仍然可以帮忙，只是不再给奖励
-    const tired = n >= RULES.helpSoftLimit; let gold = 0, exp = 0;
+    const tired = false; let gold = 0, exp = 0;
     if (!tired) { gold = RULES.helpGold; this.addGold(uid, gold, 'help'); exp = await this.addExp(uid, RULES.helpExp, out); }
     this.db.w('UPDATE users SET help_total=help_total+1 WHERE id=?', uid); this.pu(uid, x => x.help_total++); this.bump(uid, 'help'); this.bump(uid, 'help_n', 1, 'day'); this.bump(uid, 'social', 1, 'all');
     await this.msg(owner, 'helped', uid, { kinds: k }, true); return { idx, kind: k, gold, exp, tired };

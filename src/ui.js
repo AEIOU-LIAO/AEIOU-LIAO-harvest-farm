@@ -402,8 +402,8 @@ function openHelp() {
   <p><b>变异</b>：每次收获有 ${P(R.goldenChance)} 几率额外获得金色作物，价值是普通作物的 ${R.goldenPriceMult} 倍，可以收集进图鉴。</p>
   <p><b>大丰收</b>：每次收获有 ${P(R.bumperChance)} 几率额外多收 ${P(R.bumperBonus)}。等级上限 Lv.${R.maxLv}，后期还有更多高级作物等你解锁。</p>
   <h3>摘菜</h3>
-  <p>不用加好友，任何玩家的农场都可以去串门。① 作物成熟后，主人有 <b>${R.stealDelaySec} 秒</b>保护时间；② 每块地每一季你只能摘一次，每次约为产量的 ${P(R.stealPctMin)}–${P(R.stealPctMax)}；③ 一块地最多被摘走 <b>${P(R.stealMaxPct)}</b>，主人至少保留 ${P(1 - R.stealMaxPct)}，Lv.${R.newbieLv} 以下的新手最多被摘 ${P(R.newbieMaxPct)}；④ 每天前 ${R.stealSoftLimit} 次摘取有经验，之后照样能摘，只是不再加经验；每次有 ${P(R.stealCritChance)} 几率<b>手气爆棚</b>，一次摘两份；⑤ 主人家的看家狗<b>福旺</b>（咬一口 5 金币）和<b>睿宝</b>（咬一口 15 金币）吃饱时会各自判定能不能抓住你，抓住了就要被咬，这一季这块地你也不能再摘了。</p>
-  <p><b>互助</b>：帮别人浇水、除草、除虫，对方的作物会顺带多长 ${P(R.helpBoost)}。每天前 ${R.helpSoftLimit} 次你能得到 ${R.helpExp} 经验和 ${R.helpGold} 金币，之后仍然可以继续帮忙。</p>
+  <p>不用加好友，任何玩家的农场都可以去串门。① 作物成熟后，主人有 <b>${R.stealDelaySec} 秒</b>保护时间；② 每块地每一季你只能摘一次，每次约为产量的 ${P(R.stealPctMin)}–${P(R.stealPctMax)}；③ 一块地最多被摘走 <b>${P(R.stealMaxPct)}</b>，主人至少保留 ${P(1 - R.stealMaxPct)}，Lv.${R.newbieLv} 以下的新手最多被摘 ${P(R.newbieMaxPct)}；④ 摘菜<b>不限次数</b>，每次都加 ${R.stealExp} 经验；每次有 ${P(R.stealCritChance)} 几率<b>手气爆棚</b>，一次摘两份；⑤ 主人家的看家狗<b>福旺</b>（咬一口 5 金币）和<b>睿宝</b>（咬一口 15 金币）吃饱时会各自判定能不能抓住你，抓住了就要被咬，这一季这块地你也不能再摘了。</p>
+  <p><b>互助</b>：帮别人浇水、除草、除虫，对方的作物会顺带多长 ${P(R.helpBoost)}。每次都能得到 ${R.helpExp} 经验和 ${R.helpGold} 金币，<b>不限次数</b>。</p>
   <h3>经济</h3>
   <p>作物可以卖给系统（每天有两种作物涨价），也可以交给订单（收益更高），或在集市卖给其他玩家（手续费 ${P(R.marketFee)}，价格限制在系统价的 ${R.marketMinMult}–${R.marketMaxMult} 倍）。</p>
   <p><b>时间</b>：每日任务、签到和订单在每天 0 点（北京时间）刷新；每周任务、周排行和赛季在每周一 0 点结算。</p>

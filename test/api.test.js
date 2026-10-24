@@ -233,22 +233,22 @@ test('规则：保护期、狗狗防护、每日上限、新手保底', async ()
     for (const x of thieves2) await t.call('POST', `/api/farm/${c2.id}/steal`, { idx: CFG.UNLOCK_ORDER[3] }, x.token);
     const pl = (await t.call('GET', '/api/state', null, c2.token)).plots.find(q => q.idx === CFG.UNLOCK_ORDER[3]);
     assert.ok(pl.stolen > 0 && pl.stolen <= Math.floor(pl.y0 * CFG.RULES.newbieMaxPct), `新手最多被偷 20%（${pl.stolen}/${pl.y0}）`);
-    // 每日上限
-    await t.app.db.run("INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)", b.id, 'd' + CFG.dayKey(t.app.game.now()), 'steal_n', CFG.RULES.stealHardLimit);
-    assert.equal((await t.call('POST', `/api/farm/${a.id}/steal`, { idx: CFG.UNLOCK_ORDER[2] }, b.token)).code, 'limit');
+    // 没有每日次数上限：今天已经摘了 5000 次也照样能摘
+    await t.app.db.run("INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)", b.id, 'd' + CFG.dayKey(t.app.game.now()), 'steal_n', 5000);
+    assert.notEqual((await t.call('POST', `/api/farm/${a.id}/steal`, { idx: CFG.UNLOCK_ORDER[2] }, b.token)).code, 'limit');
   } finally { await t.close(); }
 });
 
-test('v2.3 玩法：软上限、手气爆棚、大丰收、帮忙加速、订单位随等级增加', async () => {
+test('v2.3/v2.7 玩法：无每日上限、手气爆棚、大丰收、帮忙加速、订单位随等级增加', async () => {
   const t = await start();
   const keep = Object.assign({}, CFG.RULES);
   try {
     const a = await t.guest('主人'), b = await t.guest('邻居'); const day = 'd' + CFG.dayKey(t.app.game.now());
-    // 1. 超过软上限：照样能摘到果实，只是没有经验
+    // 1. 偷菜经验没有每日上限：今天摘了 5000 次，照样加经验
     await t.plantAll(a, 0); await t.clock(200000);
-    await t.app.db.run("INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)", b.id, day, 'steal_n', CFG.RULES.stealSoftLimit);
+    await t.app.db.run("INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)", b.id, day, 'steal_n', 5000);
     const s1 = await t.call('POST', `/api/farm/${a.id}/steal`, { idx: CFG.UNLOCK_ORDER[0] }, b.token); assert.ok(s1.ok, s1.error);
-    assert.ok(s1.result.qty > 0 && s1.result.exp === 0 && s1.result.tired, '软上限后能摘但不加经验');
+    assert.ok(s1.result.qty > 0 && s1.result.exp === CFG.RULES.stealExp && !s1.result.tired, '偷菜经验不设上限');
     // 2. 手气爆棚：一次摘两份（这里把几率临时设为 100%）
     CFG.RULES.stealCritChance = 1; CFG.RULES.stealPctMin = CFG.RULES.stealPctMax = 0.05;
     const s2 = await t.call('POST', `/api/farm/${a.id}/steal`, { idx: CFG.UNLOCK_ORDER[1] }, b.token); assert.ok(s2.ok, s2.error);
@@ -267,9 +267,9 @@ test('v2.3 玩法：软上限、手气爆棚、大丰收、帮忙加速、订单
     const g0 = (await t.call('GET', '/api/state', null, b.token)).me.gold;
     const hp = await t.call('POST', `/api/farm/${a.id}/help`, { idx }, b.token); assert.ok(hp.ok, hp.error); assert.equal(hp.result.gold, CFG.RULES.helpGold);
     const p1 = (await t.call('GET', '/api/state', null, a.token)).plots.find(p => p.idx === idx).p; assert.ok(p1 - p0 >= CFG.RULES.helpBoost * 0.99, `帮忙后作物多长了（${p0.toFixed(3)} → ${p1.toFixed(3)}）`);
-    await t.app.db.run("INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)", b.id, day, 'help_n', CFG.RULES.helpSoftLimit);
-    const hp2 = await t.call('POST', `/api/farm/${a.id}/help`, { idx }, b.token); assert.ok(hp2.ok, hp2.error); assert.ok(hp2.result.tired && hp2.result.gold === 0);
-    assert.equal(hp2.me.gold, g0 + CFG.RULES.helpGold, '软上限后的帮忙不加金币');
+    await t.app.db.run("INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)", b.id, day, 'help_n', 5000);
+    const hp2 = await t.call('POST', `/api/farm/${a.id}/help`, { idx }, b.token); assert.ok(hp2.ok, hp2.error); assert.ok(!hp2.result.tired && hp2.result.gold === CFG.RULES.helpGold);
+    assert.equal(hp2.me.gold, g0 + CFG.RULES.helpGold * 2, '帮忙奖励不设上限');
     // 5. 订单位：Lv.1 三个，Lv.20 五个；每天可刷新 5 次
     assert.equal((await t.call('GET', '/api/orders', null, a.token)).list.length, 3);
     await t.app.db.run('UPDATE users SET lv=20, gold=99999 WHERE id=?', a.id);
