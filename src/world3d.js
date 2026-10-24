@@ -431,9 +431,24 @@ const W3 = (() => {
     };
     return DOG_GEO[kind];
   }
+  // 会动的毛：在顶点着色器里让肚子下面、胸前、屁股的长毛随走动向后飘、上下抖；耳朵随步伐一颠一颠；尾巴像鞭子一样一节一节地摆
+  function dogFurMat(U, part) {
+    const m = furMat();
+    m.onBeforeCompile = sh => { Object.assign(sh.uniforms, U);
+      sh.vertexShader = 'uniform float uT, uMove, uBob, uWagPh, uWagA, uLift;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + ({
+        torso: 'float wF = smoothstep(0.55, 0.40, position.y) + smoothstep(0.24, 0.36, position.x) * smoothstep(0.78, 0.6, position.y) * 0.8 + smoothstep(-0.18, -0.34, position.x) * smoothstep(0.66, 0.5, position.y) * 0.7;\n' +
+          'wF = clamp(wF, 0.0, 1.0);\ntransformed.x += wF * (-uMove * 0.028 + sin(uT * 9.0 + position.z * 14.0 + position.x * 6.0) * 0.006 * (0.4 + uMove));\n' +
+          'transformed.y += wF * sin(uT * 13.0 + position.x * 10.0) * 0.012 * uMove - wF * uBob * 0.012;\ntransformed.z += wF * sin(uT * 7.0 + position.x * 12.0) * 0.006 * (0.3 + uMove);',
+        head: 'float wE = smoothstep(0.06, 0.16, position.y) * step(0.035, abs(position.z));\ntransformed.x += wE * (uBob * 0.035 - uMove * 0.012);\ntransformed.z += sign(position.z) * wE * (abs(uBob) * 0.018 + sin(uT * 2.3) * 0.004);\n' +
+          'float wC = smoothstep(-0.02, -0.12, position.y) * smoothstep(0.02, -0.06, position.x);\ntransformed.y += wC * sin(uT * 12.0 + position.z * 20.0) * 0.006 * uMove;',
+        tail: 'float s = clamp(length(position.xy) / 0.4, 0.0, 1.0);\ntransformed.z += sin(uWagPh - s * 2.4) * uWagA * s * s * 0.22;\ntransformed.x -= abs(sin(uWagPh - s * 2.4)) * uWagA * s * s * 0.05;\n' +
+          'transformed.y += uLift * s * s * 0.16; transformed.x -= uLift * s * 0.04;\ntransformed.z += sin(uT * 11.0 + s * 6.0) * 0.008 * s * (0.3 + uMove);',
+      })[part]); };
+    m.customProgramCacheKey = () => 'dogfur-' + part; return m;
+  }
   function furMat() { return new T.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.86, sheen: 0.35, sheenRoughness: 0.5, sheenColor: new T.Color('#fff4e0') }); }
   function buildDog(kind) {
-    const L = DOG_LOOK[kind || 'fuwang'], G = dogGeometry(kind || 'fuwang'), fur = furMat();
+    const L = DOG_LOOK[kind || 'fuwang'], G = dogGeometry(kind || 'fuwang'), U = { uT: { value: 0 }, uMove: { value: 0 }, uBob: { value: 0 }, uWagPh: { value: 0 }, uWagA: { value: 0.3 }, uLift: { value: 0 } }, fur = dogFurMat(U, 'torso');
     const g = new T.Group(), torso = new T.Group(); torso.position.y = DOG_BASE_Y; g.add(torso);
     const body = new T.Mesh(G.torso, fur); body.castShadow = true; torso.add(body);
     // 胸背带 / 项圈
@@ -444,7 +459,7 @@ const W3 = (() => {
     torso.add(mesh(new T.SphereGeometry(0.019, 12, 10), mat('#e8c060', { p: { metalness: 0.85, roughness: 0.28 } }), 0.47, 0.705, 0));  // 小铃铛
     // 头
     const head = new T.Group(); head.position.set(0.47, 0.92, 0); head.scale.setScalar(1.22); torso.add(head); // 头大一点更可爱
-    const hm = new T.Mesh(G.head, fur); hm.castShadow = true; head.add(hm);
+    const hm = new T.Mesh(G.head, dogFurMat(U, 'head')); hm.castShadow = true; head.add(hm);
     const eyeM = new T.MeshPhysicalMaterial({ color: new T.Color(L.eye), roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.05 });
     const glint = new T.MeshBasicMaterial({ color: 0xffffff });
     [-1, 1].forEach(sd => { const e = new T.Mesh(new T.SphereGeometry(0.029, 18, 14), eyeM); e.position.set(0.094, 0.036, sd * 0.06); e.scale.set(0.78, 1, 1); head.add(e); const s1 = new T.Mesh(new T.SphereGeometry(0.0095, 10, 8), glint); s1.position.set(0.114, 0.049, sd * 0.067); head.add(s1); const s2 = new T.Mesh(new T.SphereGeometry(0.0048, 8, 6), glint); s2.position.set(0.116, 0.026, sd * 0.056); head.add(s2); });
@@ -454,10 +469,10 @@ const W3 = (() => {
     const legs = []; const lm = furMat();
     [[0.27, 0.11, 1], [0.27, -0.11, 1], [-0.3, 0.1, 0], [-0.3, -0.1, 0]].forEach(([x, z, front]) => { const lg = new T.Group(); lg.position.set(x, 0.45, z); lg.scale.set(1.3, 0.92, 1.3); const m = new T.Mesh(front ? G.legF : G.legH, lm); m.castShadow = true; lg.add(m); const paw = new T.Mesh(new T.SphereGeometry(1, 12, 8), lm); paw.geometry = new T.SphereGeometry(1, 12, 8); paw.position.set(0.022, -0.355, 0); paw.scale.set(0.06, 0.03, 0.05); paw.material = new T.MeshPhysicalMaterial({ color: C_WHITE, roughness: 0.86, sheen: 0.35, sheenColor: new T.Color('#fff4e0') }); lg.add(paw); torso.add(lg); legs.push(lg); });
     // 尾巴
-    const tail = new T.Group(); tail.position.set(-0.44, 0.64, 0); torso.add(tail); const tm = new T.Mesh(G.tail, fur); tm.castShadow = true; tail.add(tm); tail.scale.setScalar(0.88);
+    const tail = new T.Group(); tail.position.set(-0.44, 0.64, 0); torso.add(tail); const tm = new T.Mesh(G.tail, dogFurMat(U, 'tail')); tm.castShadow = true; tail.add(tm); tail.scale.setScalar(0.88);
     g.scale.setScalar(L.s);
     const tag = nameTag(L.name, L.tag); tag.position.set(0.1, 1.42, 0); g.add(tag);
-    const d = { g, torso, head, tail, legs, tongue, tag, kind, home: null, ang: Math.random() * 6.28, pet: 0 }; anim.dogs.push(d);
+    const d = { g, torso, head, tail, legs, tongue, tag, kind, home: null, ang: Math.random() * 6.28, pet: 0, U, wag: 0, mv: 0 }; anim.dogs.push(d);
     if (!buildDog.preview) { const hb = new T.Mesh(new T.BoxGeometry(1.1, 1.1, 0.7), new T.MeshBasicMaterial({ visible: false })); hb.position.set(0, 0.55, 0); hb.userData.idx = -20 - (anim.dogs.length - 1); hb.userData.dog = d; g.add(hb); hitBoxes.push(hb); } return g;
   }
   // 调试：大尺寸渲染某个角度的狗（只在测试中用）
@@ -1001,7 +1016,7 @@ const W3 = (() => {
     anim.smoke.forEach(s => { const k = (t * 0.25 + s.userData.ph) % 1; s.position.copy(anim.house.smokeAt).applyMatrix4(new T.Matrix4().makeRotationY(0.15)).add(v3(-13, 0, -2.5)); s.position.y += k * 3; s.position.x += Math.sin(k * 4 + s.userData.ph * 6) * 0.3 + k * 0.6; s.scale.setScalar(0.5 + k * 1.4); s.material.opacity = 0.45 * (1 - k) * (1 - nightK * 0.5); });
     anim.chickens.forEach(c => { c.pk -= dt; const m = c.m; if (c.pk > 0) { m.rotation.z = Math.sin(t * 12) * 0.05; return; } const dx = c.tx - m.position.x, dz = c.tz - m.position.z, d = Math.hypot(dx, dz); if (d < 0.1) { if (Math.random() < 0.5) c.pk = 1 + Math.random() * 2.5; else { c.tx = c.home.x + (Math.random() - 0.5) * 5; c.tz = c.home.z + (Math.random() - 0.5) * 3; } } else { const s = Math.min(d, dt * 0.9); m.position.x += dx / d * s; m.position.z += dz / d * s; m.rotation.y = Math.atan2(-dz, dx); m.position.y = Math.abs(Math.sin(t * 10)) * 0.04; } });
     anim.butterflies.forEach(b => { const p = b.ph; b.g.position.set(Math.sin(t * 0.3 + p) * 9, 1.2 + Math.sin(t * 1.3 + p) * 0.4, Math.cos(t * 0.23 + p * 2) * 6.5); b.g.rotation.y = t * 0.3 + p; const f = Math.sin(t * 18 + p) * 1.1; b.lp.rotation.y = f; b.rp.rotation.y = -f; });
-    anim.dogs.forEach((dg, k) => { const m = dogMode[k] || 'none'; dg.g.visible = m !== 'none'; if (!dg.g.visible) return; const ph = t + k * 1.7;
+    const animDog = (dg, k, m) => { const ph = t + k * 1.7;
       if (!dg.home) dg.home = dg.g.position.clone();
       if (dg.pet > 0) { // 被摸头：面向主人、抬头眯眼、狂摇尾巴、开心地蹦
         dg.pet -= dt; if (m === 'sleep' && dg.g.position.distanceTo(dg.home) < 0.01) dg.g.position.copy(dg.home);
@@ -1028,7 +1043,21 @@ const W3 = (() => {
         dg.head.rotation.set(0, walk ? 0 : Math.sin(ph * 0.8) * 0.5, bark ? Math.sin(ph * 20) * 0.15 : 0.05);
         dg.tail.rotation.set(0, Math.sin(ph * (bark ? 26 : 9)) * 0.55, 0.15);
         dg.tongue.scale.y = 0.048 * (1 + Math.sin(ph * 7) * 0.15);
-      } });
+      } };
+    // 灵动感：根据实际移动速度驱动步态、身体起伏和侧摆、头部稳定、耳朵颠动、长毛飘动、尾巴鞭状摇摆
+    const dogLive = (dg, k, m) => {
+      const p = dg.g.position; if (!dg.lp) dg.lp = p.clone(); const v = dt > 0 ? p.distanceTo(dg.lp) / dt : 0; dg.lp.copy(p);
+      dg.mv += (Math.min(1, v / 4) - dg.mv) * Math.min(1, dt * 6); const mv = m === 'sleep' ? 0 : dg.mv, moving = mv > 0.04;
+      dg.gp = (dg.gp || 0) + dt * (5.5 + v * 2.4) * (moving ? 1 : 0); const gp = dg.gp, sg = Math.sin(gp), cg = Math.cos(gp);
+      if (moving) dg.legs.forEach((l, j) => { const o = (j === 0 || j === 3) ? 0 : Math.PI, a = Math.sin(gp + o); l.rotation.z = a * (0.35 + 0.35 * mv); l.scale.y = 0.92 * (1 - Math.max(0, Math.cos(gp + o)) * 0.1 * mv); });
+      else dg.legs.forEach(l => { l.scale.y = 0.92; });
+      dg.torso.rotation.x = sg * 0.04 * mv; dg.torso.rotation.z = -0.03 * mv + Math.cos(gp * 2) * 0.02 * mv; dg.torso.position.y += Math.abs(cg) * 0.03 * mv;
+      dg.head.rotation.z += -dg.torso.rotation.z * 0.9 - Math.cos(gp * 2) * 0.03 * mv; dg.head.position.y -= Math.abs(cg) * 0.01 * mv;
+      const excited = dg.pet > 0, freq = excited ? 17 : m === 'bark' ? 20 : moving ? 7 + mv * 4 : m === 'sleep' ? 1.2 : 4.5, amp = excited ? 1.0 : m === 'bark' ? 0.8 : moving ? 0.5 + mv * 0.2 : m === 'sleep' ? 0.08 : 0.32 + Math.max(0, Math.sin(t * 0.37 + k)) * 0.3;
+      dg.wag = (dg.wag || 0) + dt * freq; dg.tail.rotation.y = Math.sin(dg.wag) * amp * 0.55; dg.tail.rotation.z = (m === 'sleep' ? 0 : 0.12) + mv * 0.18 + (excited ? 0.25 : 0);
+      const U = dg.U; if (U) { U.uT.value = t + k * 3; U.uMove.value = mv; U.uBob.value = moving ? cg * mv : Math.sin(t * (m === 'sleep' ? 0.6 : 1.7) + k) * 0.08 * (Math.sin(t * 0.5 + k) > 0.7 ? 1 : 0); U.uWagPh.value = dg.wag; U.uWagA.value = amp; U.uLift.value = mv * 0.5 + (excited ? 0.6 : 0); }
+    };
+    anim.dogs.forEach((dg, k) => { const m = dogMode[k] || 'none'; dg.g.visible = m !== 'none'; if (!dg.g.visible) return; animDog(dg, k, m); dogLive(dg, k, m); });
     // 农田动态
     plots.forEach((pl, i) => {
       if (pl.crop) { pl.crop.rotation.z = Math.sin(t * 1.4 + pl.sway) * 0.025; pl.crop.rotation.x = Math.cos(t * 1.1 + pl.sway) * 0.02; }
