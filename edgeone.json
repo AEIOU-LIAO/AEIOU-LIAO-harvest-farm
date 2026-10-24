@@ -4,14 +4,12 @@
   "outputDirectory": "dist",
   "nodeVersion": "22.11.0",
   "cloudFunctions": {
-    "nodejs": {
-      "maxDuration": 60
-    }
+    "maxDuration": 60
   },
   "schedules": [
     {
-      "name": "farm-npc",
-      "cron": "* * * * *",
+      "name": "farm-daily",
+      "cron": "0 5 * * *",
       "path": "/api/cron",
       "method": "POST",
       "timezone": "Asia/Shanghai"

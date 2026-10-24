@@ -4,16 +4,22 @@
    - 自包含：只依赖 Node 内置模块（Node 18+），不需要 npm 依赖
    - 数据库：Turso（环境变量 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN）
    ===================================================== */
-import * as __crypto from 'node:crypto';
-import * as __async_hooks from 'node:async_hooks';
-import * as __fs from 'node:fs';
-import * as __path from 'node:path';
-
-const __mods = {}, __cache = {};
-const __builtins = { crypto: __crypto, async_hooks: __async_hooks, fs: __fs, path: __path };
+// 注意：这里故意不写任何 import 声明。EdgeOne 构建时会改写 import 路径，内置模块改为运行时动态加载
+const __mods = {}, __cache = {}, __builtins = {};
+let __ready = null;
+function __loadBuiltins() {
+  if (!__ready) __ready = (async () => {
+    const g = typeof process !== 'undefined' && process.getBuiltinModule; // Node 20.16+ / 22.3+
+    if (g) { for (const n of ['crypto', 'async_hooks', 'fs', 'path']) __builtins[n] = process.getBuiltinModule('node:' + n); return; }
+    const [c, a, f, p] = await Promise.all([import('node:crypto'), import('node:async_hooks'), import('node:fs'), import('node:path')]);
+    Object.assign(__builtins, { crypto: c, async_hooks: a, fs: f, path: p });
+  })();
+  return __ready;
+}
 function __def(id, fn) { __mods[id] = fn; }
 function __req(id) {
   if (id in __builtins) return __builtins[id];
+  if (['crypto', 'async_hooks', 'fs', 'path'].includes(id)) throw new Error('内置模块还没加载：' + id);
   if (id === 'node:sqlite') throw new Error('EdgeOne 上不使用本地 SQLite，请配置 TURSO_DATABASE_URL');
   if (__cache[id]) return __cache[id].exports;
   const module = { exports: {} }; __cache[id] = module; __mods[id](module, module.exports, __req); return module.exports;
@@ -1933,15 +1939,14 @@ module.exports = { createCore, envOpts, VERSION };
 
 });
 
-const { createCore } = __req('server/app.js');
-
 let coreP = null;
 function getCore(env) {
   if (!coreP) {
+    const start = async () => { await __loadBuiltins(); const { createCore } = __req('server/app.js'); return createCore({ tursoUrl: process.env.TURSO_DATABASE_URL, tursoToken: process.env.TURSO_AUTH_TOKEN || '', cronBudgetMs: 25000 }); };
     // EdgeOne 的环境变量在 context.env 里：同步到 process.env，服务端代码统一从这里读取
     for (const [k, v] of Object.entries(env || {})) if (typeof v === 'string' && !(k in process.env)) process.env[k] = v;
     if (!process.env.TURSO_DATABASE_URL) return Promise.reject(new Error('没有配置 TURSO_DATABASE_URL：请在 EdgeOne 项目的环境变量里填写 Turso 数据库地址和令牌，然后重新部署'));
-    coreP = createCore({ tursoUrl: process.env.TURSO_DATABASE_URL, tursoToken: process.env.TURSO_AUTH_TOKEN || '', cronBudgetMs: 40000 }).catch(e => { coreP = null; throw e; });
+    coreP = start().catch(e => { coreP = null; throw e; });
   }
   return coreP;
 }
