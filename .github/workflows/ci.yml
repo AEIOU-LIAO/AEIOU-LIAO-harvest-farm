@@ -1,0 +1,30 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: 构建产物与源码一致
+        run: npm run check-build
+      - name: 接口与并发测试
+        run: npm test
+  # 可选：合并到 main 后通过 SSH 让服务器执行 deploy.sh
+  # 启用方法：仓库 Settings → Secrets 添加 DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY，Variables 添加 DEPLOY_ENABLED=true
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH 部署
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          mkdir -p ~/.ssh && echo "$KEY" > ~/.ssh/id && chmod 600 ~/.ssh/id
+          ssh -i ~/.ssh/id -o StrictHostKeyChecking=accept-new "$USER@$HOST" "sudo bash /var/www/harvest-farm/deploy/deploy.sh"
