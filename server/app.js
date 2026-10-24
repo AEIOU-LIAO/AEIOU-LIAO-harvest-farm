@@ -13,7 +13,7 @@ const { Game } = require('./game');
 const { Admin } = require('./admin');
 const { Villagers } = require('./npc');
 
-const VERSION = '2.2.0';
+const VERSION = require('../shared/config').VERSION;
 const all = Promise.all.bind(Promise);
 
 function envOpts(env) {

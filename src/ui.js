@@ -364,7 +364,8 @@ function openMenu() {
     ${row('玩法与规则', '', '<button class="btn sm" id="thelp">查看</button>')}
     ${S.me.role === 'admin' ? row('运营后台', '', '<a class="btn sm" href="admin.html" target="_blank">打开</a>') : ''}
     ${row('切换账号', '同一台设备可以保存多个账号，点头像就能切换', '<button class="btn sm primary" id="tswitch">切换</button>')}
-    ${row('退出登录', '退出并从本机移除这个账号', '<button class="btn sm danger" id="tlogout">退出</button>')}</div>`, {
+    ${row('退出登录', '退出并从本机移除这个账号', '<button class="btn sm danger" id="tlogout">退出</button>')}
+    ${row('当前版本', '构建时间 ' + (typeof HF_BUILT !== 'undefined' ? HF_BUILT : '未知') + '（北京时间）', `<b class="ver">v${CFG.VERSION}</b>`)}</div>`, {
     small: true, mount: () => {
       $('tsound').onclick = () => { savePref({ sound: !PREF.sound }); renderHud(); openMenu(); }; $('tmusic').onclick = () => { savePref({ music: !PREF.music }); if (PREF.music) startMusic(); openMenu(); };
       $('ttod').onclick = () => { const o = ['auto', 'day', 'dusk', 'night']; savePref({ tod: o[(o.indexOf(PREF.tod) + 1) % 4] }); renderTitle(); openMenu(); };

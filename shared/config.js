@@ -254,7 +254,8 @@
   const orderSlots = lv => Math.min(RULES.orderSlotsMax, RULES.orderSlots + Math.floor(Math.max(0, lv) / RULES.orderSlotEvery));
   function stealCapPct(ownerLv) { return ownerLv < RULES.newbieLv ? RULES.newbieMaxPct : RULES.stealMaxPct; }
 
-  const CFG = { COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
+  const VERSION = '2.5.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const CFG = { VERSION, COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
     expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };
   if (typeof module !== 'undefined' && module.exports) module.exports = CFG; else root.GAMECFG = CFG;

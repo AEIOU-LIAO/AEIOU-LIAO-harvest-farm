@@ -364,6 +364,7 @@ body.walk #canvas,body.walk canvas{cursor:grab}
 <div id="mback"><div id="modal"></div></div>
 <script src="vendor/three.min.js"></script>
 <script>
+var HF_BUILT = '2026-10-24 21:38';
 /* =====================================================
    丰收农场 · 前后端共用配置与规则
    服务端是权威；客户端只用它来显示与插值。
@@ -620,7 +621,8 @@ body.walk #canvas,body.walk canvas{cursor:grab}
   const orderSlots = lv => Math.min(RULES.orderSlotsMax, RULES.orderSlots + Math.floor(Math.max(0, lv) / RULES.orderSlotEvery));
   function stealCapPct(ownerLv) { return ownerLv < RULES.newbieLv ? RULES.newbieMaxPct : RULES.stealMaxPct; }
 
-  const CFG = { COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
+  const VERSION = '2.5.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const CFG = { VERSION, COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
     expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };
   if (typeof module !== 'undefined' && module.exports) module.exports = CFG; else root.GAMECFG = CFG;
@@ -3762,7 +3764,8 @@ function openMenu() {
     ${row('玩法与规则', '', '<button class="btn sm" id="thelp">查看</button>')}
     ${S.me.role === 'admin' ? row('运营后台', '', '<a class="btn sm" href="admin.html" target="_blank">打开</a>') : ''}
     ${row('切换账号', '同一台设备可以保存多个账号，点头像就能切换', '<button class="btn sm primary" id="tswitch">切换</button>')}
-    ${row('退出登录', '退出并从本机移除这个账号', '<button class="btn sm danger" id="tlogout">退出</button>')}</div>`, {
+    ${row('退出登录', '退出并从本机移除这个账号', '<button class="btn sm danger" id="tlogout">退出</button>')}
+    ${row('当前版本', '构建时间 ' + (typeof HF_BUILT !== 'undefined' ? HF_BUILT : '未知') + '（北京时间）', `<b class="ver">v${CFG.VERSION}</b>`)}</div>`, {
     small: true, mount: () => {
       $('tsound').onclick = () => { savePref({ sound: !PREF.sound }); renderHud(); openMenu(); }; $('tmusic').onclick = () => { savePref({ music: !PREF.music }); if (PREF.music) startMusic(); openMenu(); };
       $('ttod').onclick = () => { const o = ['auto', 'day', 'dusk', 'night']; savePref({ tod: o[(o.indexOf(PREF.tod) + 1) % 4] }); renderTitle(); openMenu(); };
