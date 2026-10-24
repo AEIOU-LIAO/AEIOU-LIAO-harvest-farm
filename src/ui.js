@@ -12,8 +12,8 @@ const TASK_IC = { plant: 'sprout', harvest: 'basket', care: 'drop', steal: 'mask
 async function getj(path) { try { return await NET.get(path); } catch (e) { toast(e.message, 'warn'); return null; } }
 
 /* ---------------- 登录 / 注册 ---------------- */
-async function showLogin(tab) {
-  tab = tab || 'quick';
+async function showLogin(tab, accs, closable) {
+  tab = tab || 'quick'; if (!accs) accs = await NET.accounts();
   const inv = new URLSearchParams(location.search).get('invite'); let inviter = null;
   if (inv) { try { inviter = await NET.get('/api/invite/' + encodeURIComponent(inv)); } catch (e) { } }
   const invHtml = inviter ? `<div class="invite">${avHtml(inviter.avatar, inviter.frame, 44)}<div><b>${esc(inviter.name)}</b>（Lv.${inviter.lv}）邀请你一起种菜<small>进入游戏后你们会自动成为好友</small></div></div>` : '';
@@ -23,11 +23,19 @@ async function showLogin(tab) {
     reg: `<input id="l-name" maxlength="10" placeholder="昵称（最多 10 字）"><input id="l-user" placeholder="账号：4–20 位字母、数字或下划线" autocomplete="username"><input id="l-pass" type="password" placeholder="密码：至少 6 位" autocomplete="new-password"><button class="btn big primary" id="l-go">注册并进入</button>`,
     recover: `<p class="sub">用绑定账号时保存的<b>恢复码</b>重设密码</p><input id="l-user" placeholder="账号"><input id="l-code" placeholder="恢复码（12 位）"><input id="l-pass" type="password" placeholder="新密码"><button class="btn big primary" id="l-go">重设并登录</button>`,
   };
-  openModal(`<div class="login"><div class="logo"><span>丰收农场</span><em>HARVEST FARM</em></div><p class="sub2">种菜、偷菜、做买卖，和大家一起经营农场</p>${invHtml}
-    ${tabsHtml([['quick', '快速开始'], ['login', '账号登录'], ['reg', '注册账号']], tab === 'recover' ? 'login' : tab)}<div class="lform">${forms[tab]}</div>
+  const cur = S && S.me ? S.me.id : 0;
+  const accHtml = accs.length ? `<div class="accs"><div class="acch">本机账号 <small>点头像直接进入</small></div><div class="acclist">${accs.map(a => `<div class="acc${a.id === cur ? ' cur' : ''}" data-acc="${a.id}">${avHtml(a.avatar, a.frame, 52)}<b>${esc(a.name)}</b><small>Lv.${a.lv}${a.guest ? ' · 游客' : ''}${a.id === cur ? ' · 当前' : ''}</small>${a.id === cur ? '' : `<i class="rm" data-rm="${a.id}" title="从本机移除">${ICON('close')}</i>`}</div>`).join('')}</div></div><div class="ordiv"><span>${accs.length ? '或者' : ''}</span></div>` : '';
+  openModal(`<div class="login"><div class="logo"><span>丰收农场</span><em>HARVEST FARM</em></div><p class="sub2">种菜、偷菜、做买卖，和大家一起经营农场</p>${invHtml}${accHtml}
+    ${tabsHtml([['quick', accs.length ? '新建账号' : '快速开始'], ['login', '账号登录'], ['reg', '注册账号']], tab === 'recover' ? 'login' : tab)}<div class="lform">${forms[tab]}</div>
     <p class="fine">游戏数据保存在服务器上。继续即表示你同意我们为运行游戏保存你的昵称和游戏数据，你可以随时在“设置 → 账号与数据”中导出或注销。</p></div>`, {
-    small: true, noclose: true, mount: () => {
-      bindTabs(t => showLogin(t)); const f = $('l-forgot'); if (f) f.onclick = e => { e.preventDefault(); showLogin('recover'); };
+    small: true, noclose: !closable, mount: () => {
+      bindTabs(t => showLogin(t, accs, closable)); const f = $('l-forgot');
+      qsa('[data-acc]').forEach(el => el.onclick = async e => {
+        if (e.target.closest('[data-rm]')) return; const id = +el.dataset.acc; if (id === cur) { closeModal(true); return; }
+        const a = accs.find(x => x.id === id); el.classList.add('busy');
+        try { const st = await NET.useAccount(a); if (started) { location.reload(); return; } sfx('level'); enterGame(st, false); } catch (err) { el.classList.remove('busy'); if (err.code === 'network') { toast('网络不稳定，请稍后再试', 'warn'); return; } NET.forgetAccount(id); toast('这个账号的登录已失效，请用账号密码重新登录', 'warn'); showLogin('login', accs.filter(x => x.id !== id), closable); }
+      });
+      qsa('[data-rm]').forEach(el => el.onclick = async e => { e.stopPropagation(); const a = accs.find(x => x.id === +el.dataset.rm); if (a.guest && !confirm(`「${a.name}」是游客账号，从本机移除后将无法再登录（除非之前绑定过账号）。确定移除吗？`)) return; await NET.forgetRemote(a.id); NET.forgetAccount(a.id); showLogin(tab, accs.filter(x => x.id !== a.id), closable); }); if (f) f.onclick = e => { e.preventDefault(); showLogin('recover'); };
       if ($('l-name') && tab === 'quick') $('l-name').value = ['阿禾', '小麦', '青禾', '小满', '晴川', '远山'][Math.floor(Math.random() * 6)];
       const go = async () => {
         const b = $('l-go'); b.disabled = true;
@@ -37,7 +45,7 @@ async function showLogin(tab) {
           else if (tab === 'login') r = await NET.post('/api/auth/login', { username: val('l-user'), password: $('l-pass').value });
           else if (tab === 'reg') r = await NET.post('/api/auth/register', { name: val('l-name') || '新农夫', username: val('l-user'), password: $('l-pass').value });
           else { r = await NET.post('/api/auth/recover', { username: val('l-user'), code: val('l-code'), password: $('l-pass').value }); setTimeout(() => showRecovery(r.recovery), 800); }
-          NET.setToken(r.token); sfx('level'); enterGame(r.state, tab === 'quick' || tab === 'reg');
+          NET.setToken(r.token); NET.rememberAccount(r.state.me, r.token); if (started) { location.reload(); return; } sfx('level'); enterGame(r.state, tab === 'quick' || tab === 'reg');
         } catch (e) { toast(e.message, 'warn'); sfx('err'); b.disabled = false; }
       };
       $('l-go').onclick = go; qsa('.lform input').forEach(i => i.onkeydown = e => { if (e.key === 'Enter') go(); });
@@ -352,18 +360,19 @@ function openMenu() {
     ${row('账号与数据', S.me.guest ? '游客账号只能在这个浏览器登录，建议绑定' : '已绑定账号：' + esc(S.me.username), '<button class="btn sm" id="tacc">管理</button>')}
     ${row('玩法与规则', '', '<button class="btn sm" id="thelp">查看</button>')}
     ${S.me.role === 'admin' ? row('运营后台', '', '<a class="btn sm" href="admin.html" target="_blank">打开</a>') : ''}
-    ${row('退出登录', '', '<button class="btn sm danger" id="tlogout">退出</button>')}</div>`, {
+    ${row('切换账号', '同一台设备可以保存多个账号，点头像就能切换', '<button class="btn sm primary" id="tswitch">切换</button>')}
+    ${row('退出登录', '退出并从本机移除这个账号', '<button class="btn sm danger" id="tlogout">退出</button>')}</div>`, {
     small: true, mount: () => {
       $('tsound').onclick = () => { savePref({ sound: !PREF.sound }); renderHud(); openMenu(); }; $('tmusic').onclick = () => { savePref({ music: !PREF.music }); if (PREF.music) startMusic(); openMenu(); };
       $('ttod').onclick = () => { const o = ['auto', 'day', 'dusk', 'night']; savePref({ tod: o[(o.indexOf(PREF.tod) + 1) % 4] }); renderTitle(); openMenu(); };
       $('tnotify').onclick = async () => { if (!PREF.notify && 'Notification' in window) { const p = await Notification.requestPermission(); if (p !== 'granted') { toast('浏览器没有允许通知', 'warn'); return; } } else if (!('Notification' in window)) { toast('这个浏览器不支持通知', 'warn'); return; } savePref({ notify: !PREF.notify }); openMenu(); };
-      $('tacc').onclick = openAccount; $('thelp').onclick = openHelp; $('tlogout').onclick = logout;
+      $('tacc').onclick = openAccount; $('thelp').onclick = openHelp; $('tlogout').onclick = logout; $('tswitch').onclick = () => showLogin('quick', null, true);
     }
   });
 }
 async function logout() {
   if (S.me.guest && !confirm('你还是游客账号，退出后将无法再登录这个农场（除非先绑定账号）。确定退出吗？')) return;
-  try { await NET.post('/api/auth/logout'); } catch (e) { } NET.setToken(''); location.reload();
+  try { await NET.post('/api/auth/logout'); } catch (e) { } NET.forgetAccount(S.me.id); NET.setToken(''); try { sessionStorage.setItem('hf_pick', '1'); } catch (e) { } location.reload();
 }
 function openAccount() {
   const me = S.me;

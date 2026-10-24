@@ -52,22 +52,28 @@ function createApp(opts) {
   // 公共
   R('GET', '/api/health', {}, () => ({ ok: true, version: VERSION, schema: SCHEMA_VERSION, now: game.now() }));
   R('GET', '/api/config', {}, () => game.publicConfig());
-  R('POST', '/api/auth/guest', { authLimit: 1, guestLimit: 1 }, (c) => { const uid = game.createUser(c.body.name); return { token: game.newSession(uid, c.ua), state: st(uid) }; });
-  R('POST', '/api/auth/register', { authLimit: 1, guestLimit: 1 }, (c) => { const uid = game.createUser(c.body.name, c.body.username, c.body.password); return { token: game.newSession(uid, c.ua), state: st(uid) }; });
-  R('POST', '/api/auth/login', { authLimit: 1 }, (c) => { const u = game.login(c.body.username, c.body.password); if (u.banned) throw U.forbid('账号已被封禁：' + (u.ban_reason || '违反规则')); return { token: game.newSession(u.id, c.ua), state: st(u.id) }; });
-  R('POST', '/api/auth/recover', { authLimit: 1 }, (c) => { const r = game.recover(c.body.username, c.body.code, c.body.password); return { token: game.newSession(r.user.id, c.ua), recovery: r.recovery, state: st(r.user.id) }; });
+  R('POST', '/api/auth/guest', { authLimit: 1, guestLimit: 1 }, (c) => { const uid = game.createUser(c.body.name); const token = game.newSession(uid, c.ua); c.addDev(token); return { token, state: st(uid) }; });
+  R('POST', '/api/auth/register', { authLimit: 1, guestLimit: 1 }, (c) => { const uid = game.createUser(c.body.name, c.body.username, c.body.password); const token = game.newSession(uid, c.ua); c.addDev(token); return { token, state: st(uid) }; });
+  R('POST', '/api/auth/login', { authLimit: 1 }, (c) => { const u = game.login(c.body.username, c.body.password); if (u.banned) throw U.forbid('账号已被封禁：' + (u.ban_reason || '违反规则')); const token = c.devFor(u.id) || game.newSession(u.id, c.ua); c.addDev(token); return { token, state: st(u.id) }; });
+  R('POST', '/api/auth/recover', { authLimit: 1 }, (c) => { const r = game.recover(c.body.username, c.body.code, c.body.password); const token = game.newSession(r.user.id, c.ua); c.addDev(token); return { token, recovery: r.recovery, state: st(r.user.id) }; });
   R('GET', '/api/invite/:code', {}, (c) => { const u = db.get('SELECT * FROM users WHERE code=? AND banned=0', String(c.params.code)); if (!u) throw U.notFound('邀请链接无效'); return game.publicUser(u); });
   R('POST', '/api/telemetry', { optAuth: 1 }, (c) => { const ms = Math.round(Number(c.body.loadMs)); if (ms > 0 && ms < 60000) { mbump('load_n'); mbump('load_ms', ms); } return {}; });
 
   // 账号
-  R('POST', '/api/auth/logout', { auth: 1, allowBanned: 1 }, (c) => { db.run('DELETE FROM sessions WHERE token_hash=?', c.tokenHash); return {}; });
+  R('POST', '/api/auth/logout', { auth: 1, allowBanned: 1 }, (c) => { db.run('DELETE FROM sessions WHERE token_hash=?', c.tokenHash); c.dropDev(c.token); return {}; });
+  // 本机账号：HttpOnly Cookie 长期保存本机登录过的账号，苹果设备清理网页存储后也能一键进入
+  const devList = c => c.devTokens.map(t => ({ t, u: game.peek(t) })).filter(x => { if (!x.u || x.u.banned) { c.dropDev(x.t); return false; } return true; });
+  R('GET', '/api/accounts', {}, (c) => { const l = devList(c); c.touchDev(); return { list: l.map(x => Object.assign(game.publicUser(x.u), { guest: !x.u.username, last: x.u.last_active })) }; });
+  R('POST', '/api/accounts/use', { authLimit: 1 }, (c) => { const x = devList(c).find(x => x.u.id === Number(c.body.id)); if (!x) throw U.notFound('这台设备上没有保存这个账号，请重新登录'); c.touchDev(); return { token: x.t, state: st(x.u.id) }; });
+  R('POST', '/api/accounts/remember', { auth: 1 }, (c) => { c.addDev(c.token); return {}; });
+  R('POST', '/api/accounts/forget', {}, (c) => { const x = devList(c).find(x => x.u.id === Number(c.body.id)); if (x) { db.run('DELETE FROM sessions WHERE token_hash=?', U.sha256(x.t)); c.dropDev(x.t); } return {}; });
   R('POST', '/api/auth/bind', { auth: 1, authLimit: 1 }, (c) => game.bind(c.uid, c.body.username, c.body.password));
   R('POST', '/api/auth/password', { auth: 1, authLimit: 1 }, (c) => { game.changePassword(c.uid, c.body.old, c.body.password); return { token: game.newSession(c.uid, c.ua) }; });
   R('GET', '/api/state', { auth: 1 }, (c) => st(c.uid));
   R('POST', '/api/me/profile', { auth: 1 }, (c) => { game.updateProfile(c.uid, c.body); return { state: st(c.uid) }; });
   R('POST', '/api/me/migrate', { auth: 1 }, (c) => ({ result: game.migrate(c.uid, c.body), state: st(c.uid) }));
   R('GET', '/api/me/export', { auth: 1, allowBanned: 1 }, (c) => game.exportData(c.uid));
-  R('POST', '/api/me/delete', { auth: 1, authLimit: 1, allowBanned: 1 }, (c) => { game.deleteAccount(c.uid, c.body.password, c.body.confirm); return {}; });
+  R('POST', '/api/me/delete', { auth: 1, authLimit: 1, allowBanned: 1 }, (c) => { game.deleteAccount(c.uid, c.body.password, c.body.confirm); c.dropDev(c.token); return {}; });
 
   // 自己的农场
   R('POST', '/api/farm/plant', { auth: 1 }, (c) => { const o = {}; return own(c.uid, game.plant(c.uid, idx(c.body), U.int(c.body.crop, '种子', 0, CFG.CROPS.length - 1), o), o); });
@@ -159,22 +165,28 @@ function createApp(opts) {
   const secHeaders = () => ({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" });
 
   // ---- 请求处理 ----
-  function send(res, status, obj, cors) { const body = JSON.stringify(obj); res.writeHead(status, Object.assign({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }, cors)); res.end(body); }
+  function send(res, status, obj, cors, extra) { const body = JSON.stringify(obj); res.writeHead(status, Object.assign(extra || {}, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }, cors)); res.end(body); }
   function readBody(req) { return new Promise((resolve, reject) => { let n = 0; const chunks = []; req.on('data', d => { n += d.length; if (n > 64 * 1024) { reject(U.bad('请求太大')); req.destroy(); } else chunks.push(d); }); req.on('end', () => { if (!n) return resolve({}); try { const v = JSON.parse(Buffer.concat(chunks).toString('utf8')); resolve(v && typeof v === 'object' ? v : {}); } catch (e) { reject(U.bad('请求格式不对')); } }); req.on('error', reject); }); }
   async function handle(req, res) {
     const t0 = process.hrtime.bigint(), url = new URL(req.url, 'http://x'), p = url.pathname;
-    const origin = req.headers.origin, cors = origin && opts.cors.includes(origin) ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, Idempotency-Key', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Max-Age': '600' } : {};
+    const origin = req.headers.origin, cors = origin && opts.cors.includes(origin) ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, Idempotency-Key', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Max-Age': '600' } : {};
     if (!p.startsWith('/api/')) { if ((req.method === 'GET' || req.method === 'HEAD') && pages[p]) return serveStatic(req, res, p); res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found'); }
     if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
     const ip = (opts.trustProxy && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress || '?';
     let route, m; for (const r of routes) { if (r.method === req.method && (m = r.re.exec(p))) { route = r; break; } }
-    let status = 200;
+    let status = 200, reqCtx = null;
     try {
       if (!route) throw U.notFound('接口不存在');
       if (!lim.take('ip:' + ip, 40, 120)) throw new U.ApiError(429, 'rate', '操作太频繁了，请稍后再试');
       if (route.flags.authLimit && !lim.take('auth:' + ip, 0.3, 12)) throw new U.ApiError(429, 'rate', '尝试次数太多，请稍后再试');
       if (route.flags.guestLimit && !lim.take('guest:' + ip, 20 / 3600, 20)) throw new U.ApiError(429, 'rate', '注册太频繁了，请稍后再试');
       const c = { params: {}, query: Object.fromEntries(url.searchParams), ip, ua: req.headers['user-agent'] || '' };
+      const cookies = U.parseCookies(req.headers.cookie); c.devTokens = String(cookies.hf_dev || '').split('.').filter(t => /^[A-Za-z0-9_-]{20,64}$/.test(t)).slice(0, 10); c.devDirty = false;
+      c.addDev = t => { c.devTokens = [t].concat(c.devTokens.filter(x => x !== t)).slice(0, 8); c.devDirty = true; };
+      c.dropDev = t => { const n = c.devTokens.length; c.devTokens = c.devTokens.filter(x => x !== t); if (n !== c.devTokens.length) c.devDirty = true; };
+      c.touchDev = () => { if (c.devTokens.length) c.devDirty = true; };
+      c.devFor = uid => (c.devTokens.find(t => { const u = game.peek(t); return u && u.id === uid; }) || '');
+      reqCtx = c;
       route.keys.forEach((k, i) => c.params[k] = decodeURIComponent(m[i + 1]));
       c.body = req.method === 'POST' ? await readBody(req) : {};
       const tok = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -185,7 +197,7 @@ function createApp(opts) {
           if (a) {
             if (a.user.banned && !route.flags.allowBanned) throw new U.ApiError(403, 'banned', '账号已被封禁：' + (a.user.ban_reason || '违反规则'));
             if (route.flags.admin && a.user.role !== 'admin') throw U.forbid('需要管理员权限');
-            c.uid = a.user.id; c.tokenHash = a.tokenHash;
+            c.uid = a.user.id; c.tokenHash = a.tokenHash; c.token = tok;
             if (!lim.take('u:' + c.uid, 15, 45)) throw new U.ApiError(429, 'rate', '操作太频繁了，请稍后再试');
             if (route.flags.searchLimit && !lim.take('s:' + c.uid, 0.5, 10)) throw new U.ApiError(429, 'rate', '搜索太频繁了');
           }
@@ -196,7 +208,9 @@ function createApp(opts) {
         if (ik) db.run('INSERT INTO idem (user_id,key,resp,at) VALUES (?,?,?,?)', c.uid, ik, JSON.stringify(r), game.now());
         return r;
       });
-      send(res, 200, Object.assign({ ok: true }, Array.isArray(result) ? { list: result } : result), cors);
+      const secure = req.socket.encrypted || (opts.trustProxy && /https/.test(String(req.headers['x-forwarded-proto'] || '')));
+      const extra = reqCtx && reqCtx.devDirty ? { 'Set-Cookie': `hf_dev=${reqCtx.devTokens.join('.')}; Path=/api; Max-Age=${reqCtx.devTokens.length ? 400 * 86400 : 0}; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}` } : null;
+      send(res, 200, Object.assign({ ok: true }, Array.isArray(result) ? { list: result } : result), cors, extra);
     } catch (e) {
       if (e instanceof U.ApiError) { status = e.status; send(res, e.status, { ok: false, code: e.code, error: e.message }, cors); }
       else if (e && /CHECK constraint failed/.test(e.message)) { status = 409; send(res, 409, { ok: false, code: 'constraint', error: '数量不足或数据冲突，请刷新后重试' }, cors); }

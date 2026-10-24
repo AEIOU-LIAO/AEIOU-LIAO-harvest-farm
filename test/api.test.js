@@ -37,6 +37,26 @@ test('账号：游客、绑定、跨设备登录、存档保留', async () => {
   } finally { await t.close(); }
 });
 
+test('本机多账号：Cookie 保存多个账号、点选进入、移除、退出', async () => {
+  const t = await start();
+  try {
+    const base = 'http://127.0.0.1:' + t.app.server.address().port; let jar = '';
+    const req = async (method, path, body, token) => { const r = await fetch(base + path, { method, headers: Object.assign({ 'content-type': 'application/json' }, jar ? { cookie: jar } : {}, token ? { authorization: 'Bearer ' + token } : {}), body: body ? JSON.stringify(body) : undefined }); const sc = r.headers.get('set-cookie'); if (sc) { const m = /hf_dev=([^;]*)/.exec(sc); jar = m && m[1] ? 'hf_dev=' + m[1] : ''; assert.ok(/HttpOnly/.test(sc) && /Max-Age=\d+/.test(sc)); } const j = await r.json(); j.status = r.status; return j; };
+    const a = await req('POST', '/api/auth/guest', { name: '大号' }), b = await req('POST', '/api/auth/guest', { name: '小号' });
+    assert.ok(jar.includes(a.token) && jar.includes(b.token), 'Cookie 里保存了两个账号');
+    // 模拟苹果设备清掉了网页存储：只靠 Cookie 也能列出并进入
+    const l = await req('GET', '/api/accounts'); assert.deepEqual(l.list.map(u => u.name), ['小号', '大号']); assert.equal(l.list[0].token, undefined, '列表不返回令牌');
+    const u = await req('POST', '/api/accounts/use', { id: a.state.me.id }); assert.ok(u.ok); assert.equal(u.state.me.name, '大号');
+    assert.equal((await req('POST', '/api/accounts/use', { id: 999999 })).status, 404);
+    // 没有 Cookie 的设备不能借用别人的账号
+    const saved = jar; jar = ''; assert.equal((await req('POST', '/api/accounts/use', { id: a.state.me.id })).status, 404); jar = saved;
+    // 移除一个、退出另一个
+    await req('POST', '/api/accounts/forget', { id: b.state.me.id }); assert.deepEqual((await req('GET', '/api/accounts')).list.map(x => x.name), ['大号']);
+    assert.equal((await t.call('GET', '/api/state', null, b.token)).status, 401, '移除后该登录失效');
+    await req('POST', '/api/auth/logout', null, u.token); assert.equal((await req('GET', '/api/accounts')).list.length, 0);
+  } finally { await t.close(); }
+});
+
 test('好友与开放互访：邀请链接、一键加好友、不加好友也能串门偷菜、拉黑后不可访问', async () => {
   const t = await start();
   try {

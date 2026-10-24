@@ -406,6 +406,7 @@ function updateTip() {
 async function savePref(patch) { Object.assign(PREF, patch); try { localStorage.setItem('hf_pref', JSON.stringify(PREF)); } catch (e) { } if (S) await api('/api/me/profile', { settings: PREF }, { quiet: true }); }
 async function enterGame(state, fresh) {
   applyState(state); started = true; closeModal(true); $('loading').classList.add('gone');
+  NET.rememberAccount(S.me); NET.post('/api/accounts/remember').catch(() => { });
   view = { key: 'home', friend: null, plots: S.plots, farm: null }; renderTitle();
   await Promise.all([loadFriends(), loadNeighbors()]); loadMessages(false);
   const inv = new URLSearchParams(location.search).get('invite');
@@ -432,7 +433,10 @@ async function boot() {
   }
   if (!NET.online) { $('loading').querySelector('p').innerHTML = '连接不上服务器，请检查网络后 <a href="javascript:location.reload()">刷新重试</a>'; return; }
   if (NET.token) { try { const st = await NET.get('/api/state'); return enterGame(st, false); } catch (e) { if (e.code === 'network') { $('loading').querySelector('p').innerHTML = '网络异常，<a href="javascript:location.reload()">点此重试</a>'; return; } } }
-  $('loading').classList.add('gone'); showLogin();
+  // 没有当前登录：本机保存过账号就自动进入最近用过的那个（刚退出或要切换时显示账号列表）
+  const accs = await NET.accounts(); let pickMode = false; try { pickMode = sessionStorage.getItem('hf_pick') === '1'; sessionStorage.removeItem('hf_pick'); } catch (e) { }
+  if (accs.length && !pickMode) { try { const st = await NET.useAccount(accs[0]); return enterGame(st, false); } catch (e) { } }
+  $('loading').classList.add('gone'); showLogin(null, accs);
 }
 function bindGlobal() {
   $('mback').addEventListener('pointerdown', e => { if (e.target === $('mback')) closeModal(); });

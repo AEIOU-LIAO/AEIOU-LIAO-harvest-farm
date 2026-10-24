@@ -136,6 +136,7 @@ class Game {
     this.db.run('INSERT OR IGNORE INTO logins (user_id,day) VALUES (?,?)', u.id, CFG.dayKey(now));
     return { user: u, tokenHash: s.token_hash };
   }
+  peek(token) { if (!token) return null; return this.db.get('SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=?', U.sha256(token)) || null; }
   login(username, password) {
     const u = this.db.get('SELECT * FROM users WHERE username=?', String(username || '').trim());
     if (!u || !U.checkPassword(password, u.pass_hash)) throw new U.ApiError(401, 'bad_login', '账号或密码错误');

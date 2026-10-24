@@ -27,7 +27,7 @@ const NET = (() => {
     const h = { 'Content-Type': 'application/json' }; if (token) h.Authorization = 'Bearer ' + token; if (ik) h['Idempotency-Key'] = ik;
     const t0 = Date.now();
     try {
-      const r = await fetch(BASE + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal, cache: 'no-store' });
+      const r = await fetch(BASE + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal, cache: 'no-store', credentials: BASE ? 'include' : 'same-origin' });
       let j; try { j = await r.json(); } catch (e) { throw new ApiErr(r.status, 'bad_json', '服务器返回异常'); }
       setOnline(true);
       const sn = j.now || (j.state && j.state.now); if (sn) offset = sn - (t0 + Date.now()) / 2;
@@ -51,7 +51,26 @@ const NET = (() => {
     throw last;
   }
   const get = (path) => once('GET', path);
+  // 本机账号：服务器 HttpOnly Cookie 为主（苹果设备清理网页存储后仍在），localStorage 为备份
+  const AK = 'hf_accounts';
+  const readAcc = () => { try { return JSON.parse(localStorage.getItem(AK) || '[]'); } catch (e) { return []; } };
+  const writeAcc = l => { try { localStorage.setItem(AK, JSON.stringify(l.slice(0, 8))); } catch (e) { } };
+  function rememberAccount(me, tok) { const l = readAcc().filter(a => a.id !== me.id); l.unshift({ id: me.id, code: me.code, name: me.name, lv: me.lv, avatar: me.avatar, frame: me.frame, guest: me.guest, token: tok || token, at: Date.now() }); writeAcc(l); }
+  function forgetAccount(id) { writeAcc(readAcc().filter(a => a.id !== id)); }
+  async function accounts() {
+    const local = readAcc(); let server = [];
+    try { server = (await once('GET', '/api/accounts')).list; } catch (e) { if (e.code === 'network') return local.map(a => Object.assign({}, a, { localOnly: true })); }
+    const out = server.map(u => Object.assign({}, local.find(a => a.id === u.id) || {}, u));
+    local.forEach(a => { if (!out.find(u => u.id === a.id) && a.token) out.push(Object.assign({ localOnly: true }, a)); });
+    writeAcc(out.map(a => ({ id: a.id, code: a.code, name: a.name, lv: a.lv, avatar: a.avatar, frame: a.frame, guest: a.guest, token: (local.find(x => x.id === a.id) || {}).token, at: a.at || Date.now() })));
+    return out;
+  }
+  async function useAccount(acc) {
+    try { const r = await once('POST', '/api/accounts/use', { id: acc.id }); setToken(r.token); return r.state; }
+    catch (e) { if (e.code === 'network') throw e; const l = readAcc().find(a => a.id === acc.id); if (l && l.token) { setToken(l.token); return (await once('GET', '/api/state')); } throw e; }
+  }
   return {
+    accounts, useAccount, rememberAccount, forgetAccount, forgetRemote: id => once('POST', '/api/accounts/forget', { id }).catch(() => { }),
     get, post, setToken, ApiErr, get token() { return token; }, get online() { return online; },
     now: () => Date.now() + offset, onAuthLost: f => onAuthLost = f, onOnline: f => onOnline = f,
     ping: () => once('GET', '/api/health').then(() => true, () => false),
