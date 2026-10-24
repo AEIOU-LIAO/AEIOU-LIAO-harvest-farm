@@ -326,3 +326,14 @@ body.walk #canvas,body.walk canvas{cursor:grab}
 .dogrow .ri-main{gap:3px}
 .fnav{display:flex;align-items:center;gap:8px;font-style:normal;font-size:12px;color:#f4e2b0;margin-top:2px}.fnav b{cursor:pointer;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;font-size:16px;line-height:1}.fnav b:hover{background:rgba(255,220,140,.3)}
 .pname{width:92px;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.25);color:inherit;font-size:13px}
+/* v3.2 紧凑的购买行：名字和价格一行、说明一行，数量按钮做成一组分段按钮 */
+.buyrow{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:4px 12px;padding:8px 2px}
+.buyrow .ri-ic{width:40px;height:40px}.buyrow .ri-main{min-width:0;gap:1px}
+.buyrow .ri-main b{display:flex;align-items:baseline;gap:8px;font-size:14px;line-height:1.3}.buyrow .ri-main small{line-height:1.35;font-size:11.5px;opacity:.72;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.buyrow .pr{font-style:normal;font-weight:600;font-size:12px;color:var(--gold,#e6c47a);white-space:nowrap}
+.seg{display:inline-flex;border:1px solid rgba(255,255,255,.14);border-radius:9px;overflow:hidden;background:rgba(0,0,0,.18);flex:none}
+.seg .btn.sm{border-radius:0;margin:0;border:0;border-left:1px solid rgba(255,255,255,.1);padding:6px 10px;font-size:12px;min-width:0;box-shadow:none;white-space:nowrap;display:inline-flex;align-items:center;gap:3px}.seg .btn.sm:first-child{border-left:0}
+.seg .btn.sm .ico{width:13px;height:13px}
+.buyrow.boost{background:rgba(255,210,90,.07);border:1px solid rgba(255,210,90,.25);border-radius:12px;padding:8px 10px;margin-bottom:8px}
+.upbox.compact{padding:8px 12px;margin-bottom:8px}
+@media (max-width:620px){.buyrow{grid-template-columns:36px minmax(0,1fr)}.buyrow .ri-ic{width:36px;height:36px}.buyrow .seg{grid-column:1/-1;display:flex;width:100%}.seg .btn.sm{flex:1;justify-content:center;padding:7px 4px}}
