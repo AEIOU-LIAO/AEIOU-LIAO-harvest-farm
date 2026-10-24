@@ -12,5 +12,7 @@ parts['/*CONFIG*/'] = `var HF_BUILT = '${bt}';\n` + parts['/*CONFIG*/'];
 Object.keys(parts).forEach(k => { out = out.replace(k, () => parts[k]); });
 const cnt = s => (s.match(/<\/script>/g) || []).length;
 if (cnt(out) !== cnt(tpl)) throw new Error('脚本里出现了 </script>，会截断页面');
+// 语法自检：页面脚本有语法错误就不输出，避免把打不开的页面部署上线
+{ const vm = require('vm'), re = /<script>([\s\S]*?)<\/script>/g; let m, i = 0; while ((m = re.exec(out))) { i++; try { new vm.Script(m[1], { filename: 'index.html#script' + i }); } catch (e) { throw new Error('页面脚本语法错误：' + e.message); } } }
 fs.writeFileSync(path.join(root, 'index.html'), out);
 console.log('built index.html', out.length, 'bytes', api ? '(API ' + api + ')' : '');

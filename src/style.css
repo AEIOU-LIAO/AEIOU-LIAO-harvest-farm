@@ -312,3 +312,12 @@ body.walk #actprompt{position:fixed;left:50%;bottom:96px;transform:translateX(-5
 body.walk #canvas,body.walk canvas{cursor:grab}
 
 .ri-ic.dogpic{width:64px;height:64px;flex:0 0 64px}.ri-ic.dogpic img{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(0,0,0,.35))}
+/* 牧场 */
+.ranch-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 10px}.ranch-top b{font-size:15px}.ranch-top .fine{flex:1;margin:0}
+.fishes{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:12px}
+.fishc{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:3px;position:relative}
+.fishc.ok{border-color:rgba(255,210,90,.6);background:rgba(255,210,90,.1)}.fishc b{font-size:13px;padding-left:18px}.fishc small{opacity:.75;font-size:11px}
+.fdot{position:absolute;left:10px;top:11px;width:12px;height:12px;border-radius:50%}
+.pbar{display:block;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}.pbar i{display:block;height:100%;background:linear-gradient(90deg,#4f9a3a,#a8e878)}
+.herdbox{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(80,160,120,.14);border:1px solid rgba(120,200,160,.3);border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.herdbox>svg{width:26px;height:26px;color:#9fe0b8}.herdbox>div{flex:1;min-width:160px;display:flex;flex-direction:column}.herdbox small{opacity:.8}

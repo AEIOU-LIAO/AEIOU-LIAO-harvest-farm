@@ -253,9 +253,43 @@
   const orderSlots = lv => Math.min(RULES.orderSlotsMax, RULES.orderSlots + Math.floor(Math.max(0, lv) / RULES.orderSlotEvery));
   function stealCapPct(ownerLv) { return ownerLv < RULES.newbieLv ? RULES.newbieMaxPct : RULES.stealMaxPct; }
 
-  const VERSION = '2.7.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  // ===== v2.8 鱼塘与牧场 =====
+  // 鱼：买鱼苗放进池塘，长大后收鱼（每条鱼苗收获 yield 条），可以卖钱
+  const FISH = [
+    { id: 0, name: '小鲫鱼', lv: 1, price: 20, time: 600, yield: 2, sell: 18, exp: 6, col: '#b8c0b0', size: 0.8 },
+    { id: 1, name: '金鱼', lv: 3, price: 60, time: 1800, yield: 2, sell: 52, exp: 14, col: '#ff8a2a', size: 0.75 },
+    { id: 2, name: '草鱼', lv: 6, price: 150, time: 3600, yield: 3, sell: 78, exp: 30, col: '#7a9a6a', size: 1.05 },
+    { id: 3, name: '鲤鱼', lv: 10, price: 400, time: 7200, yield: 3, sell: 195, exp: 60, col: '#c8a060', size: 1.1 },
+    { id: 4, name: '锦鲤', lv: 15, price: 1200, time: 14400, yield: 3, sell: 610, exp: 130, col: '#ff5a3a', size: 1.15, spots: '#ffffff' },
+    { id: 5, name: '金龙鱼', lv: 22, price: 4000, time: 28800, yield: 3, sell: 1950, exp: 300, col: '#ffcc2a', size: 1.25 },
+  ];
+  // 羊：买来放进羊圈，隔一段时间长一茬羊毛，剪下来卖钱；羊毛长满 woolMax 茬后不再长，记得来剪
+  const SHEEP = [
+    { id: 0, name: '小绵羊', lv: 4, price: 500, period: 7200, wool: 2, woolName: '白羊毛', sell: 48, exp: 20, body: '#fbf8f0', face: '#3a3230' },
+    { id: 1, name: '黑面羊', lv: 12, price: 2000, period: 10800, wool: 3, woolName: '黑羊毛', sell: 85, exp: 45, body: '#f2ede2', face: '#151214' },
+    { id: 2, name: '羊驼', lv: 20, price: 6000, period: 14400, wool: 3, woolName: '羊驼毛', sell: 230, exp: 90, body: '#e8d2a8', face: '#e8d2a8', alpaca: true },
+  ];
+  const RANCH = {
+    pondBase: 6, pondPer10: 2, pondMax: 12,       // 池塘容量：6 条，Lv.10/20/30 各 +2
+    pastureBase: 3, pasturePer10: 2, pastureMax: 9, // 羊圈容量：3 只，Lv.10/20/30 各 +2
+    woolMax: 3,                                  // 羊毛最多攒 3 茬
+    herdMin: 120, herdBoost: 0.5,                // 牧羊：牧羊犬赶一次羊，接下来 2 小时羊毛长得快 50%
+  };
+  const pondCap = lv => Math.min(RANCH.pondMax, RANCH.pondBase + Math.floor((lv || 1) / 10) * RANCH.pondPer10);
+  const pastureCap = lv => Math.min(RANCH.pastureMax, RANCH.pastureBase + Math.floor((lv || 1) / 10) * RANCH.pasturePer10);
+  // 一只羊攒了多少茬羊毛（可以是小数）。s = { t, last, acc }，herd = { from, until }：牧羊期间速度 × (1 + herdBoost)
+  function sheepCycles(s, now, herd) {
+    const def = SHEEP[s.t]; if (!def) return 0; const P = def.period * 1000, a = s.last || now, b = Math.max(a, now);
+    let ov = 0; if (herd && herd.until > a) ov = Math.max(0, Math.min(b, herd.until) - Math.max(a, herd.from || 0));
+    return Math.min(RANCH.woolMax, (s.acc || 0) + ((b - a) + ov * RANCH.herdBoost) / P);
+  }
+  const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
+  // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
+  function ranchItem(item) { const m = /^(fs|wl)(\d+)$/.exec(item || ''); if (!m) return null; const d = (m[1] === 'fs' ? FISH : SHEEP)[+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : { kind: 'wool', id: d.id, name: d.woolName, price: d.sell }; }
+  const VERSION = '2.8.0'; // 每次发布改这里；设置页和 /api/health 会显示
   const CFG = { VERSION, COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
+    FISH, SHEEP, RANCH, pondCap, pastureCap, sheepCycles, fishLeft, ranchItem,
     expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };
   if (typeof module !== 'undefined' && module.exports) module.exports = CFG; else root.GAMECFG = CFG;
 })(typeof window !== 'undefined' ? window : globalThis);

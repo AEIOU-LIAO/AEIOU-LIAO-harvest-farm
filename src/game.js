@@ -302,15 +302,18 @@ function toolbarClick(id) {
   const m = { seed: openSeeds, allh: allHarvest, allc: allCare, allp: allPlant, wh: openWarehouse, shop: () => openShop('item'), task: () => openTasks(), alls: allSteal, allhp: allHelp, home: goHome, gb: () => openGuestbook(view.friend), addf: () => addFriendNow(view.friend) };
   m[id] && m[id]();
 }
+// 牧场角标：可以收的鱼 + 可以剪毛的羊
+function ranchBadge() { const R = S && S.me.ranch; if (!R) return 0; const now = NET.now(); return R.fish.filter(f => fishLeftC(f, now) <= 0).length + R.sheep.filter(s => sheepCyclesC(s, now, R) >= 1).length; }
+const fishLeftC = (f, now) => CFG.fishLeft(f, now), sheepCyclesC = (s, now, R) => CFG.sheepCycles(s, now, R.herd);
 function renderSide() {
   if (!S) return; const b = S.badges;
-  const items = [['friends', 'users', '好友', b.requests], ['msg', 'mail', '消息', b.unread], ['orders', 'box', '订单'], ['market', 'tag', '集市'], ['rank', 'trophy', '排行'], ['ach', 'medal', '成就', b.ach], ['codex', 'book', '图鉴'], ['dress', 'palette', '装扮']];
+  const items = [['friends', 'users', '好友', b.requests], ['msg', 'mail', '消息', b.unread], ['orders', 'box', '订单'], ['market', 'tag', '集市'], ['rank', 'trophy', '排行'], ['ach', 'medal', '成就', b.ach], ['codex', 'book', '图鉴'], ['ranch', 'sheep', '牧场', ranchBadge()], ['dress', 'palette', '装扮']];
   const html = items.map(([id, ic, tx, bd]) => `<button class="sbtn" data-s="${id}">${ICON(ic)}<em>${tx}</em>${bd ? `<i class="bd">${bd}</i>` : ''}</button>`).join('')
     + (S.events.length ? `<button class="sbtn ev" data-s="events">${ICON('party')}<em>活动</em></button>` : '');
   const el = $('side'); if (el._h !== html) { el._h = html; el.innerHTML = html; el.querySelectorAll('.sbtn').forEach(x => x.onclick = () => { ac(); sfx('click'); sideClick(x.dataset.s); }); }
   renderNewbie();
 }
-function sideClick(s) { ({ friends: () => openFriends(), msg: openMessages, orders: openOrders, market: () => openMarket(), rank: () => openRank(), ach: openAch, codex: openCodex, dress: () => openDress(), events: openEvents })[s](); }
+function sideClick(s) { ({ ranch: () => openRanch(), friends: () => openFriends(), msg: openMessages, orders: openOrders, market: () => openMarket(), rank: () => openRank(), ach: openAch, codex: openCodex, dress: () => openDress(), events: openEvents })[s](); }
 function renderNewbie() {
   const el = $('newbie'); if (!S || !S.badges.newbieLeft) { el.style.display = 'none'; return; }
   const done = CFG.NEWBIE.length - S.badges.newbieLeft; el.style.display = '';
@@ -354,10 +357,15 @@ function levelUp(lv) {
 const cv = $('cv');
 function curHour() { const m = { day: 12.5, dusk: 18.4, night: 22.5 }; if (m[PREF.tod]) return m[PREF.tod]; const d = new Date(); return d.getHours() + d.getMinutes() / 60; }
 // 两只狗各自的状态：none 没养 / sleep 饿着在睡觉 / guard 看家 / bark 正在叫
+function ranchOfView() { return view.key === 'home' ? S && S.me.ranch : view.friend && view.friend.ranch; }
+// 传给 3D 场景的鱼和羊（每帧）
+function ranch3d() { const R = ranchOfView(); if (!R) return { fish: [], sheep: [], herd: { on: false } }; const now = NET.now();
+  return { fish: R.fish.map(f => { const d = CFG.FISH[f.t], left = CFG.fishLeft(f, now); return { t: f.t, k: d ? 1 - left / d.time : 1, ripe: left <= 0 }; }), sheep: R.sheep.map(s => ({ t: s.t, c: s.last ? CFG.sheepCycles(s, now, R.herd) : (s.cycles || 0) })), herd: { on: R.herd && R.herd.until > now, dog: R.herd && R.herd.dog } }; }
 function dogMode() {
   const bark = Date.now() < dogBarkUntil;
   const dogs = view.key === 'home' ? (S && S.me.dogs || []).map(d => ({ id: d.id, own: d.own, fed: d.until > NET.now() })) : ((view.friend && view.friend.dogs) || []).map(d => ({ id: d.id, own: true, fed: d.fed }));
-  return CFG.DOGS.map(def => { const d = dogs.find(x => x.id === def.id); return !d || !d.own ? 'none' : !d.fed ? 'sleep' : bark ? 'bark' : 'guard'; });
+  const R = ranchOfView(), herdOn = R && R.herd && R.herd.until > NET.now() && R.sheep.length;
+  return CFG.DOGS.map(def => { const d = dogs.find(x => x.id === def.id); return !d || !d.own ? 'none' : !d.fed ? 'sleep' : herdOn && R.herd.dog === def.id ? 'herd' : bark ? 'bark' : 'guard'; });
 }
 let lastT = performance.now(), rainK = 0, wasRain = false;
 function frame(now) {
@@ -365,7 +373,7 @@ function frame(now) {
   const raining = !!CFG.rainUntil(NET.now()); if (raining && !wasRain && started) { toast('下雨了，农田被滋润了'); sfx('rain'); } wasRain = raining;
   rainK += ((raining ? 1 : 0) - rainK) * Math.min(1, dt * 1.2);
   const home = view.key === 'home';
-  W3.setTheme(themeOf(home ? (S ? S.me.theme : 'classic') : view.friend.theme)); W3.setDog(dogMode()); W3.setEnv(curHour(), rainK);
+  W3.setTheme(themeOf(home ? (S ? S.me.theme : 'classic') : view.friend.theme)); W3.setDog(dogMode()); W3.setRanch(ranch3d()); W3.setEnv(curHour(), rainK);
   W3.setPlots(view.plots, home); W3.setHover(mouse.in || painting ? hoverIdx : -1); W3.render(dt);
   updateTip(); updateWalkUi(); requestAnimationFrame(frame);
 }
@@ -392,13 +400,14 @@ const DOG_PET_LINES = { fuwang: ['福旺开心地蹭蹭你', '福旺：汪！再
 // 点到场景里的特殊物体：狗窝 → 宠物商店（自己家）；狗 → 摸摸头
 function pickSpecial(i) {
   ac();
+  if (i === -30 || i === -31) { if (view.key === 'home') { sfx('open'); openRanch(i === -30 ? 'pond' : 'pasture'); } else toast(i === -30 ? '这是好友家的鱼塘' : '这是好友家的羊圈'); return; }
   if (i === -10) { if (view.key === 'home') { sfx('open'); openShop('dog'); } else toast('这是好友家的狗窝'); return; }
   const k = -20 - i, d = CFG.DOGS[k]; if (d && W3.petDog(k)) { sfx('bark'); const L = DOG_PET_LINES[d.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); }
 }
 function petAction() { const k = W3.nearDog; if (k < 0) return null; const d = CFG.DOGS[k]; return d ? { k, label: `摸摸${d.name}`, id: d.id } : null; }
-function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } if (!petAction() && W3.nearKennel() && view.key === 'home') { ac(); sfx('open'); openShop('dog'); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); } }
+function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } if (!petAction() && W3.nearKennel() && view.key === 'home') { ac(); sfx('open'); openShop('dog'); return; } if (!petAction() && W3.nearZone() && view.key === 'home') { ac(); sfx('open'); openRanch(W3.nearZone() === 'pond' ? 'pond' : 'pasture'); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); } }
 function updateWalkUi() {
-  if (W3.mode !== 'walk') return; const i = W3.near, pa = petAction(), a = actionOf(i) || (pa ? pa.label : '') || (W3.nearKennel() && view.key === 'home' ? (S.me.dogs || []).some(d => d.own) ? '宠物商店' : '领养狗狗' : ''), el = $('actbtn'), pr = $('actprompt');
+  if (W3.mode !== 'walk') return; const i = W3.near, pa = petAction(), a = actionOf(i) || (pa ? pa.label : '') || (W3.nearKennel() && view.key === 'home' ? (S.me.dogs || []).some(d => d.own) ? '宠物商店' : '领养狗狗' : '') || (view.key === 'home' && W3.nearZone() ? W3.nearZone() === 'pond' ? '打开鱼塘' : '打开羊圈' : ''), el = $('actbtn'), pr = $('actprompt');
   el.classList.toggle('ready', !!a); el.querySelector('span').textContent = a || '操作';
   pr.style.display = a && !window.matchMedia('(pointer: coarse)').matches ? 'block' : 'none'; if (a) pr.innerHTML = `<kbd>F</kbd> ${esc(a)}`;
 }

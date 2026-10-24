@@ -90,6 +90,11 @@ class Villagers {
     this.db.w(`UPDATE users SET role='npc', name=?, lv=?, exp=?, gold=?, title='', theme='classic', frame='none', avatar=?, dog_own=?, dog_lv=?, dog_exp=0, dog_until=?, dog2_own=?, dog2_lv=?, dog2_exp=0, dog2_until=?,
       harvest_total=?, steal_total=?, help_total=?, plant_total=?, golden_total=?, order_total=?, earned_total=?, stolen_from_total=?, checkin_last=?, checkin_streak=?, created_at=?, last_active=?, seed=0 WHERE id=?`,
       fields.name, fields.lv, fields.exp, fields.gold, fields.avatar, fields.dog_own, fields.dog_lv, dog ? dogUntil() : 0, dog2, dog2 ? 1 + Math.floor(r() * Math.min(9, lv / 4)) : 1, dog2 ? dogUntil() : 0, fields.harvest_total, fields.steal_total, fields.help_total, fields.plant_total, fields.golden_total, fields.order_total, fields.earned_total, fields.stolen_from_total, fields.checkin_last, fields.checkin_streak, fields.created_at, fields.last_active, uid);
+    // 鱼塘与羊圈：和真人一样养着鱼和羊
+    { const fl = CFG.FISH.filter(f => f.lv <= lv), sl = CFG.SHEEP.filter(x => x.lv <= lv), R = { fish: [], sheep: [], herd: { from: 0, until: 0, dog: '' } };
+      const nf = Math.floor(r() * (CFG.pondCap(lv) + 1)); for (let k = 0; k < nf && fl.length; k++) { const f = fl[Math.floor(r() * fl.length)]; R.fish.push({ t: f.id, at: now - Math.floor(r() * f.time * 1000) }); }
+      const ns = sl.length ? Math.floor(r() * (CFG.pastureCap(lv) + 1)) : 0; for (let k = 0; k < ns; k++) { const x = sl[Math.floor(r() * sl.length)]; R.sheep.push({ t: x.id, last: now, acc: r() * 2 }); }
+      this.db.w('UPDATE users SET ranch=? WHERE id=?', JSON.stringify(R), uid); }
     // 图鉴、成就、称号、装扮
     let codexN = 0;
     CROPS.filter(c => c.lv <= lv).forEach(c => { if (r() < 0.9) { codexN++; this.db.w('INSERT OR IGNORE INTO codex (user_id,item,first_at,n) VALUES (?,?,?,?)', uid, 'c' + c.id, created + Math.floor(r() * (now - created)), 5 + Math.floor(r() * 200)); } if (r() < 0.06) { codexN++; this.db.w('INSERT OR IGNORE INTO codex (user_id,item,first_at,n) VALUES (?,?,?,?)', uid, 'g' + c.id, now - Math.floor(r() * days) * 86400000, 1 + Math.floor(r() * 3)); } });

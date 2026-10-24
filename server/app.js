@@ -140,6 +140,11 @@ async function createCore(opts) {
   R('POST', '/api/farm/plant-all', { auth: 1 }, async (c) => { const crop = U.int(c.body.crop, '种子', 0, CFG.CROPS.length - 1); const l = (await game.plots(c.uid)).filter(P => P.u && P.c < 0).map(P => P.idx); if (!l.length) throw U.conflict('没有空地了', 'none'); const b = await game.batch(c.uid, (i, o) => game.plant(c.uid, i, crop, o), l); if (!b.res.some(r => !r.err)) throw U.conflict(b.res[0].err, b.res[0].code); return own(c.uid, b.res, b.out); });
   R('POST', '/api/shop/buy', { auth: 1 }, async (c) => own(c.uid, await game.buy(c.uid, String(c.body.item), c.body.n)));
   R('POST', '/api/shop/dog', { auth: 1 }, async (c) => own(c.uid, await game.buyDog(c.uid, c.body.kind ? String(c.body.kind) : 'fuwang')));
+  R('POST', '/api/ranch/fish/buy', { auth: 1 }, async (c) => own(c.uid, await game.buyFish(c.uid, U.int(c.body.type, '鱼苗', 0, 99), c.body.n)));
+  R('POST', '/api/ranch/fish/collect', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.collectFish(c.uid, o), o); });
+  R('POST', '/api/ranch/sheep/buy', { auth: 1 }, async (c) => own(c.uid, await game.buySheep(c.uid, U.int(c.body.type, '羊', 0, 99))));
+  R('POST', '/api/ranch/shear', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.shear(c.uid, o), o); });
+  R('POST', '/api/ranch/herd', { auth: 1 }, async (c) => own(c.uid, await game.herd(c.uid, c.body.kind ? String(c.body.kind) : '')));
   R('POST', '/api/dog/feed', { auth: 1 }, async (c) => own(c.uid, await game.feedDog(c.uid, c.body.kind ? String(c.body.kind) : 'fuwang')));
   R('POST', '/api/wh/sell', { auth: 1 }, async (c) => own(c.uid, await game.sell(c.uid, String(c.body.item), c.body.n)));
   R('POST', '/api/wh/sell-all', { auth: 1 }, async (c) => own(c.uid, await game.sellAll(c.uid)));

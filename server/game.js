@@ -14,8 +14,9 @@ const { bad, forbid, notFound, conflict } = U;
 const J = s => { try { return JSON.parse(s); } catch (e) { return null; } };
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
 const pick = a => a[U.randInt(0, a.length - 1)];
+const SHEEP_W = t => (CFG.SHEEP[t] || { wool: 0 }).wool;
 const cropOfItem = item => { const m = /^([cg])(\d+)$/.exec(item || ''); if (!m || !CROPS[+m[2]]) return null; return { golden: m[1] === 'g', id: +m[2] }; };
-const itemName = item => { if (item === 'fert') return '化肥'; if (item === 'dogfood') return '狗粮'; const c = cropOfItem(item); return c ? (c.golden ? '金色' : '') + CROPS[c.id].name : item; };
+const itemName = item => { const ri = CFG.ranchItem(item); if (ri) return ri.name; if (item === 'fert') return '化肥'; if (item === 'dogfood') return '狗粮'; const c = cropOfItem(item); return c ? (c.golden ? '金色' : '') + CROPS[c.id].name : item; };
 const all = Promise.all.bind(Promise);
 
 class Game {
@@ -47,7 +48,7 @@ class Game {
     return this._ev.list.filter(e => e.start_at <= now && e.end_at > now).map(e => Object.assign({}, e));
   }
   async evMult(kind, cropId) { let m = 1; (await this.activeEvents()).forEach(e => { if (e.kind === kind && (e.params.crop === undefined || e.params.crop === null || e.params.crop === '' || +e.params.crop === cropId)) m *= Number(e.params.mult) || 1; }); return m; }
-  async unitPrice(item) { const c = cropOfItem(item); if (!c) return 0; const b = CFG.dayBonus(this.now())[c.id] || 0; return Math.round(CROPS[c.id].price * (1 + b) * (c.golden ? RULES.goldenPriceMult : 1) * await this.evMult('price_mult', c.id)); }
+  async unitPrice(item) { const ri = CFG.ranchItem(item); if (ri) return ri.price; const c = cropOfItem(item); if (!c) return 0; const b = CFG.dayBonus(this.now())[c.id] || 0; return Math.round(CROPS[c.id].price * (1 + b) * (c.golden ? RULES.goldenPriceMult : 1) * await this.evMult('price_mult', c.id)); }
 
   /* ---------- 基础读写 ---------- */
   /* 事务内缓存：同一次操作里读过的数据直接复用，写入时同步更新（远端数据库时大幅减少往返） */
@@ -72,7 +73,7 @@ class Game {
     return Object.assign(this.publicUser(u), {
       gold: u.gold, exp: u.exp, expNeed: CFG.expNeed(u.lv), seed: u.seed, username: u.username || '', guest: !u.username, role: u.role, migrated: !!u.migrated,
       dog: { own: !!u.dog_own, lv: u.dog_lv, exp: u.dog_exp, need: CFG.dogExpNeed(u.dog_lv), until: u.dog_until },
-      dogs: this.dogsOf(u),
+      dogs: this.dogsOf(u), ranch: this.ranchView(u),
       checkin: { last: u.checkin_last, streak: u.checkin_streak }, settings: J(u.settings) || {}, created_at: u.created_at,
       stats: { harvest: u.harvest_total, steal: u.steal_total, help: u.help_total, plant: u.plant_total, earned: u.earned_total, golden: u.golden_total, order: u.order_total, stolenFrom: u.stolen_from_total },
     });
@@ -357,14 +358,60 @@ class Game {
     return { res, out };
   }
   async sell(uid, item, n, have) {
-    const c = cropOfItem(item); if (!c) throw bad('只能出售作物'); if (have === undefined) have = await this.invQty(uid, item);
+    const c = cropOfItem(item) || CFG.ranchItem(item); if (!c) throw bad('只能出售作物、鱼和羊毛'); if (have === undefined) have = await this.invQty(uid, item);
     n = Math.min(U.int(n, '数量', 1, 1e9), have); if (n <= 0) throw conflict('没有可以卖的', 'not_enough');
     const g = n * await this.unitPrice(item); this.addInv(uid, item, -n); this.addGold(uid, g, 'sell'); this.bump(uid, 'sell', g, 'day'); this.bump(uid, 'sell', 1, 'all'); return { item, n, gold: g };
   }
-  async sellAll(uid) { let total = 0; const items = []; for (const [item, q] of Object.entries(await this.inv(uid))) { if (cropOfItem(item) && q > 0) { total += (await this.sell(uid, item, q, q)).gold; items.push(item); } } if (!total) throw conflict('仓库里没有作物', 'empty'); return { gold: total, items }; }
+  async sellAll(uid) { let total = 0; const items = []; for (const [item, q] of Object.entries(await this.inv(uid))) { if ((cropOfItem(item) || CFG.ranchItem(item)) && q > 0) { total += (await this.sell(uid, item, q, q)).gold; items.push(item); } } if (!total) throw conflict('仓库里没有作物', 'empty'); return { gold: total, items }; }
   async buy(uid, item, n) {
     const it = CFG.SHOP_ITEMS.find(x => x.id === item); if (!it) throw bad('商店没有这个商品'); n = U.int(n, '数量', 1, 99);
     this.addGold(uid, -it.price * n, 'shop:' + item); this.addInv(uid, item, n); return { item, n };
+  }
+  /* ---------- 鱼塘与牧场 ---------- */
+  ranchOf(u) { const R = J(u.ranch) || {}; R.fish = Array.isArray(R.fish) ? R.fish : []; R.sheep = Array.isArray(R.sheep) ? R.sheep : []; R.herd = R.herd || { from: 0, until: 0, dog: '' }; return R; }
+  saveRanch(uid, R) { const s = JSON.stringify(R); this.db.w('UPDATE users SET ranch=? WHERE id=?', s, uid); this.pu(uid, x => x.ranch = s); }
+  ranchView(u) {
+    const R = this.ranchOf(u), now = this.now();
+    return { pondCap: CFG.pondCap(u.lv), pastureCap: CFG.pastureCap(u.lv), herd: R.herd,
+      fish: R.fish.map(f => ({ t: f.t, at: f.at, left: CFG.fishLeft(f, now) })),
+      sheep: R.sheep.map(s => { const c = CFG.sheepCycles(s, now, R.herd); return { t: s.t, last: s.last, acc: s.acc, cycles: c, wool: Math.floor(c) * SHEEP_W(s.t), full: c >= CFG.RANCH.woolMax }; }) };
+  }
+  async buyFish(uid, type, n) {
+    const d = CFG.FISH[type]; if (!d) throw bad('没有这种鱼苗'); n = U.int(n || 1, '数量', 1, 12);
+    const u = await this.user(uid); if (u.lv < d.lv) throw bad(`${d.name}需要 Lv.${d.lv}`, 'locked');
+    const R = this.ranchOf(u), cap = CFG.pondCap(u.lv); if (R.fish.length + n > cap) throw conflict(`池塘最多养 ${cap} 条鱼，现在还能放 ${Math.max(0, cap - R.fish.length)} 条`, 'full');
+    this.addGold(uid, -d.price * n, 'fish:' + d.id); const now = this.now(); for (let i = 0; i < n; i++) R.fish.push({ t: d.id, at: now }); this.saveRanch(uid, R); this.bump(uid, 'fish_in', n, 'all');
+    return { type: d.id, n, name: d.name };
+  }
+  async collectFish(uid, out) {
+    const u = await this.user(uid), R = this.ranchOf(u), now = this.now(), got = {}; let exp = 0;
+    R.fish = R.fish.filter(f => { const d = CFG.FISH[f.t]; if (!d || CFG.fishLeft(f, now) > 0) return true; got[d.id] = (got[d.id] || 0) + d.yield; exp += d.exp; return false; });
+    const ids = Object.keys(got); if (!ids.length) throw conflict('还没有长大的鱼', 'not_ripe');
+    ids.forEach(id => { this.addInv(uid, 'fs' + id, got[id]); this.codex(uid, 'fs' + id, got[id]); }); this.saveRanch(uid, R); this.bump(uid, 'fish', 1, 'all');
+    const e = await this.addExp(uid, exp, out); return { got, exp: e };
+  }
+  async buySheep(uid, type) {
+    const d = CFG.SHEEP[type]; if (!d) throw bad('没有这种羊'); const u = await this.user(uid); if (u.lv < d.lv) throw bad(`${d.name}需要 Lv.${d.lv}`, 'locked');
+    const R = this.ranchOf(u), cap = CFG.pastureCap(u.lv); if (R.sheep.length >= cap) throw conflict(`羊圈最多养 ${cap} 只，升级后可以多养`, 'full');
+    this.addGold(uid, -d.price, 'sheep:' + d.id); R.sheep.push({ t: d.id, last: this.now(), acc: 0 }); this.saveRanch(uid, R); return { type: d.id, name: d.name };
+  }
+  async shear(uid, out) {
+    const u = await this.user(uid), R = this.ranchOf(u), now = this.now(), got = {}; let exp = 0;
+    R.sheep.forEach(s => { const d = CFG.SHEEP[s.t]; if (!d) return; const c = CFG.sheepCycles(s, now, R.herd), k = Math.floor(c); if (k < 1) return; got[d.id] = (got[d.id] || 0) + k * d.wool; exp += k * d.exp; s.acc = c - k; s.last = now; if (c >= CFG.RANCH.woolMax) s.acc = 0; });
+    const ids = Object.keys(got); if (!ids.length) throw conflict('羊毛还没长好', 'not_ripe');
+    ids.forEach(id => { this.addInv(uid, 'wl' + id, got[id]); this.codex(uid, 'wl' + id, got[id]); }); this.saveRanch(uid, R); this.bump(uid, 'shear', 1, 'all');
+    const e = await this.addExp(uid, exp, out); return { got, exp: e };
+  }
+  // 牧羊：派一只吃饱的牧羊犬去赶羊，接下来一段时间羊毛长得更快
+  async herd(uid, kind) {
+    const u = await this.user(uid), R = this.ranchOf(u), now = this.now();
+    if (!R.sheep.length) throw conflict('羊圈里还没有羊', 'none');
+    const dogs = this.dogsOf(u).filter(d => d.own), d = (kind ? dogs.find(x => x.id === kind) : dogs.find(x => x.fed)) || dogs[0];
+    if (!d) throw conflict('先领养一只牧羊犬吧（商店 → 宠物）', 'no_dog'); if (!d.fed) throw conflict(`${d.name}饿着肚子赶不动羊，先去仓库喂它`, 'hungry');
+    if (R.herd.until > now) throw conflict(`${CFG.DOGS.find(x => x.id === R.herd.dog).name}正在牧羊，还剩 ${Math.ceil((R.herd.until - now) / 60000)} 分钟`, 'busy');
+    R.sheep.forEach(s => { s.acc = CFG.sheepCycles(s, now, R.herd); s.last = now; }); // 先结算之前的进度
+    R.herd = { from: now, until: now + CFG.RANCH.herdMin * 60000, dog: d.id }; this.saveRanch(uid, R); this.bump(uid, 'herd', 1, 'all');
+    return { dog: d.id, name: d.name, until: R.herd.until };
   }
   /* ---------- 看家狗：福旺、睿宝 ---------- */
   dogDef(kind) { const d = CFG.DOGS.find(x => x.id === (kind || 'fuwang')); if (!d) throw bad('没有这只狗'); return d; }
@@ -515,7 +562,7 @@ class Game {
       return v;
     });
     const dogs = this.dogsOf(o).filter(d => d.own).map(d => ({ id: d.id, name: d.name, lv: d.lv, fed: d.fed }));
-    return { owner: Object.assign(this.publicUser(o), { dog: dogs.some(d => d.fed), dogLv: o.dog_lv, dogs }), plots: list, steal, help, soon };
+    return { owner: Object.assign(this.publicUser(o), { dog: dogs.some(d => d.fed), dogLv: o.dog_lv, dogs, ranch: this.ranchView(o) }), plots: list, steal, help, soon };
   }
   // 定时刷新别人农场用：只读，不记访客、不发消息
   async peekFarm(uid, owner) { const [o, plots, mine] = await all([this.canSee(uid, owner), this.plots(owner), this.myStealsMap(uid, owner)]); return this.viewOf(o, plots, mine); }

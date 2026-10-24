@@ -410,3 +410,35 @@ function openHelp() {
   <p><b>快捷键</b>：1 自动 · 2 铲除 · 3 化肥 · Q 一键收获/摘取 · W 一键护理/帮忙 · E 一键种植 · H 回家 · Esc 关闭</p>
   </div>`, { wide: true });
 }
+
+/* ---------------- 牧场：鱼塘 + 羊圈 + 牧羊 ---------------- */
+function openRanch(tab) {
+  if (view.key !== 'home') { goHome(); }
+  tab = tab || 'pond'; const R = S.me.ranch || { fish: [], sheep: [], herd: {}, pondCap: 6, pastureCap: 3 }, now = NET.now(), lv = S.me.lv, gold = S.me.gold;
+  const bar = k => `<span class="pbar"><i style="width:${Math.round(Math.min(1, k) * 100)}%"></i></span>`;
+  let body = '';
+  if (tab === 'pond') {
+    const ripe = R.fish.filter(f => CFG.fishLeft(f, now) <= 0).length;
+    body = `<div class="ranch-top"><b>池塘 ${R.fish.length}/${R.pondCap}</b><span class="fine">Lv.10 / 20 / 30 各多 2 个位置</span><button class="btn primary" id="rcol" ${ripe ? '' : 'disabled'}>${ICON('fish')} 收鱼${ripe ? ` ×${ripe}` : ''}</button></div>`;
+    body += R.fish.length ? `<div class="fishes">${R.fish.map(f => { const d = CFG.FISH[f.t], left = CFG.fishLeft(f, now); return `<div class="fishc${left <= 0 ? ' ok' : ''}"><span class="fdot" style="background:${d.col}"></span><b>${d.name}</b><small>${left <= 0 ? '可以收了' : '还要 ' + fmtTime(left)}</small>${bar(1 - left / d.time)}</div>`; }).join('')}</div>` : '<div class="empty">池塘里还没有鱼，买点鱼苗放进去吧</div>';
+    body += `<h4 class="sec">买鱼苗</h4>` + CFG.FISH.map(d => { const lock = lv < d.lv, full = R.fish.length >= R.pondCap; return `<div class="row-item"><div class="ri-ic"><span class="ii emo" style="color:${d.col}">${ICON('fish')}</span></div><div class="ri-main"><b>${d.name}</b><small>${fmtTime(d.time)} 长大 · 收 ${d.yield} 条 · 每条卖 ${d.sell} 金币${lock ? ` · 需要 Lv.${d.lv}` : ''}</small></div><div class="price">${G(d.price)}</div><button class="btn sm primary" data-fish="${d.id}" ${lock || full || gold < d.price ? 'disabled' : ''}>${lock ? 'Lv.' + d.lv : full ? '满了' : '放 1 条'}</button></div>`; }).join('');
+  } else {
+    const herd = R.herd || {}, herding = herd.until > now, ready = R.sheep.filter(s => CFG.sheepCycles(s, now, herd) >= 1).length;
+    const dogs = (S.me.dogs || []).filter(d => d.own), hd = herding ? CFG.DOGS.find(x => x.id === herd.dog) : null;
+    body = `<div class="ranch-top"><b>羊圈 ${R.sheep.length}/${R.pastureCap}</b><span class="fine">羊毛最多攒 ${CFG.RANCH.woolMax} 茬，满了就不长了</span><button class="btn primary" id="rshear" ${ready ? '' : 'disabled'}>${ICON('sheep')} 剪羊毛${ready ? ` ×${ready}` : ''}</button></div>`;
+    body += `<div class="herdbox">${ICON('paw')}<div><b>牧羊</b><small>${herding ? `${hd ? hd.name : '牧羊犬'}正在赶羊，羊毛长得快 ${Math.round(CFG.RANCH.herdBoost * 100)}%，还剩 ${fmtTime((herd.until - now) / 1000)}` : dogs.length ? `派吃饱的牧羊犬去赶羊，接下来 ${CFG.RANCH.herdMin / 60} 小时羊毛长得快 ${Math.round(CFG.RANCH.herdBoost * 100)}%` : '领养福旺或睿宝后，它们就能帮你牧羊'}</small></div>
+      ${herding ? '' : dogs.map(d => `<button class="btn sm ${d.fed ? 'primary' : ''}" data-herd="${d.id}" ${d.fed && R.sheep.length ? '' : 'disabled'} title="${d.fed ? '' : '先去仓库喂它'}">${d.name}去牧羊${d.fed ? '' : '（饿了）'}</button>`).join('')}</div>`;
+    body += R.sheep.length ? `<div class="fishes">${R.sheep.map(s => { const d = CFG.SHEEP[s.t], c = CFG.sheepCycles(s, now, herd), k = Math.floor(c); return `<div class="fishc${k ? ' ok' : ''}"><span class="fdot" style="background:${d.body};border:1px solid #c8bca0"></span><b>${d.name}</b><small>${k ? `${k * d.wool} 份${d.woolName}可以剪` : '羊毛在长'}${c >= CFG.RANCH.woolMax ? '（满了）' : ''}</small>${bar(c / CFG.RANCH.woolMax)}</div>`; }).join('')}</div>` : '<div class="empty">羊圈里还没有羊</div>';
+    body += `<h4 class="sec">买羊</h4>` + CFG.SHEEP.map(d => { const lock = lv < d.lv, full = R.sheep.length >= R.pastureCap; return `<div class="row-item"><div class="ri-ic"><span class="ii emo">${ICON('sheep')}</span></div><div class="ri-main"><b>${d.name}</b><small>每 ${fmtTime(d.period)} 长一茬，剪 ${d.wool} 份${d.woolName}，每份 ${d.sell} 金币${lock ? ` · 需要 Lv.${d.lv}` : ''}</small></div><div class="price">${G(d.price)}</div><button class="btn sm primary" data-sheep="${d.id}" ${lock || full || gold < d.price ? 'disabled' : ''}>${lock ? 'Lv.' + d.lv : full ? '满了' : '买'}</button></div>`; }).join('');
+  }
+  openModal(`${H2('sheep', '牧场', '池塘养鱼、草地养羊，福旺和睿宝还会帮你牧羊')}${tabsHtml([['pond', '鱼塘'], ['pasture', '羊圈']], tab)}<div class="mygold">我的金币 ${G(gold)}</div><div class="list">${body}</div>`, {
+    wide: true, mount: () => {
+      bindTabs(openRanch);
+      qsa('[data-fish]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/ranch/fish/buy', { type: +b.dataset.fish, n: 1 }); if (r) { sfx('water'); toast(`放了一条${r.result.name}进池塘`); W3.fx && W3.pondSplash && W3.pondSplash(); } openRanch('pond'); });
+      const rc = $('rcol'); if (rc) rc.onclick = async () => { rc.disabled = true; const r = await api('/api/ranch/fish/collect'); if (r) { sfx('coin'); const t = Object.entries(r.result.got).map(([id, n]) => `${CFG.FISH[id].name}×${n}`).join('、'); toast(`收获 ${t}${r.result.exp ? `，+${r.result.exp} 经验` : ''}`); W3.pondSplash && W3.pondSplash(); } openRanch('pond'); };
+      qsa('[data-sheep]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/ranch/sheep/buy', { type: +b.dataset.sheep }); if (r) { sfx('level'); toast(`${r.result.name}住进羊圈啦`); } openRanch('pasture'); });
+      const rs = $('rshear'); if (rs) rs.onclick = async () => { rs.disabled = true; const r = await api('/api/ranch/shear'); if (r) { sfx('coin'); const t = Object.entries(r.result.got).map(([id, n]) => `${CFG.SHEEP[id].woolName}×${n}`).join('、'); toast(`剪下 ${t}${r.result.exp ? `，+${r.result.exp} 经验` : ''}`); } openRanch('pasture'); };
+      qsa('[data-herd]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/ranch/herd', { kind: b.dataset.herd }); if (r) { sfx('bark'); toast(`${r.result.name}冲进羊圈开始赶羊啦！`); closeModal && closeModal(); } else openRanch('pasture'); });
+    }
+  });
+}

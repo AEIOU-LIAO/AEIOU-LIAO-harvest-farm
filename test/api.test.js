@@ -341,6 +341,39 @@ test('v2.5 合并轮询：一次请求返回状态、好友、附近和正在逛
   } finally { await t.close(); }
 });
 
+test('v2.8 鱼塘与牧场：买鱼苗、收鱼、买羊、剪羊毛、牧羊加速、卖出', async () => {
+  const t = await start();
+  try {
+    const a = await t.guest('牧场主'); await t.app.db.run('UPDATE users SET gold=99999, lv=12 WHERE id=?', a.id);
+    let st = await t.call('GET', '/api/state', null, a.token); assert.equal(st.me.ranch.pondCap, 8); assert.equal(st.me.ranch.pastureCap, 5);
+    assert.equal((await t.call('POST', '/api/ranch/fish/buy', { type: 5, n: 1 }, a.token)).code, 'locked', '等级不够不能买');
+    const b1 = await t.call('POST', '/api/ranch/fish/buy', { type: 0, n: 3 }, a.token); assert.ok(b1.ok, b1.error); assert.equal(b1.state.me.ranch.fish.length, 3);
+    assert.equal((await t.call('POST', '/api/ranch/fish/buy', { type: 1, n: 6 }, a.token)).code, 'full', '池塘满了');
+    assert.equal((await t.call('POST', '/api/ranch/fish/collect', {}, a.token)).code, 'not_ripe');
+    await t.clock(CFG.FISH[0].time * 1000 + 1000);
+    const c1 = await t.call('POST', '/api/ranch/fish/collect', {}, a.token); assert.ok(c1.ok, c1.error); assert.equal(c1.result.got[0], 3 * CFG.FISH[0].yield); assert.equal(c1.state.inv.fs0, 6); assert.equal(c1.state.me.ranch.fish.length, 0);
+    // 羊
+    assert.equal((await t.call('POST', '/api/ranch/herd', {}, a.token)).code, 'none', '没羊不能牧羊');
+    const s1 = await t.call('POST', '/api/ranch/sheep/buy', { type: 0 }, a.token); assert.ok(s1.ok, s1.error);
+    assert.equal((await t.call('POST', '/api/ranch/shear', {}, a.token)).code, 'not_ripe');
+    assert.equal((await t.call('POST', '/api/ranch/herd', {}, a.token)).code, 'no_dog', '没有狗不能牧羊');
+    assert.ok((await t.call('POST', '/api/shop/dog', { kind: 'fuwang' }, a.token)).ok);
+    assert.equal((await t.call('POST', '/api/ranch/herd', {}, a.token)).code, 'hungry', '狗饿着不能牧羊');
+    assert.ok((await t.call('POST', '/api/dog/feed', { kind: 'fuwang' }, a.token)).ok);
+    const h = await t.call('POST', '/api/ranch/herd', {}, a.token); assert.ok(h.ok, h.error); assert.equal(h.result.dog, 'fuwang');
+    assert.equal((await t.call('POST', '/api/ranch/herd', {}, a.token)).code, 'busy');
+    // 牧羊 2 小时内速度 1.5 倍：过 1 小时 = 1.5 小时的进度；羊毛周期 2 小时 → 0.75 茬
+    await t.clock(3600e3); st = await t.call('GET', '/api/state', null, a.token); assert.ok(Math.abs(st.me.ranch.sheep[0].cycles - 0.75) < 0.01, '牧羊加速 ' + st.me.ranch.sheep[0].cycles);
+    await t.clock(3600e3 * 2); const sh = await t.call('POST', '/api/ranch/shear', {}, a.token); assert.ok(sh.ok, sh.error); assert.equal(sh.result.got[0], CFG.SHEEP[0].wool * 2, '攒了 2 茬');
+    // 羊毛最多攒 3 茬
+    await t.clock(3600e3 * 24); st = await t.call('GET', '/api/state', null, a.token); assert.equal(st.me.ranch.sheep[0].cycles, CFG.RANCH.woolMax); assert.ok(st.me.ranch.sheep[0].full);
+    // 卖出：鱼和羊毛都能卖，一键卖出也包括它们
+    const g0 = st.me.gold; const sell = await t.call('POST', '/api/wh/sell', { item: 'fs0', n: 2 }, a.token); assert.ok(sell.ok, sell.error); assert.equal(sell.result.gold, 2 * CFG.FISH[0].sell);
+    const sa = await t.call('POST', '/api/wh/sell-all', {}, a.token); assert.ok(sa.ok, sa.error); assert.ok(sa.result.items.includes('wl0') && sa.result.items.includes('fs0'));
+    assert.ok(sa.state.me.gold > g0);
+  } finally { await t.close(); }
+});
+
 test('互助：真实修改好友农田并给奖励', async () => {
   const t = await start();
   try {

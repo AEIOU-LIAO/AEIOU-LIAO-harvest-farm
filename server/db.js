@@ -93,6 +93,8 @@ const MIGRATIONS = [
   ALTER TABLE users ADD COLUMN dog2_lv INTEGER NOT NULL DEFAULT 1;
   ALTER TABLE users ADD COLUMN dog2_exp INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE users ADD COLUMN dog2_until INTEGER NOT NULL DEFAULT 0;`,
+  // v4 鱼塘与牧场：鱼、羊、牧羊状态存成一段 JSON（数量少，跟着玩家一起读写）
+  `ALTER TABLE users ADD COLUMN ranch TEXT NOT NULL DEFAULT '{}';`,
 ];
 
 const BUSY = /SQLITE_BUSY|database is locked|SQLITE_LOCKED|BUSY_SNAPSHOT/i;
