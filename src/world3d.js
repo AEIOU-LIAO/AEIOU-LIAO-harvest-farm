@@ -993,7 +993,7 @@ const W3 = (() => {
   function pick(cx, cy) { if (!ready) return -1; const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); const h = ray.intersectObjects(hitBoxes, false).filter(x => !x.object.userData.dog || x.object.userData.dog.g.visible); return h.length ? h[0].object.userData.idx : -1; }
   function nearKennel() { return viewMode === 'walk' && Math.hypot(HERO.pos.x - 11.2, HERO.pos.z + 3.8) < 2.4; }
   function screenOf(i, y) { const v = P0(i, y || 0.6).project(cam); return { x: (v.x * 0.5 + 0.5) * W, y: (-v.y * 0.5 + 0.5) * H }; }
-  let simK = 1; // 调试用：加快动画时间
+  let simK = 1; const GAITS_REF = {}; // 调试用：加快动画时间
   function render(dt) {
     if (!ready) return; dt *= simK; tNow += dt; const t = tNow; perfTick(dt);
     updateHero(dt); if (viewMode === 'walk') updateWalkCam(dt); updateRanch(dt, tNow);
@@ -1016,46 +1016,74 @@ const W3 = (() => {
     anim.smoke.forEach(s => { const k = (t * 0.25 + s.userData.ph) % 1; s.position.copy(anim.house.smokeAt).applyMatrix4(new T.Matrix4().makeRotationY(0.15)).add(v3(-13, 0, -2.5)); s.position.y += k * 3; s.position.x += Math.sin(k * 4 + s.userData.ph * 6) * 0.3 + k * 0.6; s.scale.setScalar(0.5 + k * 1.4); s.material.opacity = 0.45 * (1 - k) * (1 - nightK * 0.5); });
     anim.chickens.forEach(c => { c.pk -= dt; const m = c.m; if (c.pk > 0) { m.rotation.z = Math.sin(t * 12) * 0.05; return; } const dx = c.tx - m.position.x, dz = c.tz - m.position.z, d = Math.hypot(dx, dz); if (d < 0.1) { if (Math.random() < 0.5) c.pk = 1 + Math.random() * 2.5; else { c.tx = c.home.x + (Math.random() - 0.5) * 5; c.tz = c.home.z + (Math.random() - 0.5) * 3; } } else { const s = Math.min(d, dt * 0.9); m.position.x += dx / d * s; m.position.z += dz / d * s; m.rotation.y = Math.atan2(-dz, dx); m.position.y = Math.abs(Math.sin(t * 10)) * 0.04; } });
     anim.butterflies.forEach(b => { const p = b.ph; b.g.position.set(Math.sin(t * 0.3 + p) * 9, 1.2 + Math.sin(t * 1.3 + p) * 0.4, Math.cos(t * 0.23 + p * 2) * 6.5); b.g.rotation.y = t * 0.3 + p; const f = Math.sin(t * 18 + p) * 1.1; b.lp.rotation.y = f; b.rp.rotation.y = -f; });
-    const animDog = (dg, k, m) => { const ph = t + k * 1.7;
-      if (!dg.home) dg.home = dg.g.position.clone();
-      if (dg.pet > 0) { // 被摸头：面向主人、抬头眯眼、狂摇尾巴、开心地蹦
-        dg.pet -= dt; if (m === 'sleep' && dg.g.position.distanceTo(dg.home) < 0.01) dg.g.position.copy(dg.home);
-        dg.legs.forEach(l => { l.visible = true; l.rotation.z = 0; }); dg.torso.scale.y = 1; dg.tongue.visible = true; dg.head.position.y = 0.94;
-        const want = Math.atan2(HERO.pos.x - dg.g.position.x, HERO.pos.z - dg.g.position.z) - Math.PI / 2; let da = want - dg.g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); dg.g.rotation.y += da * Math.min(1, dt * 8);
-        dg.torso.position.y = DOG_BASE_Y + Math.abs(Math.sin(ph * 8)) * 0.06; dg.head.rotation.set(Math.sin(ph * 6) * 0.18, 0, 0.32); dg.tail.rotation.set(0, Math.sin(ph * 34) * 0.7, 0.3); dg.tongue.scale.y = 0.048 * 1.25;
-        return; }
-      if (m === 'herd') { // 牧羊：跑进羊圈，绕着羊群转圈，把羊赶到一起
-        dg.legs.forEach(l => l.visible = true); dg.torso.scale.y = 1; dg.tongue.visible = true; dg.head.position.y = 0.94;
-        const T0 = RANCH3.dogT || v3(PAST.cx, 0, PAST.z1 + 1.5), tx = T0.x, tz = T0.z, p = dg.g.position, dx = tx - p.x, dz = tz - p.z, dd = Math.hypot(dx, dz);
-        const st = Math.min(dd, dt * (dd > 1 ? 6 : 3.4)); if (dd > 1e-3) { p.x += dx / dd * st; p.z += dz / dd * st; let want = Math.atan2(-dz, dx), da = want - dg.g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); dg.g.rotation.y += da * Math.min(1, dt * 8); }
-        const run = dd > 0.15, sw = run ? Math.sin(ph * 14) * 0.6 : 0; dg.legs.forEach((l, j) => l.rotation.z = (j === 0 || j === 3 ? sw : -sw)); if (!run && RANCH3.dogRest) { let da = Math.atan2(-(PAST.cz - p.z), PAST.cx - p.x) - dg.g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); dg.g.rotation.y += da * Math.min(1, dt * 3); }
-        dg.torso.position.y = DOG_BASE_Y + (run ? Math.abs(Math.sin(ph * 14)) * 0.05 : 0); dg.head.rotation.set(0, 0, 0.05 + (Math.sin(ph * 0.7) > 0.9 ? Math.sin(ph * 22) * 0.15 : 0)); dg.tail.rotation.set(0, Math.sin(ph * 12) * 0.4, 0.2); dg.tongue.scale.y = 0.048 * 1.2;
-        dg.herding = true; return; }
-      if (dg.herding) { dg.herding = false; dg.g.position.copy(dg.home); } // 牧羊结束回狗窝
-      if (m === 'sleep') { // 趴下睡觉
-        dg.g.position.copy(dg.home); dg.torso.position.y = DOG_BASE_Y - 0.24; dg.legs.forEach(l => l.visible = false); dg.head.rotation.set(0, 0.3, -0.35); dg.head.position.y = 0.86; dg.tail.rotation.set(0, 0.9, 0); dg.torso.scale.y = 1 + Math.sin(ph * 1.8) * 0.02; dg.tongue.visible = false;
-      } else { // 看家：在狗窝附近来回巡逻、摇尾巴、吐舌头
-        dg.legs.forEach(l => l.visible = true); dg.torso.scale.y = 1; dg.tongue.visible = true; dg.head.position.y = 0.94;
-        const bark = m === 'bark', walk = !bark && Math.sin(ph * 0.21) > -0.2;
-        if (walk) { dg.ang += dt * 0.42 * (k ? -1 : 1); const R1 = 1.1 + k * 0.3; dg.g.position.set(dg.home.x + Math.cos(dg.ang) * R1, 0, dg.home.z + Math.sin(dg.ang) * R1); dg.g.rotation.y = k ? -dg.ang + Math.PI / 2 : -dg.ang - Math.PI / 2; }
-        const sw = walk ? Math.sin(ph * 9) * 0.5 : 0; dg.legs.forEach((l, j) => l.rotation.z = (j === 0 || j === 3 ? sw : -sw));
-        dg.torso.position.y = DOG_BASE_Y + (bark ? Math.abs(Math.sin(ph * 14)) * 0.12 : walk ? Math.abs(Math.sin(ph * 9)) * 0.02 : 0);
-        dg.head.rotation.set(0, walk ? 0 : Math.sin(ph * 0.8) * 0.5, bark ? Math.sin(ph * 20) * 0.15 : 0.05);
-        dg.tail.rotation.set(0, Math.sin(ph * (bark ? 26 : 9)) * 0.55, 0.15);
-        dg.tongue.scale.y = 0.048 * (1 + Math.sin(ph * 7) * 0.15);
-      } };
-    // 灵动感：根据实际移动速度驱动步态、身体起伏和侧摆、头部稳定、耳朵颠动、长毛飘动、尾巴鞭状摇摆
+    // ===== 狗狗动画：行为 + 移动控制 + 脚踏实地的步态 =====
+    const KEN = { x: 11.2, z: -3.8 };
+    const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
+    // 朝目标移动：有加速、减速、转向速度限制（不会原地瞬间转身、也不会急停滑行）
+    const moveDog = (dg, tx, tz, vmax, stop) => { const p = dg.g.position, dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
+      let want = d <= stop ? 0 : Math.min(vmax, Math.sqrt(2 * 4.5 * Math.max(0, d - stop)));
+      if (d > 0.05) { const da = wrapA(Math.atan2(-dz, dx) - dg.g.rotation.y), mt = dt * (2.6 + dg.vel * 0.9); if (Math.abs(da) > 1.3) want *= 0.25; const tr = Math.max(-mt, Math.min(mt, da)); dg.g.rotation.y += tr; dg.turn = tr / Math.max(dt, 1e-3); } else dg.turn = 0;
+      dg.vel += Math.max(-7 * dt, Math.min(5 * dt, want - dg.vel)); if (dg.vel < 0.01 && want === 0) dg.vel = 0;
+      const ry = dg.g.rotation.y; p.x += Math.cos(ry) * dg.vel * dt; p.z -= Math.sin(ry) * dg.vel * dt; return d; };
+    const faceTo = (dg, tx, tz, rate) => { const p = dg.g.position; const da = wrapA(Math.atan2(-(tz - p.z), tx - p.x) - dg.g.rotation.y); dg.g.rotation.y += da * Math.min(1, dt * (rate || 4)); dg.turn = 0; };
+    // 看家时的随机行为：站着张望 / 闻闻地面 / 小跑溜达 / 坐下 / 趴着 / 撒欢跑一圈
+    const pickBeh = (dg, k) => { const r = Math.random(), h = dg.home, spot = (R) => { for (let i = 0; i < 12; i++) { const a = Math.random() * 6.28, rr = 0.6 + Math.random() * R, x = h.x + Math.cos(a) * rr, z = h.z + Math.sin(a) * rr; if (x > 9.1 && Math.hypot(x - KEN.x, z - KEN.z) > 1.4 && Math.hypot(x - 14, z - 3) > 1.2) return [x, z]; } return [h.x, h.z]; };
+      if (r < 0.22) return { k: 'idle', t: 2 + Math.random() * 3 }; if (r < 0.42) { const [x, z] = spot(2.2); return { k: 'sniff', x, z, t: 9 }; }
+      if (r < 0.7) { const [x, z] = spot(2.8); return { k: 'trot', x, z, v: 1.6 + Math.random() * 1.4, t: 8 }; } if (r < 0.82) return { k: 'sit', t: 4 + Math.random() * 5 };
+      if (r < 0.9) return { k: 'lie', t: 5 + Math.random() * 6 }; const [x, z] = spot(3.2); return { k: 'zoom', x, z, v: 5.2, t: 6, back: true }; };
+    const animDog = (dg, k, m) => { const ph = t + k * 1.7, p = dg.g.position; if (dg.vel === undefined) { dg.vel = 0; dg.turn = 0; } if (!dg.home) dg.home = p.clone();
+      dg.pose = 'stand'; dg.look = null; dg.headDown = 0; dg.excite = 0; dg.legs.forEach(l => l.visible = true); dg.torso.scale.y = 1; dg.tongue.visible = true; dg.head.position.y = 0.94;
+      const heroNear = viewMode === 'walk' && HERO.pos.x > 8.7 && HERO.pos.z < 6.5 && Math.hypot(HERO.pos.x - p.x, HERO.pos.z - p.z) < 3.2; // 主人在狗窝这边时才跑过去（不穿过篱笆）
+      if (dg.pet > 0) { dg.pet -= dt; moveDog(dg, p.x, p.z, 0, 1); faceTo(dg, HERO.pos.x, HERO.pos.z, 6); dg.excite = 1; dg.look = HERO.pos; dg.hop = Math.abs(Math.sin(ph * 8)) * 0.06; if (m === 'sleep') dg.pose = 'stand'; return; }
+      dg.hop = 0;
+      if (m === 'herd') { const T0 = RANCH3.dogT || v3(PAST.cx, 0, PAST.z1 + 1.5), d = Math.hypot(T0.x - p.x, T0.z - p.z);
+        moveDog(dg, T0.x, T0.z, d > 2.5 ? 6.2 : d > 0.8 ? 3.6 : 1.6, 0.25); dg.herding = true; dg.beh = null;
+        if (RANCH3.dogRest && dg.vel < 0.2) { dg.pose = 'lie'; faceTo(dg, PAST.cx, PAST.cz, 2); } else if (dg.vel < 1.8) { dg.pose = 'stalk'; dg.headDown = 0.25; } // 边牧的“盯羊”低姿态
+        const sh = RANCH3.sheep[0]; if (sh) dg.look = sh.m.g.position; return; }
+      if (dg.herding) { // 牧羊结束：小跑回狗窝
+        if (moveDog(dg, dg.home.x, dg.home.z, 3.5, 0.2) < 0.3) dg.herding = false; return; }
+      if (m === 'sleep') { moveDog(dg, p.x, p.z, 0, 1); dg.vel = 0; dg.pose = 'sleep'; dg.tongue.visible = false; return; }
+      if (m === 'bark') { moveDog(dg, p.x, p.z, 0, 1); faceTo(dg, 0, 0, 5); dg.excite = 0.8; dg.hop = Math.abs(Math.sin(ph * 14)) * 0.1; dg.barkT = ph; return; }
+      // 主人走过来：跑过去迎接，围着转、看着主人
+      if (heroNear) { const hx = HERO.pos.x, hz = HERO.pos.z; const d = moveDog(dg, hx, hz, 3.2, 0.95); if (d < 1.3) faceTo(dg, hx, hz, 5); dg.look = HERO.pos; dg.excite = 0.7; dg.beh = null; return; }
+      if (!dg.beh || dg.beh.t <= 0) dg.beh = pickBeh(dg, k); const B = dg.beh; B.t -= dt;
+      if (B.k === 'idle') { moveDog(dg, p.x, p.z, 0, 1); if (!B.lk || Math.random() < dt * 0.6) B.lk = v3(p.x + (Math.random() - 0.5) * 8, 0.5, p.z + (Math.random() - 0.5) * 8); dg.look = B.lk; }
+      else if (B.k === 'sniff') { const d = moveDog(dg, B.x, B.z, 0.7, 0.15); dg.headDown = 0.6; dg.sniff = true; if (d < 0.2) B.t = Math.min(B.t, 1.2); }
+      else if (B.k === 'trot' || B.k === 'zoom') { const d = moveDog(dg, B.x, B.z, B.v, 0.2); if (d < 0.25) { if (B.k === 'zoom' && B.back) { B.back = false; B.x = dg.home.x + (Math.random() - 0.5); B.z = dg.home.z + (Math.random() - 0.5); } else B.t = 0; } if (B.k === 'zoom') dg.excite = 0.9; }
+      else if (B.k === 'sit') { moveDog(dg, p.x, p.z, 0, 1); if (dg.vel < 0.05) dg.pose = 'sit'; if (!B.lk || Math.random() < dt * 0.4) B.lk = v3(p.x + (Math.random() - 0.5) * 8, 0.6, p.z + (Math.random() - 0.5) * 8); dg.look = B.lk; }
+      else if (B.k === 'lie') { moveDog(dg, p.x, p.z, 0, 1); if (dg.vel < 0.05) dg.pose = 'lie'; }
+    };
+    // 步态与姿态：腿的摆动按真实走过的距离推进（脚落地时不打滑），按速度切换 走 / 小跑 / 奔跑
+    const GAITS = GAITS_REF.g = { walk: { off: [0.25, 0.75, 0, 0.5], st: 0.64, A: 0.3 }, trot: { off: [0, 0.5, 0.5, 0], st: 0.5, A: 0.42 }, gallop: { off: [0, 0.12, 0.52, 0.64], st: 0.4, A: 0.62 } };
+    const smooth = x => x * x * (3 - 2 * x);
     const dogLive = (dg, k, m) => {
-      const p = dg.g.position; if (!dg.lp) dg.lp = p.clone(); const v = dt > 0 ? p.distanceTo(dg.lp) / dt : 0; dg.lp.copy(p);
-      dg.mv += (Math.min(1, v / 4) - dg.mv) * Math.min(1, dt * 6); const mv = m === 'sleep' ? 0 : dg.mv, moving = mv > 0.04;
-      dg.gp = (dg.gp || 0) + dt * (5.5 + v * 2.4) * (moving ? 1 : 0); const gp = dg.gp, sg = Math.sin(gp), cg = Math.cos(gp);
-      if (moving) dg.legs.forEach((l, j) => { const o = (j === 0 || j === 3) ? 0 : Math.PI, a = Math.sin(gp + o); l.rotation.z = a * (0.35 + 0.35 * mv); l.scale.y = 0.92 * (1 - Math.max(0, Math.cos(gp + o)) * 0.1 * mv); });
-      else dg.legs.forEach(l => { l.scale.y = 0.92; });
-      dg.torso.rotation.x = sg * 0.04 * mv; dg.torso.rotation.z = -0.03 * mv + Math.cos(gp * 2) * 0.02 * mv; dg.torso.position.y += Math.abs(cg) * 0.03 * mv;
-      dg.head.rotation.z += -dg.torso.rotation.z * 0.9 - Math.cos(gp * 2) * 0.03 * mv; dg.head.position.y -= Math.abs(cg) * 0.01 * mv;
-      const excited = dg.pet > 0, freq = excited ? 17 : m === 'bark' ? 20 : moving ? 7 + mv * 4 : m === 'sleep' ? 1.2 : 4.5, amp = excited ? 1.0 : m === 'bark' ? 0.8 : moving ? 0.5 + mv * 0.2 : m === 'sleep' ? 0.08 : 0.32 + Math.max(0, Math.sin(t * 0.37 + k)) * 0.3;
-      dg.wag = (dg.wag || 0) + dt * freq; dg.tail.rotation.y = Math.sin(dg.wag) * amp * 0.55; dg.tail.rotation.z = (m === 'sleep' ? 0 : 0.12) + mv * 0.18 + (excited ? 0.25 : 0);
-      const U = dg.U; if (U) { U.uT.value = t + k * 3; U.uMove.value = mv; U.uBob.value = moving ? cg * mv : Math.sin(t * (m === 'sleep' ? 0.6 : 1.7) + k) * 0.08 * (Math.sin(t * 0.5 + k) > 0.7 ? 1 : 0); U.uWagPh.value = dg.wag; U.uWagA.value = amp; U.uLift.value = mv * 0.5 + (excited ? 0.6 : 0); }
+      const v = dg.vel || 0, gk = v < 1.5 ? 'walk' : v < 4.2 ? 'trot' : 'gallop', G = GAITS[gk], hip = 0.355 * (dg.g.scale.x || 1);
+      if (!dg.off) dg.off = G.off.slice(); dg.off = dg.off.map((o, j) => { let d = G.off[j] - o; d -= Math.round(d); return o + d * Math.min(1, dt * 4); });
+      dg.st = dg.st === undefined ? G.st : dg.st + (G.st - dg.st) * Math.min(1, dt * 4); dg.A = dg.A === undefined ? G.A : dg.A + (G.A - dg.A) * Math.min(1, dt * 4);
+      const mk = Math.min(1, v / 0.25), cyc = Math.max(0.05, 2 * hip * Math.sin(dg.A * mk) / dg.st); dg.phi = ((dg.phi || 0) + v * dt / cyc) % 1; const phi = dg.phi;
+      const pose = dg.pose, tor = dg.torso; let bob = 0, pitch = 0, roll = 0;
+      if (pose === 'sleep' || pose === 'lie') { dg.legs.forEach(l => { l.visible = false; }); tor.position.y = DOG_BASE_Y - 0.24; tor.rotation.set(0, 0, 0); tor.scale.y = 1 + Math.sin(t * 1.8 + k) * 0.02;
+        dg.head.position.y = pose === 'sleep' ? 0.86 : 0.9; dg.head.rotation.set(0, pose === 'sleep' ? 0.3 : Math.sin(t * 0.4 + k) * 0.4, pose === 'sleep' ? -0.35 : -0.05); dg.tongue.visible = pose !== 'sleep'; }
+      else if (pose === 'sit') { tor.rotation.set(0, 0, 0.42); tor.position.y = DOG_BASE_Y - 0.03; dg.legs.forEach((l, j) => { if (j < 2) { l.rotation.z = -0.42; l.scale.y = 0.92 * 1.28; } else { l.rotation.z = 0.9; l.scale.y = 0.5; } }); dg.head.rotation.set(0, 0, -0.3); }
+      else {
+        dg.legs.forEach((l, j) => { const u = ((phi + dg.off[j]) % 1 + 1) % 1; let a, lift = 0; const sA = Math.sin(dg.A * mk); if (u < dg.st) a = Math.asin(sA - 2 * sA * (u / dg.st)); else { const w = (u - dg.st) / (1 - dg.st); a = Math.asin(-sA + 2 * sA * smooth(w)); lift = Math.sin(Math.PI * w); }
+          // 着地时脚在地面上匀速向后（与身体前进速度一致），并补偿腿斜着时的高度，脚掌贴地不滑
+          l.rotation.z = a; l.scale.y = 0.92 * (u < dg.st ? 1 / Math.cos(a) : 1 - lift * 0.28 * mk); });
+        if (gk === 'gallop') { bob = Math.sin(phi * Math.PI * 2) * 0.05 * mk + 0.02; pitch = Math.sin(phi * Math.PI * 2 + 1.2) * 0.09 * mk; }
+        else { bob = Math.abs(Math.cos(phi * Math.PI * 2)) * (gk === 'trot' ? 0.028 : 0.014) * mk; pitch = -0.03 * mk; roll = Math.sin(phi * Math.PI * 2) * (gk === 'walk' ? 0.035 : 0.02) * mk; }
+        if (pose === 'stalk') { bob -= 0.06; pitch -= 0.06; }
+        roll += -(dg.turn || 0) * 0.06; tor.rotation.set(Math.max(-0.2, Math.min(0.2, roll)), 0, pitch); tor.position.y = DOG_BASE_Y + bob + (dg.hop || 0);
+        // 头：看向目标（转头有限度），身体俯仰时头保持平稳，闻地面时低头一点一点
+        let yaw = 0; if (dg.look) { const p = dg.g.position; yaw = wrapA(Math.atan2(-(dg.look.z - p.z), dg.look.x - p.x) - dg.g.rotation.y); yaw = Math.max(-0.9, Math.min(0.9, yaw)); }
+        dg.hy = (dg.hy || 0) + (yaw - (dg.hy || 0)) * Math.min(1, dt * 4);
+        const nod = dg.sniff ? Math.sin(t * 9) * 0.08 : 0; dg.head.rotation.set(dg.excite ? Math.sin(t * 5) * 0.12 * dg.excite : 0, dg.hy, -pitch * 0.9 - (dg.headDown || 0) * 0.6 + nod + (m === 'bark' ? Math.sin(t * 20) * 0.15 : 0.04));
+        dg.head.position.y = 0.94 - (dg.headDown || 0) * 0.1 - bob * 0.3; }
+      dg.sniff = false;
+      dg.tongue.scale.y = 0.048 * (1 + (v > 2 ? 0.35 : 0) + Math.sin(t * (v > 2 ? 12 : 6)) * 0.15);
+      // 尾巴：越兴奋摇得越快越开；跑起来抬高；趴着、睡觉时轻摆
+      const ex = dg.excite || 0, freq = pose === 'sleep' ? 1.2 : 4.5 + ex * 13 + Math.min(4, v), amp = pose === 'sleep' ? 0.08 : pose === 'stalk' ? 0.12 : 0.3 + ex * 0.7 + Math.min(0.25, v * 0.05) + Math.max(0, Math.sin(t * 0.37 + k)) * 0.15;
+      dg.wag = (dg.wag || 0) + dt * freq; dg.tail.rotation.y = Math.sin(dg.wag) * amp * 0.55; dg.tail.rotation.z = pose === 'sleep' || pose === 'lie' ? 0 : pose === 'stalk' ? -0.15 : 0.1 + Math.min(0.3, v * 0.06) + ex * 0.25;
+      const mv = Math.min(1, v / 4.5), U = dg.U; if (U) { U.uT.value = t + k * 3; U.uMove.value = mv; U.uBob.value = mk * Math.cos(phi * Math.PI * 4) * Math.min(1, v / 2); U.uWagPh.value = dg.wag; U.uWagA.value = amp; U.uLift.value = mv * 0.5 + ex * 0.4; }
     };
     anim.dogs.forEach((dg, k) => { const m = dogMode[k] || 'none'; dg.g.visible = m !== 'none'; if (!dg.g.visible) return; animDog(dg, k, m); dogLive(dg, k, m); });
     // 农田动态
@@ -1085,5 +1113,5 @@ const W3 = (() => {
     return ICONS[key];
   }
   function zoomBy(f) { if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * f)); return; } zoom = Math.max(0.6, Math.min(1.3, zoom * f)); applyCam(); }
-  return { zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, pondSplash, setSimSpeed: k => { simK = k; }, ranchDbg: () => ({ phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
+  return { zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, pondSplash, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
 })();
