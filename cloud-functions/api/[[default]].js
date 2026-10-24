@@ -314,7 +314,7 @@ __def("shared/config.js", function (module, exports, __req) {
   const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
   // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
   function ranchItem(item) { const m = /^(fs|wl)(\d+)$/.exec(item || ''); if (!m) return null; const d = (m[1] === 'fs' ? FISH : SHEEP)[+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : { kind: 'wool', id: d.id, name: d.woolName, price: d.sell }; }
-  const VERSION = '2.8.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const VERSION = '2.9.0'; // 每次发布改这里；设置页和 /api/health 会显示
   const CFG = { VERSION, COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
     FISH, SHEEP, RANCH, pondCap, pastureCap, sheepCycles, fishLeft, ranchItem,
@@ -1106,6 +1106,15 @@ class Game {
   async shovel(uid, idx) {
     const P = await this.plot(uid, idx); if (P.c < 0) throw bad('这里没有作物'); if (P.p >= 1) throw conflict('作物已成熟，先收获吧', 'ripe');
     P.c = -1; P.p = 0; P.y = 0; P.y0 = 0; P.stolen = 0; P.sea = 0; P.pr = { d: 0, w: 0, b: 0 }; P.ev = []; P.ra = 0; this.savePlot(uid, P); return { idx };
+  }
+  // 一键催熟：按“离成熟最近”排序，逐块用化肥直到成熟，化肥用完为止
+  async fertAll(uid) {
+    let have = await this.invQty(uid, 'fert'); if (have <= 0) throw conflict('没有化肥了，去商店买一些吧', 'not_enough');
+    const now = this.now(), list = (await this.plots(uid)).filter(P => P.u && P.c >= 0 && P.p < 1).sort((a, b) => CFG.remainSec(a) - CFG.remainSec(b));
+    if (!list.length) throw conflict('没有正在生长的作物', 'none');
+    const res = []; let used = 0;
+    for (const P0 of list) { if (have <= 0) break; let n = 0, P = P0; while (have > 0 && P.p < 1) { await this.fert(uid, P.idx); have--; used++; n++; P = await this.plot(uid, P.idx); } res.push({ idx: P.idx, n, ripe: P.p >= 1 }); }
+    void now; return { res, used, ripe: res.filter(x => x.ripe).length, left: have };
   }
   async fert(uid, idx) {
     const P = await this.plot(uid, idx); if (P.c < 0 || P.p >= 1) throw bad('只能给生长中的作物施肥');
@@ -2005,6 +2014,7 @@ async function createCore(opts) {
   R('POST', '/api/farm/expand', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.expand(c.uid, c.body.idx === undefined || c.body.idx === null ? -1 : idx(c.body), o), o); });
   R('POST', '/api/farm/red', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.red(c.uid, idx(c.body), o), o); });
   R('POST', '/api/farm/harvest-all', { auth: 1 }, async (c) => { const l = (await game.plots(c.uid)).filter(P => P.u && P.c >= 0 && P.p >= 1).map(P => P.idx); if (!l.length) throw U.conflict('还没有成熟的作物', 'none'); const b = await game.batch(c.uid, (i, o) => game.harvest(c.uid, i, o), l); return own(c.uid, b.res, b.out); });
+  R('POST', '/api/farm/fert-all', { auth: 1 }, async (c) => own(c.uid, await game.fertAll(c.uid)));
   R('POST', '/api/farm/care-all', { auth: 1 }, async (c) => { const l = [].concat(...(await game.plots(c.uid)).map(sick)); if (!l.length) throw U.conflict('农田都很健康', 'none'); const b = await game.batch(c.uid, (i, o) => game.care(c.uid, i, o), l); return own(c.uid, b.res, b.out); });
   R('POST', '/api/farm/plant-all', { auth: 1 }, async (c) => { const crop = U.int(c.body.crop, '种子', 0, CFG.CROPS.length - 1); const l = (await game.plots(c.uid)).filter(P => P.u && P.c < 0).map(P => P.idx); if (!l.length) throw U.conflict('没有空地了', 'none'); const b = await game.batch(c.uid, (i, o) => game.plant(c.uid, i, crop, o), l); if (!b.res.some(r => !r.err)) throw U.conflict(b.res[0].err, b.res[0].code); return own(c.uid, b.res, b.out); });
   R('POST', '/api/shop/buy', { auth: 1 }, async (c) => own(c.uid, await game.buy(c.uid, String(c.body.item), c.body.n)));

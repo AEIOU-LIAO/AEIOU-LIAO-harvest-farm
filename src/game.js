@@ -206,6 +206,12 @@ async function doExpand(i) { const r = await api('/api/farm/expand', i >= 0 ? { 
 function stagger(list, fn, gap) { list.forEach((x, k) => setTimeout(() => fn(x), k * (gap || 70))); }
 async function allHarvest() { if (view.key !== 'home') return; const r = await api('/api/farm/harvest-all', null, { lvDelay: 900 }); if (!r) return; sfx('harvest'); stagger(r.result.filter(x => !x.err), harvestFx); }
 async function allCare() { if (view.key !== 'home') return; const r = await api('/api/farm/care-all'); if (!r) return; stagger(r.result.filter(x => !x.err), x => careFx(x.idx, x.kind, true), 90); }
+async function allFert() {
+  if (view.key !== 'home') return; if (!(S.inv.fert > 0)) { toast('没有化肥了，去商店买一些吧', 'warn'); openShop('item'); return; }
+  const r = await api('/api/farm/fert-all'); if (!r) return; const x = r.result;
+  stagger(x.res, p => { FX.stars(p.idx, 8); FX.text(p.idx, p.ripe ? `催熟！化肥×${p.n}` : `化肥×${p.n}`, '#b8ff8a', 16); sfx('fert'); }, 110);
+  toast(`用了 ${x.used} 袋化肥，${x.ripe ? `${x.ripe} 块地马上成熟` : '作物长得更快了'}${x.left ? `，还剩 ${x.left} 袋` : '，化肥用完了'}`);
+}
 async function allPlant() {
   if (view.key !== 'home') return; const cr = CROPS[S.me.seed]; if (S.me.lv < cr.lv) { toast(`${cr.name} 需要 Lv.${cr.lv}`, 'warn'); return; }
   const r = await api('/api/farm/plant-all', { crop: S.me.seed }); if (!r) return; const ok = r.result.filter(x => !x.err);
@@ -287,7 +293,7 @@ function renderToolbar() {
   if (home) {
     T('auto', 'wand', '自动'); items.push({ id: 'seed', ic: `<img src="${cropIcon(S.me.seed)}">`, tx: CROPS[S.me.seed].name });
     T('shovel', 'shovel', '铲除'); T('fert', 'flask', '化肥', { badge: S.inv.fert || 0 });
-    A('allh', 'basket', '一键收获', { badge: S.plots.filter(p => p.u && p.c >= 0 && p.p >= 1).length || 0 }); A('allc', 'wrench', '一键护理'); A('allp', 'sprouts', '一键种植');
+    A('allh', 'basket', '一键收获', { badge: S.plots.filter(p => p.u && p.c >= 0 && p.p >= 1).length || 0 }); A('allf', 'bolt', '一键催熟', { badge: S.plots.some(p => p.u && p.c >= 0 && p.p < 1) && S.inv.fert ? S.inv.fert : 0 }); A('allc', 'wrench', '一键护理'); A('allp', 'sprouts', '一键种植');
     A('wh', 'bag', '仓库'); A('shop', 'store', '商店'); A('task', 'scroll', '任务', { badge: b.tasks + b.newbie, alert: 1 });
   } else {
     T('auto', 'wand', '自动'); A('alls', 'mask', '一键摘取', { badge: view.plots.filter(p => p.canSteal).length || 0 }); A('allhp', 'hands', '一键帮忙');
@@ -299,7 +305,7 @@ function renderToolbar() {
 function toolbarClick(id) {
   ac(); sfx('click');
   if (['auto', 'shovel', 'fert'].includes(id)) { tool = id; renderToolbar(); updateCursor(); return; }
-  const m = { seed: openSeeds, allh: allHarvest, allc: allCare, allp: allPlant, wh: openWarehouse, shop: () => openShop('item'), task: () => openTasks(), alls: allSteal, allhp: allHelp, home: goHome, gb: () => openGuestbook(view.friend), addf: () => addFriendNow(view.friend) };
+  const m = { seed: openSeeds, allh: allHarvest, allc: allCare, allf: allFert, allp: allPlant, wh: openWarehouse, shop: () => openShop('item'), task: () => openTasks(), alls: allSteal, allhp: allHelp, home: goHome, gb: () => openGuestbook(view.friend), addf: () => addFriendNow(view.friend) };
   m[id] && m[id]();
 }
 // 牧场角标：可以收的鱼 + 可以剪毛的羊

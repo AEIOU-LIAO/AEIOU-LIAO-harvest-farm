@@ -374,6 +374,21 @@ test('v2.8 鱼塘与牧场：买鱼苗、收鱼、买羊、剪羊毛、牧羊加
   } finally { await t.close(); }
 });
 
+test('v2.9 一键催熟：先催离成熟最近的，化肥用完为止', async () => {
+  const t = await start();
+  try {
+    const a = await t.guest('催熟'); await t.app.db.run('UPDATE users SET gold=99999 WHERE id=?', a.id);
+    assert.equal((await t.call('POST', '/api/farm/fert-all', {}, a.token)).code, 'none', '没有作物');
+    await t.plantAll(a, 0); const ids = CFG.UNLOCK_ORDER.slice(0, 3);
+    await t.app.db.run('UPDATE plots SET p=0.85 WHERE user_id=? AND idx=?', a.id, ids[0]); await t.app.db.run('UPDATE plots SET p=0.5 WHERE user_id=? AND idx=?', a.id, ids[1]); t.app.game.forget && t.app.game.forget(a.id);
+    await t.app.db.run("INSERT OR REPLACE INTO inventory (user_id,item,qty) VALUES (?,?,?)", a.id, 'fert', 3);
+    const r = await t.call('POST', '/api/farm/fert-all', {}, a.token); assert.ok(r.ok, r.error);
+    assert.equal(r.result.used, 3); assert.equal(r.result.res[0].idx, ids[0], '最快成熟的先催'); assert.ok(r.result.res[0].ripe && r.result.res[0].n === 1);
+    assert.equal(r.result.res[1].idx, ids[1]); assert.equal(r.result.res[1].n, 2); assert.ok(r.result.res[1].ripe, '0.5 用两袋就熟了');
+    assert.equal(r.state.inv.fert || 0, 0); assert.equal((await t.call('POST', '/api/farm/fert-all', {}, a.token)).code, 'not_enough');
+  } finally { await t.close(); }
+});
+
 test('互助：真实修改好友农田并给奖励', async () => {
   const t = await start();
   try {
