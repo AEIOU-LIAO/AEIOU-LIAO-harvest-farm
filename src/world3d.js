@@ -250,12 +250,12 @@ const W3 = (() => {
     const trunk = new T.CylinderGeometry(0.16, 0.28, 2.2, 8, 3); displace(trunk, 0.03, 2, 5);
     g.add(mesh(trunk, mat('#6a4a2e', { p: { map: TX.wood, roughness: 0.95 } }), 0, 1.1, 0));
     const fm = mat(col, { vc: 1, p: { roughness: 0.85 } });
-    for (let i = 0; i < 5; i++) { const geo = new T.IcosahedronGeometry(1, 3); displace(geo, 0.18, 1.3, 11 + i); colorize(geo, (px, py) => { const v = 0.72 + py * 0.22 + (hash2(Math.round(px * 9), Math.round(py * 9), i) - 0.5) * 0.12; return [v, v, v]; }); const o = mesh(geo, fm, (r() - 0.5) * 1.1, 2.5 + r() * 0.9 + (i === 0 ? 0.6 : 0), (r() - 0.5) * 1.1); o.scale.setScalar(0.85 + r() * 0.45); g.add(o); }
+    for (let i = 0; i < 5; i++) { const geo = new T.SphereGeometry(1, 26, 18); displace(geo, 0.14, 1.3, 11 + i); displace(geo, 0.05, 4.5, 40 + i); geo.computeVertexNormals(); colorize(geo, (px, py) => { const v = 0.7 + py * 0.26; return [v, v * 1.02, v * 0.96]; }); const o = mesh(geo, fm, (r() - 0.5) * 1.1, 2.5 + r() * 0.9 + (i === 0 ? 0.6 : 0), (r() - 0.5) * 1.1); o.scale.setScalar(0.85 + r() * 0.45); g.add(o); }
     if (apples) { const am = fruitMat('#d8302a', 0.3); for (let i = 0; i < 9; i++) { const a = r() * 6.28, h = 2.3 + r() * 1.4; g.add(blob(am, Math.cos(a) * 1.15, h, Math.sin(a) * 1.15, 0.1, 0.1, 0.1, 10)); } }
     const m = merge(g); m.position.set(x, 0, z); m.scale.setScalar(s); m.rotation.y = r() * 6; return m;
   }
-  function bushAt(x, z, s, col) { const g = new T.Group(), fm = mat(col, { vc: 1, p: { roughness: 0.85 } }); for (let i = 0; i < 3; i++) { const geo = new T.IcosahedronGeometry(1, 2); displace(geo, 0.15, 1.5, 30 + i); colorize(geo, (px, py) => { const v = 0.7 + py * 0.25; return [v, v, v]; }); const o = mesh(geo, fm, (i - 1) * 0.45, 0.35, (i % 2) * 0.3); o.scale.set(0.55, 0.45, 0.5); g.add(o); } const m = merge(g); m.position.set(x, 0, z); m.scale.setScalar(s); return m; }
-  function rock(x, z, s) { const geo = new T.DodecahedronGeometry(1, 1); displace(geo, 0.2, 1.2, Math.round(x * 3 + z)); const o = mesh(geo, mat('#9a968c', { p: { roughness: 0.9, map: TX.stone, normalMap: TX.stoneN } }), x, s * 0.35, z); o.scale.set(s, s * 0.6, s * 0.85); o.rotation.y = x; return o; }
+  function bushAt(x, z, s, col) { const g = new T.Group(), fm = mat(col, { vc: 1, p: { roughness: 0.85 } }); for (let i = 0; i < 3; i++) { const geo = new T.SphereGeometry(1, 20, 14); displace(geo, 0.12, 1.5, 30 + i); displace(geo, 0.05, 5, 60 + i); geo.computeVertexNormals(); colorize(geo, (px, py) => { const v = 0.7 + py * 0.25; return [v, v, v]; }); const o = mesh(geo, fm, (i - 1) * 0.45, 0.35, (i % 2) * 0.3); o.scale.set(0.55, 0.45, 0.5); g.add(o); } const m = merge(g); m.position.set(x, 0, z); m.scale.setScalar(s); return m; }
+  function rock(x, z, s) { const geo = new T.SphereGeometry(1, 22, 14); displace(geo, 0.2, 1.2, Math.round(x * 3 + z)); geo.computeVertexNormals(); const o = mesh(geo, mat('#aaa498', { p: { roughness: 0.8, map: TX.stone, normalMap: TX.stoneN } }), x, s * 0.35, z); o.scale.set(s, s * 0.6, s * 0.85); o.rotation.y = x; return o; }
   function fencePost(g, x, z, wm) { g.add(mesh(new T.BoxGeometry(0.14, 0.9, 0.14), wm, x, 0.45, z)); const cap = mesh(new T.ConeGeometry(0.11, 0.14, 4), wm, x, 0.97, z); cap.rotation.y = Math.PI / 4; g.add(cap); }
   function fenceLine(g, x0, z0, x1, z1, wm, step) { const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.round(L / (step || 1.15))); for (let i = 0; i <= n; i++) fencePost(g, x0 + (x1 - x0) * i / n, z0 + (z1 - z0) * i / n, wm); const ang = Math.atan2(z1 - z0, x1 - x0); [0.35, 0.7].forEach(h => { const r = mesh(new T.BoxGeometry(L, 0.07, 0.05), wm, (x0 + x1) / 2, h, (z0 + z1) / 2); r.rotation.y = -ang; g.add(r); }); }
   function buildHouse() {
@@ -296,8 +296,8 @@ const W3 = (() => {
     const bed = mesh(new T.ShapeGeometry(sh, 24), mat('#3a5a48', { p: { roughness: 1 } })); bed.rotation.x = Math.PI / 2; bed.scale.set(1, -1, 1); bed.position.y = -0.18; g.add(bed);
     const wm = new T.MeshStandardMaterial({ color: new T.Color('#3d8fb0'), roughness: 0.06, metalness: 0.25, normalMap: TX.waterN, transparent: true, opacity: 0.86 }); wm.normalScale.set(0.6, 0.6);
     const water = new T.Mesh(new T.ShapeGeometry(sh, 24), wm); water.rotation.x = -Math.PI / 2; water.scale.set(1, -1, 1); water.position.y = 0.05; water.receiveShadow = true; g.add(water); anim.water = wm;
-    const sm = mat('#9a968c', { p: { roughness: 0.9, map: TX.stone, normalMap: TX.stoneN } }), r = CFG3.rng(99);
-    for (let i = 0; i < 46; i++) { const a = i / 46 * Math.PI * 2, rr = 3.25 + Math.sin(a * 3) * 0.35 + Math.cos(a * 5) * 0.2; const geo = new T.DodecahedronGeometry(1, 0); const o = mesh(geo, sm, Math.cos(a) * rr * 1.25, 0.08, Math.sin(a) * rr); o.scale.set(0.3 + r() * 0.2, 0.18 + r() * 0.1, 0.25 + r() * 0.15); o.rotation.set(r(), r() * 6, r()); g.add(o); }
+    const sm = mat('#b8b2a4', { p: { roughness: 0.75, map: TX.stone, normalMap: TX.stoneN } }), r = CFG3.rng(99), peb = (() => { const g = new T.SphereGeometry(1, 14, 10); displace(g, 0.12, 1.4, 7); g.computeVertexNormals(); return g; })();
+    for (let i = 0; i < 46; i++) { const a = i / 46 * Math.PI * 2, rr = 3.25 + Math.sin(a * 3) * 0.35 + Math.cos(a * 5) * 0.2; const o = mesh(peb, sm, Math.cos(a) * rr * 1.25, 0.08, Math.sin(a) * rr); o.scale.set(0.3 + r() * 0.2, 0.18 + r() * 0.1, 0.25 + r() * 0.15); o.rotation.set(r(), r() * 6, r()); g.add(o); }
     const lm = mat('#3f8a3a', { p: { roughness: 0.6 } }); for (let i = 0; i < 6; i++) { const pad = new T.CircleGeometry(0.32, 16, 0.3, Math.PI * 2 - 0.4); const o = mesh(pad, lm, (r() - 0.5) * 4.5, 0.07, (r() - 0.5) * 3.5); o.rotation.set(-Math.PI / 2, 0, r() * 6); g.add(o); if (i % 2 === 0) g.add(blob(mat('#ffb0d0'), o.position.x + 0.1, 0.14, o.position.z, 0.09, 0.06, 0.09, 10)); }
     const cat = mat('#6a8a3a'), catTop = mat('#6a4020'); for (let i = 0; i < 7; i++) { const a = -0.6 + i * 0.18, rr = 3.5; const px = Math.cos(a) * rr * 1.25, pz = Math.sin(a) * rr; g.add(mesh(new T.CylinderGeometry(0.02, 0.03, 1.4, 5), cat, px, 0.7, pz)); g.add(mesh(new T.CapsuleGeometry(0.05, 0.25, 4, 8), catTop, px, 1.35, pz)); }
     const keepW = water; keepW.userData.keep = true; const m = merge(g); m.position.set(x, 0, z); return m;
@@ -457,21 +457,30 @@ const W3 = (() => {
     const tail = new T.Group(); tail.position.set(-0.44, 0.64, 0); torso.add(tail); const tm = new T.Mesh(G.tail, fur); tm.castShadow = true; tail.add(tm); tail.scale.setScalar(0.88);
     g.scale.setScalar(L.s);
     const tag = nameTag(L.name, L.tag); tag.position.set(0.1, 1.42, 0); g.add(tag);
-    const d = { g, torso, head, tail, legs, tongue, tag, kind, home: null, ang: Math.random() * 6.28, pet: 0 }; anim.dogs.push(d); return g;
+    const d = { g, torso, head, tail, legs, tongue, tag, kind, home: null, ang: Math.random() * 6.28, pet: 0 }; anim.dogs.push(d);
+    if (!buildDog.preview) { const hb = new T.Mesh(new T.BoxGeometry(1.1, 1.1, 0.7), new T.MeshBasicMaterial({ visible: false })); hb.position.set(0, 0.55, 0); hb.userData.idx = -20 - (anim.dogs.length - 1); hb.userData.dog = d; g.add(hb); hitBoxes.push(hb); } return g;
   }
   // 调试：大尺寸渲染某个角度的狗（只在测试中用）
   function dogShot(kind, size, yaw, pitch) {
     const c = document.createElement('canvas'); c.width = c.height = size || 512; const r = new T.WebGLRenderer({ canvas: c, antialias: true, preserveDrawingBuffer: true }); r.outputEncoding = T.sRGBEncoding; r.toneMapping = T.ACESFilmicToneMapping; r.setClearColor(0x8fb070, 1);
     const sc = new T.Scene(); sc.add(new T.HemisphereLight(0xffffff, 0x6a7a4a, 0.9)); const dl = new T.DirectionalLight(0xfff4e0, 2.2); dl.position.set(3, 5, 4); sc.add(dl);
-    const n = anim.dogs.length, m = buildDog(kind); anim.dogs.length = n; m.remove(m.children.find(o => o.isSprite)); m.rotation.y = yaw || 0; sc.add(m);
+    const n = anim.dogs.length; buildDog.preview = true; const m = buildDog(kind); buildDog.preview = false; anim.dogs.length = n; m.remove(m.children.find(o => o.isSprite)); m.rotation.y = yaw || 0; sc.add(m);
     const box = new T.Box3().setFromObject(m), ctr = box.getCenter(new T.Vector3()), rad = box.getSize(new T.Vector3()).length() * 0.55, cam2 = new T.PerspectiveCamera(30, 1, 0.05, 50);
     cam2.position.set(ctr.x, ctr.y + Math.sin(pitch || 0.25) * rad * 3, ctr.z + Math.cos(pitch || 0.25) * rad * 3); cam2.lookAt(ctr); r.render(sc, cam2); const u = c.toDataURL(); r.dispose(); return u;
   }
+  // 调试用：离屏渲染任意模型（人物 / 狗）
+  function shotOf(m, size, yaw, pitch, bg) {
+    const c = document.createElement('canvas'); c.width = c.height = size || 512; const r = new T.WebGLRenderer({ canvas: c, antialias: true, preserveDrawingBuffer: true }); r.outputEncoding = T.sRGBEncoding; r.toneMapping = T.ACESFilmicToneMapping; r.setClearColor(bg || 0x8fb070, 1);
+    const sc = new T.Scene(); sc.add(new T.HemisphereLight(0xffffff, 0x6a7a4a, 0.9)); const dl = new T.DirectionalLight(0xfff4e0, 2.2); dl.position.set(3, 5, 4); sc.add(dl); m.rotation.y = yaw || 0; sc.add(m);
+    const box = new T.Box3().setFromObject(m), ctr = box.getCenter(new T.Vector3()), rad = box.getSize(new T.Vector3()).length() * 0.55, cam2 = new T.PerspectiveCamera(30, 1, 0.05, 50);
+    cam2.position.set(ctr.x, ctr.y + Math.sin(pitch || 0.2) * rad * 3, ctr.z + Math.cos(pitch || 0.2) * rad * 3); cam2.lookAt(ctr); r.render(sc, cam2); const u = c.toDataURL(); r.dispose(); return u;
+  }
+  function heroShot(look, size, yaw, pitch) { const keep = HERO.p, m = buildHero(look); m.remove(m.children.find(o => o.geometry && o.geometry.type === 'RingGeometry')); const u = shotOf(m, size, yaw, pitch); HERO.p = keep; return u; }
   // 狗狗预览图（商店里用）：离屏渲染
   function dogPortrait(kind) {
     const key = 'dog:' + kind; if (ICONS[key]) return ICONS[key];
     try {
-      ensureIconRenderer(); const n = anim.dogs.length, m = buildDog(kind); anim.dogs.length = n; m.remove(m.children.find(c => c.isSprite)); m.rotation.y = -0.65;
+      ensureIconRenderer(); const n = anim.dogs.length; buildDog.preview = true; const m = buildDog(kind); buildDog.preview = false; anim.dogs.length = n; m.remove(m.children.find(c => c.isSprite)); m.rotation.y = -0.65;
       IS.add(m); const box = new T.Box3().setFromObject(m), c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3()), r = Math.max(sz.x, sz.y, sz.z) * 0.6;
       IC.position.set(c.x + r * 1.4, c.y + r * 0.7, c.z + r * 2.5); IC.lookAt(c); IC.updateProjectionMatrix(); IR.render(IS, IC); ICONS[key] = IR.domElement.toDataURL(); IS.remove(m);
     } catch (e) { console.error(e); ICONS[key] = ''; }
@@ -486,10 +495,17 @@ const W3 = (() => {
     const m = new T.MeshStandardMaterial({ color: new T.Color('#7cb84a'), vertexColors: true, side: T.DoubleSide, roughness: 0.8 });
     m.onBeforeCompile = sh => { sh.uniforms.uT = anim.grassU; sh.vertexShader = 'uniform float uT;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\nfloat ph = instanceMatrix[3].x*0.6 + instanceMatrix[3].z*0.8;\ntransformed.x += sin(uT*1.6+ph)*0.07*position.y*3.0;\ntransformed.z += cos(uT*1.2+ph*1.3)*0.05*position.y*3.0;\n#endif'); };
     const im = new T.InstancedMesh(blade, m, n), d = new T.Object3D(), r = CFG3.rng(5), c = new T.Color(); let k = 0;
-    while (k < n) { const x = (r() - 0.5) * 70, z = (r() - 0.5) * 60; if (avoid(x, z)) continue; d.position.set(x, 0, z); d.rotation.set(0, r() * 6.28, (r() - 0.5) * 0.4); d.scale.setScalar(0.6 + r() * 0.9); d.updateMatrix(); im.setMatrixAt(k, d.matrix); c.setHSL(0.24 + r() * 0.06, 0.45 + r() * 0.2, 0.32 + r() * 0.12); im.setColorAt(k, c); k++; }
+    while (k < n) { const x = (r() - 0.5) * 70, z = (r() - 0.5) * 60; if (avoid(x, z)) continue; d.position.set(x, 0, z); d.rotation.set(0, r() * 6.28, (r() - 0.5) * 0.4); d.scale.set(0.8 + r() * 0.5, 0.5 + r() * 0.65, 0.8 + r() * 0.5); d.updateMatrix(); im.setMatrixAt(k, d.matrix); c.setHSL(0.23 + r() * 0.06, 0.5 + r() * 0.2, 0.4 + r() * 0.12); im.setColorAt(k, c); k++; }
     im.receiveShadow = false; return im;
   }
-  function flowers(n, avoid) { const geo = new T.IcosahedronGeometry(0.08, 0); const im = new T.InstancedMesh(geo, mat('#ffffff', { p: { roughness: 0.6 } }), n), d = new T.Object3D(), r = CFG3.rng(15), c = new T.Color(), pal = ['#ff7aa0', '#ffd23a', '#ffffff', '#b98aff', '#ff9a4a', '#7ac8ff']; let k = 0; while (k < n) { const x = (r() - 0.5) * 60, z = (r() - 0.5) * 50; if (avoid(x, z)) continue; d.position.set(x, 0.12 + r() * 0.08, z); d.scale.set(1, 0.6, 1); d.updateMatrix(); im.setMatrixAt(k, d.matrix); im.setColorAt(k, c.set(pal[Math.floor(r() * pal.length)])); k++; } return im; }
+  function flowerGeo() { // 五瓣小花：白色花瓣（实例颜色染色）+ 黄色花心
+    const parts = []; const add = (g, col) => { g = g.toNonIndexed(); const c = new T.Color(col), n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; } g.setAttribute('color', new T.BufferAttribute(a, 3)); g.deleteAttribute('uv'); parts.push(g); };
+    for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2, g = new T.SphereGeometry(1, 8, 5); g.scale(0.055, 0.016, 0.034); g.translate(0.05, 0, 0); g.rotateY(a); add(g, '#ffffff'); }
+    const c = new T.SphereGeometry(0.03, 8, 5); c.scale(1, 0.6, 1); c.translate(0, 0.012, 0); add(c, '#ffe9a0');
+    const n = parts.reduce((s, g) => s + g.attributes.position.count, 0), P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 3); let o = 0;
+    parts.forEach(g => { P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); C.set(g.attributes.color.array, o * 3); o += g.attributes.position.count; });
+    const G = new T.BufferGeometry(); G.setAttribute('position', new T.BufferAttribute(P, 3)); G.setAttribute('normal', new T.BufferAttribute(N, 3)); G.setAttribute('color', new T.BufferAttribute(C, 3)); return G; }
+  function flowers(n, avoid) { const geo = flowerGeo(); const im = new T.InstancedMesh(geo, mat('#ffffff', { vc: 1, p: { roughness: 0.6 } }), n), d = new T.Object3D(), r = CFG3.rng(15), c = new T.Color(), pal = ['#ff7aa0', '#ffd23a', '#ffffff', '#b98aff', '#ff9a4a', '#7ac8ff']; let k = 0; while (k < n) { const x = (r() - 0.5) * 60, z = (r() - 0.5) * 50; if (avoid(x, z)) continue; d.position.set(x, 0.14 + r() * 0.1, z); d.rotation.set((r() - 0.5) * 0.5, r() * 6.28, (r() - 0.5) * 0.5); d.scale.setScalar(0.9 + r() * 0.7); d.updateMatrix(); im.setMatrixAt(k, d.matrix); im.setColorAt(k, c.set(pal[Math.floor(r() * pal.length)])); k++; } return im; }
   function hills() { const g = new T.Group(), m = mat('#6a9a4a', { p: { roughness: 1 } }), r = CFG3.rng(77); for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2 + r() * 0.3, d = 75 + r() * 30; const geo = new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2); displace(geo, 0.08, 1.5, i); const o = mesh(geo, m, Math.cos(a) * d, -2, Math.sin(a) * d); o.scale.set(25 + r() * 20, 8 + r() * 10, 18 + r() * 10); o.castShadow = false; g.add(o); } for (let i = 0; i < 40; i++) { const a = r() * Math.PI * 2, d = 50 + r() * 25; const t = blob(mat('#3f7a3a', { p: { roughness: 1 } }), Math.cos(a) * d, 2.5, Math.sin(a) * d, 2 + r() * 1.5, 3 + r() * 2, 2 + r()); t.castShadow = false; g.add(t); } return merge(g); }
   // 天空
   let sky, skyU;
@@ -500,9 +516,9 @@ const W3 = (() => {
   }
   let hemi, sun, amb, doorLamp;
   const KEY = [ // 小时, 天顶, 地平线, 阳光色, 阳光强度, 半球强度, 曝光, 夜
-    [0, '#0a1430', '#1c2a52', '#8aa0ff', 0.25, 0.25, 0.85, 1], [5, '#1a2a5a', '#7a6a8a', '#ffb07a', 0.3, 0.3, 0.9, 0.7], [6.5, '#5a8ad8', '#ffc89a', '#ffc080', 1.1, 0.7, 1.0, 0.1],
+    [0, '#14245a', '#2e4a86', '#a8bcff', 0.75, 0.62, 1.05, 1], [5, '#23377a', '#8a7aa0', '#ffb07a', 0.7, 0.6, 1.05, 0.7], [6.5, '#5a8ad8', '#ffc89a', '#ffc080', 1.1, 0.7, 1.0, 0.1],
     [9, '#3a8ee0', '#cfe8ff', '#fff0d8', 1.8, 0.95, 1.0, 0], [15, '#3a8ee0', '#d8ecff', '#fff4e0', 1.9, 0.95, 1.0, 0], [17.6, '#5a8ad0', '#ffd0a0', '#ffc070', 1.5, 0.8, 1.0, 0],
-    [18.8, '#4a5a9a', '#ff9a6a', '#ff8a4a', 0.9, 0.45, 0.98, 0.25], [20, '#14204a', '#3a3a6a', '#8aa0ff', 0.3, 0.3, 0.88, 0.85], [24, '#0a1430', '#1c2a52', '#8aa0ff', 0.25, 0.25, 0.85, 1]];
+    [18.8, '#4a5a9a', '#ff9a6a', '#ff8a4a', 0.9, 0.45, 0.98, 0.25], [20, '#1e2e68', '#4a4a86', '#a8bcff', 0.7, 0.6, 1.02, 0.85], [24, '#14245a', '#2e4a86', '#a8bcff', 0.75, 0.62, 1.05, 1]];
   function envAt(h) { let i = 0; while (i < KEY.length - 2 && KEY[i + 1][0] <= h) i++; const a = KEY[i], b = KEY[i + 1], t = Math.min(1, Math.max(0, (h - a[0]) / (b[0] - a[0]))); const C = (x, y) => new T.Color(x).lerp(new T.Color(y), t); const L = (x, y) => x + (y - x) * t; return { top: C(a[1], b[1]), hor: C(a[2], b[2]), sun: C(a[3], b[3]), si: L(a[4], b[4]), hi: L(a[5], b[5]), ex: L(a[6], b[6]), night: L(a[7], b[7]) }; }
 
   /* ---------------- 农田 ---------------- */
@@ -531,7 +547,9 @@ const W3 = (() => {
     const pl = plots[i], node = pl.node; node.children.slice().forEach(ch => { if (!ch.userData.idx && ch.userData.idx !== 0) node.remove(ch); }); pl.crop = null; pl.badges = []; pl.sparks = []; pl.bug = null; pl.cropH = 0;
     if (!P.u) {
       const g = new T.Group(); const patch = mesh(BED_G, mat('#7fa856', { p: { roughness: 1, map: TX.grass } })); patch.scale.set(1, 0.22, 1); g.add(patch);
-      const wm = mat('#8a6040', { p: { map: TX.wood } }); g.add(mesh(LOCK_G.post, wm, 0.42, 0.35, 0.42)); const b = mesh(LOCK_G.board, wm, 0.42, 0.78, 0.42); b.rotation.y = Math.PI / 4; g.add(b); const face = mesh(LOCK_G.face, LOCK_MAT || (LOCK_MAT = new T.MeshStandardMaterial({ map: lockTex(), roughness: 0.85 })), 0.42 + 0.024, 0.78, 0.42 + 0.024); face.rotation.y = Math.PI / 4; g.add(face);
+      // 只有下一块可以开垦的荒地插木牌，其他荒地就是草地 + 野花，画面更干净
+      if (o.next) { const wm = mat('#8a6040', { p: { map: TX.wood } }); g.add(mesh(LOCK_G.post, wm, 0.42, 0.35, 0.42)); const b = mesh(LOCK_G.board, wm, 0.42, 0.78, 0.42); b.rotation.y = Math.PI / 4; g.add(b); const face = mesh(LOCK_G.face, LOCK_MAT || (LOCK_MAT = new T.MeshStandardMaterial({ map: lockTex(), roughness: 0.85 })), 0.42 + 0.024, 0.78, 0.42 + 0.024); face.rotation.y = Math.PI / 4; g.add(face); }
+      else { const fr = CFG3.rng(i * 13 + 5), pal = ['#ffffff', '#ffd23a', '#ff8ab0', '#b98aff']; for (let k = 0; k < 4; k++) g.add(blob(mat(pal[Math.floor(fr() * 4)], { p: { roughness: 0.6 } }), (fr() - 0.5) * 1.4, 0.12, (fr() - 0.5) * 1.4, 0.05, 0.03, 0.05, 8)); }
       const tm = mat('#4f8a34', { vc: 1, ds: 1 }), r = CFG3.rng(i * 7); for (let k = 0; k < 7; k++) { const tx = (r() - 0.5) * 1.5, tz = (r() - 0.5) * 1.5; for (let j = 0; j < 3; j++) addLeaf(g, leafGeo(0.22 + r() * 0.12, 0.035, 0.6, 0, 'blade'), tm, tx, 0.04, tz, r() * 6, 0.3 + r() * 0.4); }
       node.add(merge(g)); return;
     }
@@ -548,7 +566,7 @@ const W3 = (() => {
       if (P.pr && P.pr.b && st > 0) { const bug = new T.Group(); bug.add(blob(fruitMat('#d82a20', 0.25), 0, 0.04, 0, 0.07, 0.05, 0.08, 12)); bug.add(blob(mat('#1a1008'), 0, 0.04, 0.07, 0.04, 0.035, 0.035, 8)); [[0.03, -0.02], [-0.03, 0.01], [0.02, 0.03]].forEach(([x, z]) => bug.add(blob(mat('#1a1008'), x, 0.085, z, 0.016, 0.01, 0.016, 6))); node.add(bug); pl.bug = bug; }
     }
   }
-  function plotKey(P, o) { return [P.u, P.soil, P.c, P.c >= 0 ? CFG3.stageOf(P.p) : -1, P.pr ? '' + (P.pr.d | 0) + (P.pr.w | 0) + (P.pr.b | 0) : '', P.wet ? 1 : 0, o.mine ? 1 : 0].join('|'); }
+  function plotKey(P, o) { return [P.u, P.soil, P.c, P.c >= 0 ? CFG3.stageOf(P.p) : -1, P.pr ? '' + (P.pr.d | 0) + (P.pr.w | 0) + (P.pr.b | 0) : '', P.wet ? 1 : 0, o.mine ? 1 : 0, o.next ? 1 : 0].join('|'); }
 
   /* ---------------- 特效 ---------------- */
   const parts = []; let FXT = {}; const floats = []; let fxLayer;
@@ -609,40 +627,92 @@ const W3 = (() => {
   const FENCE_X = 8.2, FENCE_Z = 6.0, GATE = 1.6;
   const FENCE = [[-FENCE_X, -FENCE_Z, FENCE_X, -FENCE_Z], [FENCE_X, -FENCE_Z, FENCE_X, FENCE_Z], [-FENCE_X, -FENCE_Z, -FENCE_X, FENCE_Z], [-FENCE_X, FENCE_Z, -GATE, FENCE_Z], [GATE, FENCE_Z, FENCE_X, FENCE_Z]];
   const HERO = { g: null, p: null, pos: v3(0, 0, 8.6), y: 0, vy: 0, face: Math.PI, phase: 0, spd: 0, ground: true, lookKey: '' };
-  let viewMode = 'top', camYaw = 0, camPitch = 0.38, camDistW = 7.5, nearIdx = -1, nearDog = -1;
+  let viewMode = 'top', camYaw = 0, camPitch = 0.42, camDistW = 6.4, camDrag = 0, nearIdx = -1, nearDog = -1;
   const camFocus = v3(0, 1, 9.5), input = { x: 0, z: 0, run: false, jump: false };
+  // 王者农场风格的 Q 版小农夫：大头、大眼睛、腮红、草帽、背带裤（头和身体用 SDF 生成平滑网格）
+  const HERO_GEO = {};
+  function strawTex() { const c = mkCanvas(128), x = c.getContext('2d'); x.fillStyle = '#e8c97e'; x.fillRect(0, 0, 128, 128); const r = CFG3.rng(5);
+    for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) { const o = (i + j) % 2; x.fillStyle = o ? 'rgba(160,110,40,0.28)' : 'rgba(255,240,190,0.35)'; x.fillRect(i * 8 + (o ? 0 : 1), j * 8 + 1, 7, 6); }
+    for (let k = 0; k < 60; k++) { x.strokeStyle = `rgba(140,90,30,${0.1 + r() * 0.15})`; x.beginPath(); const y = r() * 128; x.moveTo(0, y); x.lineTo(128, y + (r() - 0.5) * 6); x.stroke(); }
+    const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.encoding = T.sRGBEncoding; t.repeat.set(4, 1); return t; }
+  function heroGeo(look) {
+    const key = [look.skin, look.hair, look.shirt, look.pants, look.hat].join(); if (HERO_GEO[key]) return HERO_GEO[key];
+    const cSkin = new T.Color(look.skin), cHair = new T.Color(look.hair), cHairL = cHair.clone().lerp(new T.Color('#ffffff'), 0.18), cShirt = new T.Color(look.shirt), cPants = new T.Color(look.pants), cPantsD = cPants.clone().multiplyScalar(0.8);
+    // 身体（髋部为原点）：圆滚滚的上身 + 背带裤
+    const torso = (x, y, z) => { let d = sEll(x, y, z, [0, 0.17, 0], [0.205, 0.21, 0.165]); d = smin(d, sEll(x, y, z, [0, 0.33, 0], [0.175, 0.12, 0.14]), 0.06); d = smin(d, sEll(x, y, z, [0, 0.03, 0], [0.19, 0.1, 0.15]), 0.05); return d; };
+    const torsoCol = (x, y, z, c) => { const bib = Math.abs(x) < 0.115 && z > 0.02 && y < 0.31, strap = Math.abs(Math.abs(x) - 0.095) < 0.028 && y >= 0.28, pants = y < 0.16 || bib || strap;
+      c.copy(pants ? cPants : cShirt); if (pants && (Math.abs(y - 0.16) < 0.012 && !bib)) c.copy(cPantsD); if (bib && Math.abs(Math.abs(x) - 0.115) < 0.01) c.copy(cPantsD); };
+    // 头：大而圆，带一点肉嘟嘟的脸颊
+    const head = (x, y, z) => { let d = sEll(x, y, z, [0, 0, 0], [0.3, 0.285, 0.28]); d = smin(d, sEll(x, y, z, [0.13, -0.11, 0.13], [0.11, 0.1, 0.11]), 0.05); d = smin(d, sEll(x, y, z, [-0.13, -0.11, 0.13], [0.11, 0.1, 0.11]), 0.05);
+      d = smin(d, sEll(x, y, z, [0.29, -0.02, 0], [0.045, 0.06, 0.035]), 0.02); d = smin(d, sEll(x, y, z, [-0.29, -0.02, 0], [0.045, 0.06, 0.035]), 0.02); return d; };
+    const headCol = (x, y, z, c) => { c.copy(cSkin); };
+    // 头发：头顶一层壳，前面切出刘海，后面盖到后脑
+    const hair = (x, y, z) => { let d = sEll(x, y, z, [0, 0.02, -0.015], [0.33, 0.3, 0.315]); d = smin(d, sEll(x, y, z, [0.24, -0.12, 0.04], [0.07, 0.15, 0.09]), 0.04); d = smin(d, sEll(x, y, z, [-0.24, -0.12, 0.04], [0.07, 0.15, 0.09]), 0.04); // 两侧鬓发
+      const face = sEll(x, y, z, [0, -0.13, 0.2], [0.27, 0.22, 0.3]); d = smax(d, -face, 0.03);
+      // 刘海的波浪边
+      const fr = sEll(x, y, z, [0, 0.2, 0.16], [0.3, 0.1 + 0.025 * Math.cos(x * 34), 0.2]); d = smin(d, smax(fr, sEll(x, y, z, [0, 0.03, -0.015], [0.33, 0.315, 0.315]), 0.01), 0.02);
+      d = smax(d, -(y + 0.2), 0.03); // 后面到后颈
+      d = smax(d, -sEll(x, y, z, [0, 0, 0], [0.295, 0.28, 0.275]), 0.005);
+      if (!look.hat) d = smin(d, sCap(x, y, z, [0, 0.3, 0.02], [0.05, 0.4, 0.1], 0.03, 0.008), 0.03); // 呆毛
+      return d; };
+    const hairCol = (x, y, z, c) => { c.copy(cHair).lerp(cHairL, sst(0.12, 0.3, y) * 0.6); };
+    const G = { torso: sdfMesh(torso, 0, 0.2, 0, 0.3, 40, torsoCol), head: sdfMesh(head, 0, -0.02, 0, 0.36, 46, headCol), hair: sdfMesh(hair, 0, 0.03, 0, 0.38, 46, hairCol) };
+    HERO_GEO[key] = G; return G;
+  }
   function buildHero(look) {
-    look = Object.assign({ skin: '#f2c89a', hair: '#2a1a10', shirt: '#4a8fd8', band: '#d9553a', hat: 1, pants: '#3a4660' }, look || {});
-    const g = new T.Group(), skin = mat(look.skin, { p: { roughness: 0.75 } }), shirt = mat(look.shirt, { p: { roughness: 0.85 } }), pants = mat(look.pants, { p: { roughness: 0.9 } });
-    const shoe = mat('#3a2818', { p: { roughness: 0.8 } }), hair = mat(look.hair, { p: { roughness: 0.7 } }), dark = mat('#20140c');
-    const body = new T.Group(); body.position.y = 0.92; g.add(body);
-    // 躯干与背带裤
-    body.add(mesh(new T.CapsuleGeometry(0.2, 0.36, 6, 14), shirt, 0, 0.3, 0)); body.children[0].scale.set(1.05, 1, 0.78);
-    const bib = mesh(new T.CapsuleGeometry(0.205, 0.16, 6, 14), pants, 0, 0.12, 0); bib.scale.set(1.06, 1, 0.8); body.add(bib);
-    [-0.1, 0.1].forEach(x => { const s = mesh(new T.BoxGeometry(0.05, 0.36, 0.02), pants, x, 0.38, 0.16); s.rotation.x = -0.12; body.add(s); });
-    // 腿（以胯为轴摆动）
-    const leg = x => { const L = new T.Group(); L.position.set(x, 0, 0); L.add(mesh(new T.CapsuleGeometry(0.085, 0.62, 4, 10), pants, 0, -0.42, 0)); const sh = blob(shoe, 0, -0.83, 0.05, 0.1, 0.07, 0.16); L.add(sh); body.add(L); return L; };
-    const legL = leg(-0.1), legR = leg(0.1);
-    // 手臂（以肩为轴摆动）
-    const arm = x => { const A = new T.Group(); A.position.set(x, 0.5, 0); A.add(mesh(new T.CapsuleGeometry(0.065, 0.42, 4, 10), shirt, 0, -0.24, 0)); A.add(blob(skin, 0, -0.52, 0, 0.065)); body.add(A); return A; };
-    const armL = arm(-0.27), armR = arm(0.27);
-    // 头、头发、草帽
-    const head = new T.Group(); head.position.set(0, 0.86, 0); body.add(head);
-    head.add(mesh(new T.CylinderGeometry(0.06, 0.07, 0.1, 10), skin, 0, -0.1, 0));
-    head.add(blob(skin, 0, 0.06, 0, 0.16, 0.185, 0.165));
-    head.add(blob(hair, 0, 0.12, -0.03, 0.172, 0.15, 0.165));
-    [-0.06, 0.06].forEach(x => head.add(blob(dark, x, 0.07, 0.15, 0.018, 0.024, 0.012)));
-    head.add(blob(mat('#e0a080'), 0, 0.02, 0.165, 0.022, 0.02, 0.02));
-    if (look.hat) { const straw = mat('#e2c27a', { p: { roughness: 0.9 } }); head.add(mesh(new T.CylinderGeometry(0.34, 0.36, 0.025, 24), straw, 0, 0.2, 0)); head.add(mesh(new T.CylinderGeometry(0.16, 0.18, 0.15, 20), straw, 0, 0.28, 0)); head.add(mesh(new T.CylinderGeometry(0.182, 0.182, 0.04, 20), mat(look.band), 0, 0.23, 0)); }
+    look = Object.assign({ skin: '#f2c89a', hair: '#2a1a10', shirt: '#4a8fd8', band: '#d9553a', hat: 1, pants: '#3a6ab0' }, look || {});
+    if (look.pants === '#3a4660') look.pants = '#3a6ab0';
+    const G = heroGeo(look);
+    const g = new T.Group(), cloth = new T.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.82, sheen: 0.15, sheenRoughness: 0.6, sheenColor: new T.Color('#ffffff') });
+    const skin = new T.MeshPhysicalMaterial({ color: new T.Color(look.skin), roughness: 0.6, sheen: 0.3, sheenColor: new T.Color('#ffd8c8') }), skinV = new T.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.6, sheen: 0.3, sheenColor: new T.Color('#ffd8c8') });
+    const hairM = new T.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.45, clearcoat: 0.35, clearcoatRoughness: 0.5 });
+    const pantsM = mat(look.pants, { p: { roughness: 0.85 } }), shirtM = mat(look.shirt, { p: { roughness: 0.85 } }), boot = mat('#7a4a2a', { p: { roughness: 0.6 } }), sole = mat('#3a2416', { p: { roughness: 0.8 } });
+    const ink = new T.MeshStandardMaterial({ color: new T.Color('#2a1a14'), roughness: 0.25 }), white = new T.MeshBasicMaterial({ color: 0xffffff }), btn = mat('#ffd24a', { phys: 1, p: { roughness: 0.3, metalness: 0.4 } });
+    const root = new T.Group(); root.scale.setScalar(0.92); g.add(root);
+    const body = new T.Group(); body.position.y = 0.39; root.add(body);
+    const tor = new T.Mesh(G.torso, cloth); tor.castShadow = true; body.add(tor);
+    [-0.07, 0.07].forEach(x => { const b = blob(btn, x, 0.29, 0.135, 0.018, 0.018, 0.01, 10); body.add(b); }); // 背带扣
+    const pocket = mesh(new T.BoxGeometry(0.1, 0.06, 0.01), mat(new T.Color(look.pants).multiplyScalar(0.85).getStyle(), { p: { roughness: 0.9 } }), 0, 0.2, 0.158); body.add(pocket);
+    // 腿：短短的，穿小靴子
+    const leg = x => { const L = new T.Group(); L.position.set(x, 0.04, 0); const p = mesh(new T.CapsuleGeometry(0.08, 0.09, 4, 12), pantsM, 0, -0.1, 0); L.add(p);
+      const b = new T.Group(); b.position.set(0, -0.27, 0.025); b.add(blob(boot, 0, 0.02, 0.012, 0.096, 0.08, 0.13, 16)); b.add(blob(sole, 0, -0.035, 0.014, 0.098, 0.026, 0.132, 14)); b.add(mesh(new T.CylinderGeometry(0.07, 0.078, 0.07, 14), boot, 0, 0.07, -0.01)); L.add(b); body.add(L); return L; };
+    const legL = leg(-0.088), legR = leg(0.088);
+    // 手臂：短袖 + 圆手
+    const arm = sd => { const A = new T.Group(); A.position.set(sd * 0.185, 0.35, 0); A.add(blob(shirtM, sd * 0.012, -0.03, 0, 0.075, 0.08, 0.075, 14)); A.add(mesh(new T.CapsuleGeometry(0.048, 0.1, 4, 10), skin, sd * 0.02, -0.14, 0)); A.add(blob(skin, sd * 0.025, -0.235, 0.005, 0.062, 0.066, 0.058, 14)); A.rotation.z = sd * 0.12; body.add(A); return A; };
+    const armL = arm(-1), armR = arm(1);
+    // 头
+    const head = new T.Group(); head.position.set(0, 0.66, 0); body.add(head);
+    const hm = new T.Mesh(G.head, skinV); hm.castShadow = true; head.add(hm); const hh = new T.Mesh(G.hair, hairM); hh.castShadow = true; head.add(hh);
+    // 大眼睛（深色眼珠 + 两个高光）、眉毛、腮红、小嘴
+    const eyes = [];
+    [-1, 1].forEach(sd => { const e = new T.Group(); e.position.set(sd * 0.105, -0.035, 0.258); e.rotation.y = sd * 0.38; head.add(e);
+      const ball = new T.Mesh(sphereG(20, 14), ink); ball.scale.set(0.052, 0.07, 0.022); e.add(ball);
+      const iris = new T.Mesh(sphereG(16, 10), new T.MeshStandardMaterial({ color: new T.Color('#5a3418'), roughness: 0.3 })); iris.scale.set(0.034, 0.042, 0.01); iris.position.set(0, -0.016, 0.016); e.add(iris);
+      const g1 = new T.Mesh(sphereG(10, 8), white); g1.scale.set(0.018, 0.022, 0.006); g1.position.set(sd * -0.014, 0.025, 0.021); e.add(g1);
+      const g2 = new T.Mesh(sphereG(8, 6), white); g2.scale.setScalar(0.008); g2.position.set(sd * 0.016, -0.03, 0.021); e.add(g2);
+      eyes.push(e);
+      const br = mesh(new T.CapsuleGeometry(0.008, 0.045, 3, 6), mat(new T.Color(look.hair).multiplyScalar(0.8).getStyle()), sd * 0.105, 0.075, 0.262); br.rotation.set(0, sd * 0.38, Math.PI / 2 + sd * 0.12); head.add(br);
+      const bl = new T.Mesh(sphereG(14, 10), new T.MeshBasicMaterial({ color: 0xff8a9a, transparent: true, opacity: 0.55, depthWrite: false })); bl.scale.set(0.05, 0.028, 0.01); bl.position.set(sd * 0.175, -0.125, 0.225); bl.rotation.y = sd * 0.62; head.add(bl);
+    });
+    const mouth = new T.Mesh(new T.TorusGeometry(0.03, 0.007, 6, 14, Math.PI), new T.MeshStandardMaterial({ color: new T.Color('#b0403a'), roughness: 0.5 })); mouth.position.set(0, -0.135, 0.272); mouth.rotation.set(-0.15, 0, Math.PI); head.add(mouth);
+    head.add(blob(mat(new T.Color(look.skin).multiplyScalar(0.92).getStyle()), 0, -0.075, 0.287, 0.014, 0.011, 0.01, 8)); // 小鼻子
+    // 大草帽：宽帽檐微微下垂 + 帽带 + 小花
+    if (look.hat) { const sm = mat('#ffffff', { p: { map: strawTex(), roughness: 0.92, side: T.DoubleSide } });
+      const hat = new T.Group(); hat.position.set(0, 0.11, -0.015); hat.rotation.x = -0.16; head.add(hat);
+      const crown = mesh(lathe([[0, 0.25], [0.14, 0.245], [0.25, 0.21], [0.3, 0.13], [0.32, 0.04], [0.325, 0]], 32), sm); hat.add(crown);
+      const brim = mesh(lathe([[0.31, 0.02], [0.42, 0.0], [0.53, -0.045], [0.59, -0.08], [0.6, -0.095], [0.58, -0.09], [0.52, -0.06], [0.42, -0.02], [0.31, 0.0]], 44), sm); hat.add(brim);
+      const band = mesh(new T.CylinderGeometry(0.322, 0.33, 0.07, 32, 1, true), mat(look.band, { p: { roughness: 0.7, side: T.DoubleSide } }), 0, 0.045, 0); hat.add(band);
+      const fl = new T.Group(); fl.position.set(0.24, 0.06, 0.2); fl.rotation.set(0, 0.9, 0); hat.add(fl); const pm = mat('#ffffff', { p: { roughness: 0.6 } });
+      for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; fl.add(blob(pm, Math.cos(a) * 0.03, Math.sin(a) * 0.03, 0, 0.024, 0.024, 0.01, 10)); } fl.add(blob(mat('#ffcc2a'), 0, 0, 0.008, 0.016, 0.016, 0.01, 8)); }
     g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
     // 脚下的光圈：漫游时方便找到自己
     const ring = new T.Mesh(new T.RingGeometry(0.34, 0.42, 32), new T.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.55, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02; g.add(ring);
-    HERO.p = { body, legL, legR, armL, armR, head, ring };
+    HERO.p = { body, legL, legR, armL, armR, head, ring, eyes, baseY: 0.39, blink: 2 };
     return g;
   }
   function setHero(look) {
     const k = JSON.stringify(look || {}); if (HERO.lookKey === k && HERO.g) return; HERO.lookKey = k;
-    const was = HERO.g; HERO.g = buildHero(look); HERO.g.visible = viewMode === 'walk'; if (was) { scene.remove(was); } scene.add(HERO.g);
+    const was = HERO.g; HERO.g = buildHero(look); HERO.g.visible = true; if (was) { scene.remove(was); } scene.add(HERO.g);
   }
   function resetHero() { HERO.pos.set(0, 0, 8.6); HERO.y = 0; HERO.vy = 0; HERO.face = Math.PI; camYaw = 0; camFocus.set(0, 1, 8.6); }
   function groundAt(x, z) { for (let i = 0; i < 24; i++) { const [px, pz] = plotXZ(i); if (Math.abs(x - px) < PLOT / 2 - 0.04 && Math.abs(z - pz) < PLOT / 2 - 0.04) return BED_H; } return 0; }
@@ -656,7 +726,7 @@ const W3 = (() => {
   function updateHero(dt) {
     if (!HERO.g) return; const P = HERO.p;
     // 输入方向（相对镜头）
-    let ix = input.x, iz = input.z; const mag = Math.min(1, Math.hypot(ix, iz)); if (mag > 1e-3) { ix /= Math.max(1, Math.hypot(ix, iz)); iz /= Math.max(1, Math.hypot(ix, iz)); }
+    const walkOn = viewMode === 'walk'; let ix = walkOn ? input.x : 0, iz = walkOn ? input.z : 0; if (!walkOn) input.jump = false; const mag = Math.min(1, Math.hypot(ix, iz)); if (mag > 1e-3) { ix /= Math.max(1, Math.hypot(ix, iz)); iz /= Math.max(1, Math.hypot(ix, iz)); }
     const sy = Math.sin(camYaw), cy = Math.cos(camYaw);
     const mx = ix * cy + iz * sy, mz = -ix * sy + iz * cy; // 镜头前方为 -z（屏幕上方）
     const want = mag > 0.05 ? (input.run || mag > 0.92 ? 6.2 : 3.4) * Math.max(0.35, mag) : 0;
@@ -677,10 +747,11 @@ const W3 = (() => {
     const run = HERO.spd > 4.6, moving = HERO.spd > 0.3;
     HERO.phase += dt * (run ? 11 : 7.5) * (moving ? 1 : 0);
     const amp = moving ? (run ? 0.95 : 0.6) * Math.min(1, HERO.spd / 3) : 0, s = Math.sin(HERO.phase);
-    if (!HERO.ground) { P.legL.rotation.x = -0.6; P.legR.rotation.x = 0.35; P.armL.rotation.x = -2.4; P.armR.rotation.x = -2.2; P.armL.rotation.z = 0.25; P.armR.rotation.z = -0.25; P.body.rotation.x = 0.08; }
-    else { P.legL.rotation.x = s * amp; P.legR.rotation.x = -s * amp; P.armL.rotation.x = -s * amp * 0.85; P.armR.rotation.x = s * amp * 0.85; P.armL.rotation.z = 0.06; P.armR.rotation.z = -0.06; P.body.rotation.x = run ? 0.18 : moving ? 0.06 : 0; }
+    if (!HERO.ground) { P.legL.rotation.x = -0.6; P.legR.rotation.x = 0.35; P.armL.rotation.x = -2.4; P.armR.rotation.x = -2.2; P.armL.rotation.z = -0.35; P.armR.rotation.z = 0.35; P.body.rotation.x = 0.08; }
+    else { P.legL.rotation.x = s * amp; P.legR.rotation.x = -s * amp; P.armL.rotation.x = -s * amp * 0.85; P.armR.rotation.x = s * amp * 0.85; P.armL.rotation.z = -0.14; P.armR.rotation.z = 0.14; P.body.rotation.x = run ? 0.18 : moving ? 0.06 : 0; }
     HERO.land = Math.max(0, (HERO.land || 0) - dt);
-    P.body.position.y = 0.92 + (HERO.ground ? Math.abs(s) * 0.045 * amp - HERO.land * 0.6 : 0) + (!moving && HERO.ground ? Math.sin(tNow * 2) * 0.008 : 0);
+    P.blink -= dt; const bk = P.blink < 0.12 ? 0.12 : 1; if (P.blink < 0) P.blink = 2 + Math.random() * 3; P.eyes.forEach(e => e.scale.y = bk); // 眨眼
+    P.body.position.y = P.baseY + (HERO.ground ? Math.abs(s) * 0.03 * amp - HERO.land * 0.4 : 0) + (!moving && HERO.ground ? Math.sin(tNow * 2) * 0.008 : 0);
     P.head.rotation.y = !moving ? Math.sin(tNow * 0.5) * 0.25 : 0;
     P.ring.material.opacity = 0.35 + Math.sin(tNow * 3) * 0.15; P.ring.position.y = gY - HERO.y + 0.02;
     // 附近的地块（优先面前的）
@@ -690,16 +761,19 @@ const W3 = (() => {
     let nd = -1, ndd = 1.7; anim.dogs.forEach((dg, k) => { if (!dg.g.visible) return; const d = Math.hypot(dg.g.position.x - HERO.pos.x, dg.g.position.z - HERO.pos.z); if (d < ndd) { ndd = d; nd = k; } }); nearDog = nd;
   }
   function updateWalkCam(dt) {
-    const want = v3(HERO.pos.x, HERO.y * 0.6 + 1.15, HERO.pos.z); camFocus.lerp(want, 1 - Math.exp(-dt * 9));
+    const want = v3(HERO.pos.x, HERO.y * 0.6 + 0.95, HERO.pos.z); camFocus.lerp(want, 1 - Math.exp(-dt * 8));
+    // 走动时镜头慢慢转到人物身后（往镜头方向走时不转，刚拖过镜头 1.5 秒内也不转）
+    camDrag = Math.max(0, camDrag - dt);
+    if (HERO.spd > 1 && !camDrag) { let d = HERO.face + Math.PI - camYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); if (Math.abs(d) < 0.9) camYaw += d * Math.min(1, dt * 1.1 * Math.min(1, HERO.spd / 3.4)); }
     const cp = Math.cos(camPitch), off = v3(Math.sin(camYaw) * cp, Math.sin(camPitch), Math.cos(camYaw) * cp).multiplyScalar(camDistW);
     cam.position.copy(camFocus).add(off); if (cam.position.y < 0.6) cam.position.y = 0.6; cam.lookAt(camFocus); target.copy(camFocus); if (sun) sun.target.position.copy(camFocus);
   }
   function setMode(m) {
-    viewMode = m === 'walk' ? 'walk' : 'top'; if (HERO.g) HERO.g.visible = viewMode === 'walk';
+    viewMode = m === 'walk' ? 'walk' : 'top'; if (HERO.g) HERO.g.visible = true; // 俯视时小农夫也站在农场里
     if (viewMode === 'walk') { cam.fov = 52; cam.clearViewOffset(); cam.near = 0.1; cam.updateProjectionMatrix(); camYaw = 0; updateWalkCam(1); }
     else { cam.fov = 30; cam.near = 1; target.set(0, 0, 0.4); fit(); }
   }
-  function orbit(dx, dy) { camYaw -= dx; camPitch = Math.max(0.08, Math.min(1.25, camPitch + dy)); }
+  function orbit(dx, dy) { camDrag = 1.5; camYaw -= dx; camPitch = Math.max(0.08, Math.min(1.25, camPitch + dy)); }
   function setInput(o) { Object.assign(input, o); }
   function init(cv) {
     canvasEl = cv;
@@ -736,6 +810,7 @@ const W3 = (() => {
     scene.add(buildPond(-5.5, 13.5));
     const scare = buildScarecrow(); scare.position.set(-10.5, 0, 6.5); scene.add(scare);
     const dh = buildDoghouse(); dh.position.set(11.2, 0, -3.8); dh.rotation.y = -0.6; scene.add(dh);
+    { const hk = new T.Mesh(new T.BoxGeometry(1.8, 1.6, 1.8), new T.MeshBasicMaterial({ visible: false })); hk.position.set(11.2, 0.8, -3.8); hk.userData.idx = -10; scene.add(hk); hitBoxes.push(hk); } // 点狗窝：领养 / 喂狗
     // 狗狗模型计算量较大：画面出来后再生成，避免打开游戏时卡顿
     setTimeout(() => { const dog = buildDog('fuwang'); dog.position.set(10.4, 0, 1.2); dog.rotation.y = -2.9; dog.visible = false; scene.add(dog);
       setTimeout(() => { const dog2 = buildDog('ruibao'); dog2.position.set(10.6, 0, -1.4); dog2.rotation.y = -2.6; dog2.visible = false; scene.add(dog2); }, 60); }, 400);
@@ -758,16 +833,17 @@ const W3 = (() => {
 
   /* ---------------- 每帧更新 ---------------- */
   let curView = { plots: [], home: true }, envState = { hour: 12, rain: 0 }, dogMode = ['none', 'none'];
-  function setPlots(list, home) { curView = { plots: list, home }; list.forEach((P, i) => { const o = { mine: !home && P.mine }; const k = plotKey(P, o); if (plots[i].key !== k) { plots[i].key = k; rebuildPlot(i, P, o); } }); }
+  function setPlots(list, home) { curView = { plots: list, home }; const nx = home ? CFG3.UNLOCK_ORDER.find(u => list[u] && !list[u].u) : -1; list.forEach((P, i) => { const o = { mine: !home && P.mine, next: i === nx }; const k = plotKey(P, o); if (plots[i].key !== k) { plots[i].key = k; rebuildPlot(i, P, o); } }); }
   function setHover(i) { hoverIdx = i; }
   function setDog(mode) { dogMode = Array.isArray(mode) ? mode : [mode, 'none']; }
   function setEnv(h, rain) { envState.hour = h; envState.rain = rain; }
   const ray = new T.Raycaster(), ndc = new T.Vector2();
-  function pick(cx, cy) { if (!ready) return -1; const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); const h = ray.intersectObjects(hitBoxes, false); return h.length ? h[0].object.userData.idx : -1; }
+  function pick(cx, cy) { if (!ready) return -1; const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); const h = ray.intersectObjects(hitBoxes, false).filter(x => !x.object.userData.dog || x.object.userData.dog.g.visible); return h.length ? h[0].object.userData.idx : -1; }
+  function nearKennel() { return viewMode === 'walk' && Math.hypot(HERO.pos.x - 11.2, HERO.pos.z + 3.8) < 2.4; }
   function screenOf(i, y) { const v = P0(i, y || 0.6).project(cam); return { x: (v.x * 0.5 + 0.5) * W, y: (-v.y * 0.5 + 0.5) * H }; }
   function render(dt) {
     if (!ready) return; tNow += dt; const t = tNow; perfTick(dt);
-    if (viewMode === 'walk') { updateHero(dt); updateWalkCam(dt); }
+    updateHero(dt); if (viewMode === 'walk') updateWalkCam(dt);
     const E = envAt(envState.hour), rk = envState.rain;
     const grey = new T.Color('#8a96a8');
     skyU.top.value.copy(E.top).lerp(grey.clone().multiplyScalar(0.7), rk * 0.7); skyU.hor.value.copy(E.hor).lerp(grey, rk * 0.6); skyU.night.value = E.night * (1 - rk);
@@ -834,5 +910,5 @@ const W3 = (() => {
     return ICONS[key];
   }
   function zoomBy(f) { if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * f)); return; } zoom = Math.max(0.6, Math.min(1.3, zoom * f)); applyCam(); }
-  return { zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, get ready() { return ready; } };
+  return { zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
 })();

@@ -71,7 +71,7 @@
   ];
   // 看家狗：福旺、睿宝，可以都养；喂饱时各自独立判定能不能抓住来偷菜的人
   const DOGS = [
-    { id: 'fuwang', name: '福旺', col: 'dog', price: 400, lv: 3, bite: 5, base: 0.3, perLv: 0.03, max: 0.6, desc: '蓝陌边牧，灰白相间带黑斑，机灵亲人，咬一口 5 金币' },
+    { id: 'fuwang', name: '福旺', col: 'dog', price: 300, lv: 2, bite: 5, base: 0.3, perLv: 0.03, max: 0.6, desc: '蓝陌边牧，灰白相间带黑斑，机灵亲人，咬一口 5 金币' },
     { id: 'ruibao', name: '睿宝', col: 'dog2', price: 3000, lv: 10, bite: 15, base: 0.4, perLv: 0.03, max: 0.7, desc: '黄白边牧，金棕色被毛配白色毛领，聪明敏捷，咬一口 15 金币' },
   ];
 
@@ -254,7 +254,7 @@
   const orderSlots = lv => Math.min(RULES.orderSlotsMax, RULES.orderSlots + Math.floor(Math.max(0, lv) / RULES.orderSlotEvery));
   function stealCapPct(ownerLv) { return ownerLv < RULES.newbieLv ? RULES.newbieMaxPct : RULES.stealMaxPct; }
 
-  const VERSION = '2.5.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const VERSION = '2.6.0'; // 每次发布改这里；设置页和 /api/health 会显示
   const CFG = { VERSION, COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
     expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };

@@ -345,6 +345,7 @@ function levelUp(lv) {
   sfx('level'); const unlocked = CROPS.filter(c => c.lv === lv);
   openModal(`<div class="lvup"><div class="lvring"><span>Lv.${lv}</span></div><h2>等级提升</h2>
     <p>获得 <b class="gold">${lv * 120}</b> 金币 和 <b>化肥 ×1</b></p>
+    ${CFG.DOGS.filter(d => d.lv === lv).map(d => `<div class="unl">可以领养 <b>${d.name}</b> 了！点农场右边的狗窝，或者 商店 → 宠物</div>`).join('')}
     ${unlocked.length ? `<div class="unl">解锁新作物：${unlocked.map(c => `<span class="chip"><img src="${cropIcon(c.id)}">${c.name}</span>`).join('')}</div>` : ''}
     <button class="btn big primary" onclick="closeModal()">好的</button></div>`, { small: true });
 }
@@ -388,10 +389,16 @@ function actionOf(i) {
   if (P.c < 0) return `种${CROPS[S.me.seed].name}`; if (P.p >= 1) return `收获${CROPS[P.c].name}`; if (P.pr.d) return '浇水'; if (P.pr.w) return '除草'; if (P.pr.b) return '除虫'; return '';
 }
 const DOG_PET_LINES = { fuwang: ['福旺开心地蹭蹭你', '福旺：汪！再摸摸～', '福旺眯起了眼睛'], ruibao: ['睿宝把头埋进你手心', '睿宝：嗷呜～', '睿宝摇成了螺旋桨'] };
+// 点到场景里的特殊物体：狗窝 → 宠物商店（自己家）；狗 → 摸摸头
+function pickSpecial(i) {
+  ac();
+  if (i === -10) { if (view.key === 'home') { sfx('open'); openShop('dog'); } else toast('这是好友家的狗窝'); return; }
+  const k = -20 - i, d = CFG.DOGS[k]; if (d && W3.petDog(k)) { sfx('bark'); const L = DOG_PET_LINES[d.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); }
+}
 function petAction() { const k = W3.nearDog; if (k < 0) return null; const d = CFG.DOGS[k]; return d ? { k, label: `摸摸${d.name}`, id: d.id } : null; }
-function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); } }
+function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } if (!petAction() && W3.nearKennel() && view.key === 'home') { ac(); sfx('open'); openShop('dog'); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || ['汪！']; toast(L[Math.random() * L.length | 0]); } }
 function updateWalkUi() {
-  if (W3.mode !== 'walk') return; const i = W3.near, pa = petAction(), a = actionOf(i) || (pa ? pa.label : ''), el = $('actbtn'), pr = $('actprompt');
+  if (W3.mode !== 'walk') return; const i = W3.near, pa = petAction(), a = actionOf(i) || (pa ? pa.label : '') || (W3.nearKennel() && view.key === 'home' ? (S.me.dogs || []).some(d => d.own) ? '宠物商店' : '领养狗狗' : ''), el = $('actbtn'), pr = $('actprompt');
   el.classList.toggle('ready', !!a); el.querySelector('span').textContent = a || '操作';
   pr.style.display = a && !window.matchMedia('(pointer: coarse)').matches ? 'block' : 'none'; if (a) pr.innerHTML = `<kbd>F</kbd> ${esc(a)}`;
 }
@@ -414,7 +421,7 @@ function initWalkUi() {
 const paintQ = []; let paintRunning = false;
 async function runPaint() { if (paintRunning) return; paintRunning = true; while (paintQ.length) { const q = paintQ.shift(); await clickPlot(q.i, q.first); } paintRunning = false; }
 function paintAt(ev, first) {
-  if (!S) return; const i = W3.pick(ev.clientX, ev.clientY); if (i < 0 || (!first && i === lastPaint)) return; lastPaint = i; ac(); startMusic();
+  if (!S) return; const i = W3.pick(ev.clientX, ev.clientY); if (i <= -10) { if (first) pickSpecial(i); return; } if (i < 0 || (!first && i === lastPaint)) return; lastPaint = i; ac(); startMusic();
   if (first) { paintQ.push({ i, first: true }); runPaint(); } else if (view.key === 'home' && view.plots[i].u && !paintQ.some(q => q.i === i)) { paintQ.push({ i, first: false }); runPaint(); }
 }
 let tipTimer = 0;
@@ -426,7 +433,7 @@ cv.addEventListener('pointermove', ev => { if (ev.pointerType === 'touch' && tou
 const drag = { on: false, x: 0, y: 0, moved: 0, id: -1 };
 cv.addEventListener('pointerdown', ev => { if (W3.mode !== 'walk') return; if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) { drag.on = false; return; } drag.on = true; drag.x = ev.clientX; drag.y = ev.clientY; drag.moved = 0; drag.id = ev.pointerId; ac(); startMusic(); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
 cv.addEventListener('pointermove', ev => { if (W3.mode !== 'walk') return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); if (!drag.on || ev.pointerId !== drag.id || touches.size > 1) return; const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y; drag.moved += Math.abs(dx) + Math.abs(dy); drag.x = ev.clientX; drag.y = ev.clientY; W3.orbit(dx * 0.0065, dy * 0.0045); });
-cv.addEventListener('pointerup', ev => { if (W3.mode !== 'walk') return; if (drag.on && ev.pointerId === drag.id && drag.moved < 8 && touches.size < 2) { const i = W3.pick(ev.clientX, ev.clientY); if (i >= 0) clickPlot(i, true); } drag.on = false; if (ev.pointerType !== 'mouse') { mouse.in = false; hoverIdx = -1; } });
+cv.addEventListener('pointerup', ev => { if (W3.mode !== 'walk') return; if (drag.on && ev.pointerId === drag.id && drag.moved < 8 && touches.size < 2) { const i = W3.pick(ev.clientX, ev.clientY); if (i >= 0) clickPlot(i, true); else if (i <= -10) pickSpecial(i); } drag.on = false; if (ev.pointerType !== 'mouse') { mouse.in = false; hoverIdx = -1; } });
 cv.addEventListener('pointerdown', ev => { if (W3.mode === 'walk') return; if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) return; painting = true; lastPaint = -1; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, true); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
 cv.addEventListener('pointermove', ev => { if (W3.mode === 'walk') return; if (touches.size > 1) return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); if (painting) paintAt(ev, false); updateCursor(); });
 cv.addEventListener('pointerup', ev => { painting = false; lastPaint = -1; if (ev.pointerType !== 'mouse') { clearTimeout(tipTimer); tipTimer = setTimeout(() => { mouse.in = false; hoverIdx = -1; updateCursor(); }, 1600); } });
