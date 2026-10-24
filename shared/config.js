@@ -32,30 +32,45 @@
     { id: 21, name: '甜菜', lv: 21, seed: 6000, time: 10800, yield: 100, price: 88, exp: 1900, seasons: 1, rarity: 3, art: { type: 'root', shape: 'radish', leaf: '#4a9a3a', root: '#b8214a', blush: '#7a1030', hh: 72, is: 1.15 } },
     { id: 22, name: '黑美人西瓜', lv: 24, seed: 8500, time: 14400, yield: 108, price: 115, exp: 2700, seasons: 2, rarity: 4, art: { type: 'vine', kind: 'melon', fruit: '#1f5a2a', hh: 62, is: 1.0 } },
     { id: 23, name: '月光草莓', lv: 27, seed: 12000, time: 21600, yield: 120, price: 150, exp: 3800, seasons: 2, rarity: 4, art: { type: 'bush', kind: 'berry', fruit: '#f0e4ff', unripe: '#d8e8c8', nf: 5, h: 24, low: true, hh: 54, is: 1.2 } },
+    // v2.3 后期作物（Lv.28–44）
+    { id: 24, name: '火焰辣椒', lv: 28, seed: 9000, time: 9000, yield: 104, price: 120, exp: 2600, seasons: 2, rarity: 3, art: { type: 'bush', kind: 'chili', fruit: '#ff4a10', unripe: '#7fc04a', nf: 6, h: 54, hh: 78, is: 1.0 } },
+    { id: 25, name: '翡翠白菜', lv: 30, seed: 14000, time: 14400, yield: 112, price: 168, exp: 4300, seasons: 1, rarity: 3, art: { type: 'cabbage', head: '#3fcf8e', hh: 70, is: 1.1 } },
+    { id: 26, name: '胭脂萝卜', lv: 32, seed: 16000, time: 12600, yield: 116, price: 185, exp: 4600, seasons: 1, rarity: 3, art: { type: 'root', shape: 'radish', leaf: '#4fb040', root: '#e02a4a', blush: '#ff8aa0', hh: 72, is: 1.15 } },
+    { id: 27, name: '星空蓝莓', lv: 34, seed: 22000, time: 21600, yield: 124, price: 240, exp: 6200, seasons: 2, rarity: 4, art: { type: 'bush', kind: 'berry', fruit: '#2c2f9a', unripe: '#b8c8e8', nf: 6, h: 24, low: true, hh: 54, is: 1.2 } },
+    { id: 28, name: '金丝胡萝卜', lv: 36, seed: 26000, time: 18000, yield: 128, price: 270, exp: 6800, seasons: 1, rarity: 3, art: { type: 'root', shape: 'carrot', leaf: '#5ab84a', root: '#ffc21a', hh: 74, is: 1.15 } },
+    { id: 29, name: '琥珀南瓜', lv: 38, seed: 34000, time: 28800, yield: 132, price: 340, exp: 8800, seasons: 1, rarity: 4, art: { type: 'vine', kind: 'pumpkin', fruit: '#c8641a', hh: 64, is: 1.05 } },
+    { id: 30, name: '紫晶茄子', lv: 41, seed: 42000, time: 25200, yield: 136, price: 400, exp: 10500, seasons: 2, rarity: 4, art: { type: 'bush', kind: 'egg', fruit: '#4a1a72', unripe: '#8fae6a', nf: 3, h: 56, hh: 80, is: 1.0 } },
+    { id: 31, name: '黄金西瓜', lv: 44, seed: 60000, time: 36000, yield: 140, price: 560, exp: 14000, seasons: 2, rarity: 4, art: { type: 'vine', kind: 'melon', fruit: '#d8a81a', hh: 62, is: 1.0 } },
   ];
   const RARITY = ['', '普通', '稀有', '史诗', '传说'];
 
   const RULES = {
-    startGold: 300, startPlots: 6, maxLv: 30,
-    fertPrice: 60, fertBoost: 0.3, dogfoodPrice: 120, dogPrice: 400, dogNeedLv: 3, dogFeedMin: 60,
+    startGold: 300, startPlots: 6, maxLv: 45,
+    fertPrice: 60, fertBoost: 0.3, dogfoodPrice: 120, dogPrice: 400, dogNeedLv: 3, dogFeedMin: 120,
     redNeedLv: 5,
     // 偷菜
     stealDelaySec: 30,          // 成熟后的主人保护时间
     stealPctMin: 0.08, stealPctMax: 0.15, // 每次偷取占原始产量比例
     stealMaxPct: 0.4,           // 一块地最多被偷走的比例（主人保底 60%）
     newbieLv: 5, newbieMaxPct: 0.2, // 主人低于此等级时保底更高
-    stealDailyLimit: 80,        // 每人每天最多成功偷取次数
+    stealSoftLimit: 150,        // 每天前这么多次摘取有经验；之后照样能摘、能拿到果实，只是不加经验
+    stealHardLimit: 600,        // 防外挂的硬上限（正常玩家碰不到）
     stealExp: 3,
+    stealCritChance: 0.1,       // 手气爆棚：一次摘两份（仍受主人保底限制）
     dogBlockBase: 0.35, dogBlockPerLv: 0.03, dogBlockMax: 0.7, dogBiteMin: 10, dogBiteMax: 40,
     // 互助
-    helpDailyLimit: 60, helpExp: 4, helpGold: 6,
+    helpSoftLimit: 100, helpHardLimit: 600, helpExp: 4, helpGold: 6, // 超过软上限仍可帮忙，只是不再给奖励
+    helpBoost: 0.03,            // 每次帮忙让对方作物多长 3%
     // 生长
     probSlow: 0.62, soilSpeed: 1.2, soilYield: 1.2, season2Start: 0.45,
     goldenChance: 0.04, goldenPriceMult: 5,
+    bumperChance: 0.08, bumperBonus: 0.5, // 大丰收：额外多收 50%
+    // 订单：Lv.10 / 20 / 30 各多一个订单位
+    orderSlots: 3, orderSlotEvery: 10, orderSlotsMax: 6, orderRefresh: 5, orderRefreshCost: 50,
     // 市场
-    marketFee: 0.05, marketMinMult: 0.8, marketMaxMult: 2.0, marketMaxListings: 6, marketTtlHours: 24,
+    marketFee: 0.05, marketMinMult: 0.8, marketMaxMult: 2.0, marketMaxListings: 12, marketTtlHours: 48,
     // 留言
-    gbDailyLimit: 20,
+    gbDailyLimit: 50,
   };
 
   const TASKS = [
@@ -88,16 +103,21 @@
     { id: 'a_h3', stat: 'harvest_total', need: 3000, tx: '农场大亨', desc: '累计收获 3000 次', gold: 10000, title: '农场大亨' },
     { id: 'a_s1', stat: 'steal_total', need: 20, tx: '妙手空空', desc: '累计摘取好友果实 20 次', gold: 300, title: '妙手空空' },
     { id: 'a_s2', stat: 'steal_total', need: 300, tx: '神偷', desc: '累计摘取 300 次', gold: 3000, title: '月下神偷' },
+    { id: 'a_s3', stat: 'steal_total', need: 2000, tx: '江湖传说', desc: '累计摘取 2000 次', gold: 12000, title: '江湖传说' },
     { id: 'a_p1', stat: 'help_total', need: 20, tx: '热心邻居', desc: '累计帮好友 20 次', gold: 300, title: '热心邻居' },
     { id: 'a_p2', stat: 'help_total', need: 300, tx: '劳模', desc: '累计帮好友 300 次', gold: 3000, title: '劳动模范' },
+    { id: 'a_p3', stat: 'help_total', need: 2000, tx: '好人缘', desc: '累计帮好友 2000 次', gold: 12000, title: '十里八乡好人缘' },
     { id: 'a_f1', stat: 'friends', need: 3, tx: '呼朋唤友', desc: '拥有 3 位好友', gold: 500, title: '人气农夫' },
     { id: 'a_f2', stat: 'friends', need: 10, tx: '社交达人', desc: '拥有 10 位好友', gold: 2000, title: '社交达人' },
     { id: 'a_g1', stat: 'golden_total', need: 1, tx: '金光闪闪', desc: '收获第一个变异金色作物', gold: 500, title: '幸运儿' },
     { id: 'a_g2', stat: 'golden_total', need: 20, tx: '点石成金', desc: '收获 20 次金色作物', gold: 5000, title: '点石成金' },
     { id: 'a_c1', stat: 'codex', need: 10, tx: '收藏家', desc: '图鉴收集 10 种', gold: 1000, title: '收藏家' },
-    { id: 'a_c2', stat: 'codex', need: 24, tx: '博物学家', desc: '图鉴收集全部普通作物', gold: 6000, title: '博物学家' },
+    { id: 'a_c2', stat: 'codex', need: 24, tx: '博物学家', desc: '图鉴收集 24 种', gold: 6000, title: '博物学家' },
+    { id: 'a_c3', stat: 'codex', need: 32, tx: '万物有灵', desc: '图鉴收集全部 32 种普通作物', gold: 20000, title: '万物有灵' },
     { id: 'a_l1', stat: 'lv', need: 10, tx: '小有所成', desc: '达到 Lv.10', gold: 1000 },
     { id: 'a_l2', stat: 'lv', need: 20, tx: '远近闻名', desc: '达到 Lv.20', gold: 5000, title: '远近闻名' },
+    { id: 'a_l3', stat: 'lv', need: 30, tx: '一方乡绅', desc: '达到 Lv.30', gold: 15000, title: '一方乡绅' },
+    { id: 'a_l4', stat: 'lv', need: 40, tx: '农业宗师', desc: '达到 Lv.40', gold: 40000, title: '农业宗师' },
     { id: 'a_o1', stat: 'order_total', need: 30, tx: '诚信商户', desc: '完成 30 个订单', gold: 2000, title: '诚信商户' },
     { id: 'a_k1', stat: 'checkin_streak', need: 7, tx: '风雨无阻', desc: '连续签到 7 天', gold: 800, title: '勤劳农夫' },
   ];
@@ -197,9 +217,10 @@
     }
     return P;
   }
+  const orderSlots = lv => Math.min(RULES.orderSlotsMax, RULES.orderSlots + Math.floor(Math.max(0, lv) / RULES.orderSlotEvery));
   function stealCapPct(ownerLv) { return ownerLv < RULES.newbieLv ? RULES.newbieMaxPct : RULES.stealMaxPct; }
 
   const CFG = { COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
-    expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct };
+    expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };
   if (typeof module !== 'undefined' && module.exports) module.exports = CFG; else root.GAMECFG = CFG;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -20,7 +20,7 @@ async function showLogin(tab, accs, closable) {
   const forms = {
     quick: `<p class="sub">起个名字就能开始，之后可以随时绑定账号，换设备也能登录</p><input id="l-name" maxlength="10" placeholder="你的昵称" value=""><button class="btn big primary" id="l-go">进入农场</button>`,
     login: `<input id="l-user" placeholder="账号" autocomplete="username"><input id="l-pass" type="password" placeholder="密码" autocomplete="current-password"><button class="btn big primary" id="l-go">登录</button><p class="sub"><a href="#" id="l-forgot">忘记密码？</a></p>`,
-    reg: `<input id="l-name" maxlength="10" placeholder="昵称（最多 10 字）"><input id="l-user" placeholder="账号：4–20 位字母、数字或下划线" autocomplete="username"><input id="l-pass" type="password" placeholder="密码：至少 6 位" autocomplete="new-password"><button class="btn big primary" id="l-go">注册并进入</button>`,
+    reg: `<input id="l-user" maxlength="10" placeholder="账号（也是你的游戏昵称，2–10 个字）" autocomplete="username"><input id="l-pass" type="password" placeholder="密码（至少 6 位）" autocomplete="new-password"><input id="l-pass2" type="password" placeholder="再次输入密码" autocomplete="new-password"><button class="btn big primary" id="l-go">注册并进入</button>`,
     recover: `<p class="sub">用绑定账号时保存的<b>恢复码</b>重设密码</p><input id="l-user" placeholder="账号"><input id="l-code" placeholder="恢复码（12 位）"><input id="l-pass" type="password" placeholder="新密码"><button class="btn big primary" id="l-go">重设并登录</button>`,
   };
   const cur = S && S.me ? S.me.id : 0;
@@ -43,7 +43,7 @@ async function showLogin(tab, accs, closable) {
           let r;
           if (tab === 'quick') r = await NET.post('/api/auth/guest', { name: val('l-name') || '新农夫' });
           else if (tab === 'login') r = await NET.post('/api/auth/login', { username: val('l-user'), password: $('l-pass').value });
-          else if (tab === 'reg') r = await NET.post('/api/auth/register', { name: val('l-name') || '新农夫', username: val('l-user'), password: $('l-pass').value });
+          else if (tab === 'reg') { if ($('l-pass').value !== $('l-pass2').value) throw new Error('两次输入的密码不一致'); r = await NET.post('/api/auth/register', { username: val('l-user'), password: $('l-pass').value, password2: $('l-pass2').value }); }
           else { r = await NET.post('/api/auth/recover', { username: val('l-user'), code: val('l-code'), password: $('l-pass').value }); setTimeout(() => showRecovery(r.recovery), 800); }
           NET.setToken(r.token); NET.rememberAccount(r.state.me, r.token); if (started) { location.reload(); return; } sfx('level'); enterGame(r.state, tab === 'quick' || tab === 'reg');
         } catch (e) { toast(e.message, 'warn'); sfx('err'); b.disabled = false; }
@@ -239,7 +239,7 @@ async function openOrders() {
   const o = await getj('/api/orders'); if (!o) return;
   const cards = o.list.map(x => { const ok = x.have >= x.qty; return `<div class="order${x.done ? ' done' : ''}"><div class="oi">${itemIcon(x.item)}</div><b>${itemName(x.item)} ×${x.qty}</b><small>仓库有 ${x.have}</small><div class="rw">${G(x.gold)} · 经验 ${x.exp}</div>
     ${x.done ? '<div class="stamp">已完成</div>' : `<div class="row"><button class="btn sm ${ok ? 'primary' : ''}" data-dl="${x.slot}" ${ok ? '' : 'disabled'}>交货</button><button class="btn sm" data-rf="${x.slot}" ${o.refreshLeft ? '' : 'disabled'} title="花 50 金币换一个订单">${ICON('refresh', 'mi')}换单</button></div>`}</div>`; }).join('');
-  openModal(`${H2('box', '订单', `交货比直接卖能多拿金币和经验。每天刷新，今天还能换 ${o.refreshLeft} 次（每次 50 金币）`)}<div class="orders">${cards}</div>`, {
+  openModal(`${H2('box', '订单', `交货比直接卖能多拿金币和经验。每天刷新，今天还能换 ${o.refreshLeft} 次（每次 ${o.refreshCost || 50} 金币）；Lv.10 / 20 / 30 各多一个订单位`)}<div class="orders">${cards}</div>`, {
     wide: true, mount: () => {
       qsa('[data-dl]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/orders/deliver', { slot: +b.dataset.dl }); if (r) { sfx('coin'); toast(`交货成功：金币 +${r.result.gold}，经验 +${r.result.exp}`); } openOrders(); });
       qsa('[data-rf]').forEach(b => b.onclick = async () => { b.disabled = true; await api('/api/orders/refresh', { slot: +b.dataset.rf }); openOrders(); });
@@ -376,14 +376,14 @@ async function logout() {
 }
 function openAccount() {
   const me = S.me;
-  const bind = me.guest ? `<div class="mform"><b>绑定账号</b><p class="fine">绑定后可以在手机、电脑等任意设备登录这个农场</p><input id="bu" placeholder="账号：4–20 位字母、数字或下划线" autocomplete="username"><input id="bp" type="password" placeholder="密码：至少 6 位" autocomplete="new-password"><button class="btn primary" id="bgo">绑定</button></div>`
-    : `<div class="mform"><b>修改密码</b><input id="po" type="password" placeholder="原密码"><input id="pn" type="password" placeholder="新密码"><button class="btn" id="pgo">修改</button></div>`;
+  const bind = me.guest ? `<div class="mform"><b>绑定账号</b><p class="fine">绑定后可以在手机、电脑等任意设备登录这个农场</p><input id="bu" maxlength="10" placeholder="账号（也是你的游戏昵称，2–10 个字）" autocomplete="username" value="${esc(me.name)}"><input id="bp" type="password" placeholder="密码（至少 6 位）" autocomplete="new-password"><input id="bp2" type="password" placeholder="再次输入密码" autocomplete="new-password"><button class="btn primary" id="bgo">绑定</button></div>`
+    : `<div class="mform"><b>修改密码</b><input id="po" type="password" placeholder="原密码" autocomplete="current-password"><input id="pn" type="password" placeholder="新密码（至少 6 位）" autocomplete="new-password"><input id="pn2" type="password" placeholder="再次输入新密码" autocomplete="new-password"><button class="btn" id="pgo">修改</button></div>`;
   openModal(`${H2('key', '账号与数据')}<div class="acct"><p>玩家号 <b>${me.code}</b> · ${me.guest ? '游客账号' : '账号 <b>' + esc(me.username) + '</b>'} · 注册于 ${new Date(me.created_at).toLocaleDateString()}</p>${bind}
     <div class="mform"><b>我的数据</b><p class="fine">导出你在服务器上的全部游戏数据（JSON 文件）</p><button class="btn" id="exp">${ICON('download')}导出数据</button></div>
     <div class="mform danger"><b>注销账号</b><p class="fine">永久删除你的农场、仓库、好友关系和记录，无法恢复</p>${me.guest ? '<input id="dc" placeholder="输入：确认注销">' : '<input id="dc" type="password" placeholder="输入密码确认">'}<button class="btn danger" id="del">注销账号</button></div></div>`, {
     mount: () => {
-      const bg = $('bgo'); if (bg) bg.onclick = async () => { const r = await api('/api/auth/bind', { username: val('bu'), password: $('bp').value }); if (r) { await refreshState(); showRecovery(r.recovery); } };
-      const pg = $('pgo'); if (pg) pg.onclick = async () => { const r = await api('/api/auth/password', { old: $('po').value, password: $('pn').value }); if (r) { NET.setToken(r.token); toast('密码已修改，其他设备需要重新登录'); closeModal(); } };
+      const bg = $('bgo'); if (bg) bg.onclick = async () => { if ($('bp').value !== $('bp2').value) { toast('两次输入的密码不一致', 'warn'); sfx('err'); return; } const r = await api('/api/auth/bind', { username: val('bu'), password: $('bp').value, password2: $('bp2').value }); if (r) { await refreshState(); showRecovery(r.recovery); } };
+      const pg = $('pgo'); if (pg) pg.onclick = async () => { if ($('pn').value !== $('pn2').value) { toast('两次输入的新密码不一致', 'warn'); sfx('err'); return; } const r = await api('/api/auth/password', { old: $('po').value, password: $('pn').value, password2: $('pn2').value }); if (r) { NET.setToken(r.token); toast('密码已修改，其他设备需要重新登录'); closeModal(); } };
       $('exp').onclick = async () => { const d = await getj('/api/me/export'); if (!d) return; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' })); a.download = `harvest-farm-${me.code}.json`; a.click(); };
       $('del').onclick = async () => { if (!confirm('真的要永久注销账号吗？此操作不能撤销。')) return; const v = $('dc').value; const r = await api('/api/me/delete', me.guest ? { confirm: v.trim() } : { password: v }); if (r) { NET.setToken(''); alert('账号已注销'); location.reload(); } };
     }
@@ -396,9 +396,10 @@ function openHelp() {
   <p><b>自动模式</b>：直接点击土地，系统按状态自动处理：空地播种、成熟收获、有缺水/杂草/害虫就顺手处理。按住拖动可以连续操作，滚轮可以缩放视角。</p>
   <p><b>生长</b>：所有作物的生长由服务器计时，下线也会继续长。每出现一种问题（缺水、杂草、害虫），生长速度降到 ${P(R.probSlow)}；下雨可以防止缺水。红土地生长与产量 +20%。</p>
   <p><b>变异</b>：每次收获有 ${P(R.goldenChance)} 几率额外获得金色作物，价值是普通作物的 ${R.goldenPriceMult} 倍，可以收集进图鉴。</p>
+  <p><b>大丰收</b>：每次收获有 ${P(R.bumperChance)} 几率额外多收 ${P(R.bumperBonus)}。等级上限 Lv.${R.maxLv}，后期还有更多高级作物等你解锁。</p>
   <h3>摘菜</h3>
-  <p>不用加好友，任何玩家的农场都可以去串门。① 作物成熟后，主人有 <b>${R.stealDelaySec} 秒</b>保护时间；② 每块地每一季你只能摘一次，每次约为产量的 ${P(R.stealPctMin)}–${P(R.stealPctMax)}；③ 一块地最多被摘走 <b>${P(R.stealMaxPct)}</b>，主人至少保留 ${P(1 - R.stealMaxPct)}，Lv.${R.newbieLv} 以下的新手最多被摘 ${P(R.newbieMaxPct)}；④ 每人每天最多成功摘 ${R.stealDailyLimit} 次；⑤ 主人的狗吃饱时有 ${P(R.dogBlockBase)}（1 级）到 ${P(Math.min(R.dogBlockMax, R.dogBlockBase + R.dogBlockPerLv * 9))}（10 级）的几率把你赶走，并咬掉 ${R.dogBiteMin}–${R.dogBiteMax} 金币，这一季这块地你就不能再摘了。</p>
-  <p><b>互助</b>：帮别人浇水、除草、除虫，每次得 ${R.helpExp} 经验和 ${R.helpGold} 金币，每天最多 ${R.helpDailyLimit} 次。</p>
+  <p>不用加好友，任何玩家的农场都可以去串门。① 作物成熟后，主人有 <b>${R.stealDelaySec} 秒</b>保护时间；② 每块地每一季你只能摘一次，每次约为产量的 ${P(R.stealPctMin)}–${P(R.stealPctMax)}；③ 一块地最多被摘走 <b>${P(R.stealMaxPct)}</b>，主人至少保留 ${P(1 - R.stealMaxPct)}，Lv.${R.newbieLv} 以下的新手最多被摘 ${P(R.newbieMaxPct)}；④ 每天前 ${R.stealSoftLimit} 次摘取有经验，之后照样能摘，只是不再加经验；每次有 ${P(R.stealCritChance)} 几率<b>手气爆棚</b>，一次摘两份；⑤ 主人的狗吃饱时有 ${P(R.dogBlockBase)}（1 级）到 ${P(Math.min(R.dogBlockMax, R.dogBlockBase + R.dogBlockPerLv * 9))}（10 级）的几率把你赶走，并咬掉 ${R.dogBiteMin}–${R.dogBiteMax} 金币，这一季这块地你就不能再摘了。</p>
+  <p><b>互助</b>：帮别人浇水、除草、除虫，对方的作物会顺带多长 ${P(R.helpBoost)}。每天前 ${R.helpSoftLimit} 次你能得到 ${R.helpExp} 经验和 ${R.helpGold} 金币，之后仍然可以继续帮忙。</p>
   <h3>经济</h3>
   <p>作物可以卖给系统（每天有两种作物涨价），也可以交给订单（收益更高），或在集市卖给其他玩家（手续费 ${P(R.marketFee)}，价格限制在系统价的 ${R.marketMinMult}–${R.marketMaxMult} 倍）。</p>
   <p><b>时间</b>：每日任务、签到和订单在每天 0 点（北京时间）刷新；每周任务、周排行和赛季在每周一 0 点结算。</p>

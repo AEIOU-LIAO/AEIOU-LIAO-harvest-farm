@@ -38,6 +38,16 @@ test('账号：游客、绑定、跨设备登录、存档保留', async () => {
     assert.equal((await t.call('GET', '/api/state', null, a.token)).status, 401, '重设密码后旧会话失效');
     assert.ok((await t.call('POST', '/api/auth/login', { username: 'ahua_01', password: 'newpass1' })).ok);
     assert.equal((await t.call('POST', '/api/auth/guest', { name: '<script>' })).state.me.name, 'script', '昵称会过滤危险字符');
+    // 注册：账号就是昵称（支持中文），需要两次输入一致的密码
+    assert.equal((await t.call('POST', '/api/auth/register', { username: '种田小王', password: 'abc123', password2: 'abc124' })).error, '两次输入的密码不一致');
+    const rg = await t.call('POST', '/api/auth/register', { username: '种田小王', password: 'abc123', password2: 'abc123' }); assert.ok(rg.ok, rg.error); assert.equal(rg.state.me.name, '种田小王'); assert.equal(rg.state.me.username, '种田小王');
+    assert.equal((await t.call('POST', '/api/auth/register', { username: '种田小王', password: 'abc123', password2: 'abc123' })).code, 'taken', '账号不能重复');
+    assert.ok((await t.call('POST', '/api/auth/login', { username: '种田小王', password: 'abc123' })).ok, '中文账号可以登录');
+    assert.equal((await t.call('POST', '/api/auth/register', { username: '有 空格', password: 'abc123', password2: 'abc123' })).status, 400);
+    assert.equal((await t.call('POST', '/api/auth/register', { username: '王', password: 'abc123', password2: 'abc123' })).status, 400, '至少 2 个字');
+    // 游客绑定账号后，昵称与账号一致
+    const gg = await t.guest('临时名'); const bd = await t.call('POST', '/api/auth/bind', { username: '正式农夫', password: 'abc123', password2: 'abc123' }, gg.token); assert.ok(bd.ok, bd.error);
+    assert.equal((await t.call('GET', '/api/state', null, gg.token)).me.name, '正式农夫');
   } finally { await t.close(); }
 });
 
@@ -224,9 +234,53 @@ test('规则：保护期、狗狗防护、每日上限、新手保底', async ()
     const pl = (await t.call('GET', '/api/state', null, c2.token)).plots.find(q => q.idx === CFG.UNLOCK_ORDER[3]);
     assert.ok(pl.stolen > 0 && pl.stolen <= Math.floor(pl.y0 * CFG.RULES.newbieMaxPct), `新手最多被偷 20%（${pl.stolen}/${pl.y0}）`);
     // 每日上限
-    await t.app.db.run("INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)", b.id, 'd' + CFG.dayKey(t.app.game.now()), 'steal_n', CFG.RULES.stealDailyLimit);
+    await t.app.db.run("INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)", b.id, 'd' + CFG.dayKey(t.app.game.now()), 'steal_n', CFG.RULES.stealHardLimit);
     assert.equal((await t.call('POST', `/api/farm/${a.id}/steal`, { idx: CFG.UNLOCK_ORDER[2] }, b.token)).code, 'limit');
   } finally { await t.close(); }
+});
+
+test('v2.3 玩法：软上限、手气爆棚、大丰收、帮忙加速、订单位随等级增加', async () => {
+  const t = await start();
+  const keep = Object.assign({}, CFG.RULES);
+  try {
+    const a = await t.guest('主人'), b = await t.guest('邻居'); const day = 'd' + CFG.dayKey(t.app.game.now());
+    // 1. 超过软上限：照样能摘到果实，只是没有经验
+    await t.plantAll(a, 0); await t.clock(200000);
+    await t.app.db.run("INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)", b.id, day, 'steal_n', CFG.RULES.stealSoftLimit);
+    const s1 = await t.call('POST', `/api/farm/${a.id}/steal`, { idx: CFG.UNLOCK_ORDER[0] }, b.token); assert.ok(s1.ok, s1.error);
+    assert.ok(s1.result.qty > 0 && s1.result.exp === 0 && s1.result.tired, '软上限后能摘但不加经验');
+    // 2. 手气爆棚：一次摘两份（这里把几率临时设为 100%）
+    CFG.RULES.stealCritChance = 1; CFG.RULES.stealPctMin = CFG.RULES.stealPctMax = 0.05;
+    const s2 = await t.call('POST', `/api/farm/${a.id}/steal`, { idx: CFG.UNLOCK_ORDER[1] }, b.token); assert.ok(s2.ok, s2.error);
+    assert.ok(s2.result.crit); assert.equal(s2.result.qty, Math.min(Math.round(12 * 0.05) * 2, Math.floor(12 * CFG.RULES.newbieMaxPct)), '爆棚翻倍但不超过主人保底');
+    Object.assign(CFG.RULES, keep);
+    // 3. 大丰收：额外多收，且计入库存
+    CFG.RULES.bumperChance = 1; CFG.RULES.goldenChance = 0;
+    const before = (await t.call('GET', '/api/state', null, a.token)).inv.c0 || 0;
+    const h = await t.call('POST', '/api/farm/harvest', { idx: CFG.UNLOCK_ORDER[2] }, a.token); assert.ok(h.ok, h.error);
+    assert.equal(h.result.bonus, Math.round(h.result.n * CFG.RULES.bumperBonus)); assert.equal(h.state.inv.c0, before + h.result.n + h.result.bonus);
+    Object.assign(CFG.RULES, keep);
+    // 4. 帮忙：对方作物多长 3%；超过软上限后仍能帮，但没有奖励
+    const idx = CFG.UNLOCK_ORDER[3]; await t.call('POST', '/api/farm/harvest', { idx }, a.token); await t.call('POST', '/api/farm/plant', { idx, crop: 0 }, a.token);
+    await t.app.db.run(`UPDATE plots SET pr='{"d":1,"w":1,"b":0}', ev='[]', p=0.2 WHERE user_id=? AND idx=?`, a.id, idx);
+    const p0 = (await t.call('GET', '/api/state', null, a.token)).plots.find(p => p.idx === idx).p;
+    const g0 = (await t.call('GET', '/api/state', null, b.token)).me.gold;
+    const hp = await t.call('POST', `/api/farm/${a.id}/help`, { idx }, b.token); assert.ok(hp.ok, hp.error); assert.equal(hp.result.gold, CFG.RULES.helpGold);
+    const p1 = (await t.call('GET', '/api/state', null, a.token)).plots.find(p => p.idx === idx).p; assert.ok(p1 - p0 >= CFG.RULES.helpBoost * 0.99, `帮忙后作物多长了（${p0.toFixed(3)} → ${p1.toFixed(3)}）`);
+    await t.app.db.run("INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)", b.id, day, 'help_n', CFG.RULES.helpSoftLimit);
+    const hp2 = await t.call('POST', `/api/farm/${a.id}/help`, { idx }, b.token); assert.ok(hp2.ok, hp2.error); assert.ok(hp2.result.tired && hp2.result.gold === 0);
+    assert.equal(hp2.me.gold, g0 + CFG.RULES.helpGold, '软上限后的帮忙不加金币');
+    // 5. 订单位：Lv.1 三个，Lv.20 五个；每天可刷新 5 次
+    assert.equal((await t.call('GET', '/api/orders', null, a.token)).list.length, 3);
+    await t.app.db.run('UPDATE users SET lv=20, gold=99999 WHERE id=?', a.id);
+    const o = await t.call('GET', '/api/orders', null, a.token); assert.equal(o.list.length, 5); assert.equal(o.refreshLeft, CFG.RULES.orderRefresh);
+    for (let i = 0; i < CFG.RULES.orderRefresh; i++) assert.ok((await t.call('POST', '/api/orders/refresh', { slot: 4 }, a.token)).ok);
+    assert.equal((await t.call('POST', '/api/orders/refresh', { slot: 4 }, a.token)).code, 'limit');
+    // 6. 后期作物与等级上限
+    assert.equal(CFG.CROPS.length, 32); assert.equal(CFG.RULES.maxLv, 45);
+    await t.app.db.run('UPDATE users SET lv=44 WHERE id=?', a.id); await t.call('POST', '/api/farm/harvest-all', null, a.token);
+    const pl = await t.call('POST', '/api/farm/plant', { idx: CFG.UNLOCK_ORDER[4], crop: 31 }, a.token); assert.ok(pl.ok, pl.error);
+  } finally { Object.assign(CFG.RULES, keep); await t.close(); }
 });
 
 test('互助：真实修改好友农田并给奖励', async () => {

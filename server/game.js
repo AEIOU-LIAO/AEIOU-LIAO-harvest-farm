@@ -183,8 +183,10 @@ class Game {
   async newCode() { for (let i = 0; i < 50; i++) { const c = String(U.randInt(1000000, 9999999)); if (!(await this.db.get('SELECT 1 FROM users WHERE code=?', c))) return c; } throw new Error('无法生成玩家号'); }
   createUser(name, username, password) {
     return this.db.tx(async () => {
-      const now = this.now(); name = U.cleanName(name || '小农夫');
-      if (username) { username = U.cleanUsername(username); U.checkPw(password); if (await this.db.get('SELECT 1 FROM users WHERE username=?', username)) throw conflict('该账号已被注册', 'taken'); }
+      const now = this.now();
+      // 注册账号：账号就是昵称
+      if (username) { username = U.cleanUsername(username); name = username; } else name = U.cleanName(name || '小农夫');
+      if (username) { U.checkPw(password); if (await this.db.get('SELECT 1 FROM users WHERE username=?', username)) throw conflict('该账号已被注册', 'taken'); }
       const av = { skin: 0, hair: 0, hat: 1, band: 0, shirt: 0, bg: 0 };
       const r = await this.db.run('INSERT INTO users (code,username,pass_hash,name,avatar,gold,created_at,last_active) VALUES (?,?,?,?,?,?,?,?)',
         await this.newCode(), username || null, username ? U.hashPassword(password) : null, name, JSON.stringify(av), RULES.startGold, now, now);
@@ -221,8 +223,9 @@ class Game {
       const u = await this.user(uid); if (u.username) throw bad('已经绑定过账号了'); username = U.cleanUsername(username); U.checkPw(password);
       if (await this.db.get('SELECT 1 FROM users WHERE username=?', username)) throw conflict('该账号已被注册', 'taken');
       const rec = U.randToken(9).replace(/[-_]/g, 'x').slice(0, 12).toUpperCase();
-      this.db.wx(conflict('该账号已被注册', 'taken'), 'UPDATE users SET username=?, pass_hash=?, recovery_hash=? WHERE id=?', username, U.hashPassword(password), U.sha256(rec), uid);
-      return { recovery: rec };
+      // 绑定后昵称与账号保持一致
+      this.db.wx(conflict('该账号已被注册', 'taken'), 'UPDATE users SET username=?, name=?, pass_hash=?, recovery_hash=? WHERE id=?', username, username, U.hashPassword(password), U.sha256(rec), uid);
+      return { recovery: rec, name: username };
     });
   }
   async changePassword(uid, oldPw, newPw) { const u = await this.user(uid); if (!U.checkPassword(oldPw, u.pass_hash)) throw new U.ApiError(401, 'bad_login', '原密码错误'); U.checkPw(newPw); this.db.w('UPDATE users SET pass_hash=? WHERE id=?', U.hashPassword(newPw), uid); this.db.w('DELETE FROM sessions WHERE user_id=?', uid); }
@@ -305,11 +308,13 @@ class Game {
     const P = await this.plot(uid, idx); if (!P.u || P.c < 0) throw bad('这里没有作物'); if (P.p < 1) throw conflict('作物还没成熟', 'not_ripe');
     const cr = CROPS[P.c], n = P.y, now = this.now(); let golden = 0;
     if (n > 0) this.addInv(uid, 'c' + P.c, n);
+    // 大丰收：额外多收一部分（不影响别人可摘的数量）
+    let bonus = 0; if (n > 0 && U.rand() < RULES.bumperChance) { bonus = Math.max(1, Math.round(n * RULES.bumperBonus)); this.addInv(uid, 'c' + P.c, bonus); }
     if (U.rand() < RULES.goldenChance * await this.evMult('golden_mult', P.c)) { golden = Math.max(1, Math.round(P.y0 * 0.1)); this.addInv(uid, 'g' + P.c, golden); this.codex(uid, 'g' + P.c, golden); this.db.w('UPDATE users SET golden_total=golden_total+1 WHERE id=?', uid); this.pu(uid, x => x.golden_total++); }
-    this.codex(uid, 'c' + P.c, n);
+    this.codex(uid, 'c' + P.c, n + bonus);
     this.db.w('UPDATE users SET harvest_total=harvest_total+1 WHERE id=?', uid); this.pu(uid, x => x.harvest_total++); this.bump(uid, 'harvest');
     const exp = await this.addExp(uid, cr.exp, out);
-    const res = { idx, crop: P.c, n, golden, exp, stolen: P.stolen, season2: false };
+    const res = { idx, crop: P.c, n, bonus, golden, exp, stolen: P.stolen, season2: false };
     if (cr.seasons > 1 && P.sea < cr.seasons - 1) { P.sea++; P.p = RULES.season2Start; await this.startCycle(P, now); res.season2 = true; }
     else { P.c = -1; P.p = 0; P.y = 0; P.y0 = 0; P.stolen = 0; P.sea = 0; P.pr = { d: 0, w: 0, b: 0 }; P.ev = []; P.ra = 0; }
     this.savePlot(uid, P); return res;
@@ -411,8 +416,11 @@ class Game {
   async orders(uid) {
     const day = CFG.dayKey(this.now());
     let [u, rows, inv, refreshed] = await all([this.user(uid), this.db.all('SELECT * FROM orders WHERE user_id=? AND day=? ORDER BY slot', uid, day), this.inv(uid), this.cnt(uid, 'order_refresh', 'day')]);
-    if (!rows.length) { for (let s = 0; s < 3; s++) this.genOrder(uid, u, day, s); rows = await this.db.all('SELECT * FROM orders WHERE user_id=? AND day=? ORDER BY slot', uid, day); }
-    return { day, refreshLeft: Math.max(0, 3 - refreshed), list: rows.map(r => ({ slot: r.slot, item: r.item, qty: r.qty, gold: r.gold, exp: r.exp, done: !!r.done, have: inv[r.item] || 0 })) };
+    // 订单位随等级增加（Lv.10/20/30 各多一个）：缺哪个补哪个，升级当天也能马上拿到新订单
+    const slots = CFG.orderSlots(u.lv), have = new Set(rows.map(r => r.slot)); let added = false;
+    for (let s = 0; s < slots; s++) if (!have.has(s)) { this.genOrder(uid, u, day, s); added = true; }
+    if (added) rows = await this.db.all('SELECT * FROM orders WHERE user_id=? AND day=? ORDER BY slot', uid, day);
+    return { day, slots, refreshLeft: Math.max(0, RULES.orderRefresh - refreshed), refreshCost: RULES.orderRefreshCost, list: rows.map(r => ({ slot: r.slot, item: r.item, qty: r.qty, gold: r.gold, exp: r.exp, done: !!r.done, have: inv[r.item] || 0 })) };
   }
   genOrder(uid, u, day, slot) {
     const pool = CROPS.filter(c => c.lv <= Math.max(1, u.lv)); const cr = pool[U.randInt(Math.max(0, pool.length - 6), pool.length - 1)];
@@ -428,7 +436,7 @@ class Game {
     const day = CFG.dayKey(this.now());
     const [o, n, u] = await all([this.db.get('SELECT * FROM orders WHERE user_id=? AND day=? AND slot=?', uid, day, slot), this.cnt(uid, 'order_refresh', 'day'), this.user(uid)]);
     if (!o) throw notFound('订单不存在'); if (o.done) throw conflict('订单已完成', 'claimed');
-    if (n >= 3) throw conflict('今天的刷新次数用完了', 'limit'); this.addGold(uid, -50, 'order_refresh'); this.bump(uid, 'order_refresh', 1, 'day'); this.genOrder(uid, u, day, slot); return {};
+    if (n >= RULES.orderRefresh) throw conflict('今天的刷新次数用完了', 'limit'); this.addGold(uid, -RULES.orderRefreshCost, 'order_refresh'); this.bump(uid, 'order_refresh', 1, 'day'); this.genOrder(uid, u, day, slot); return {};
   }
 
   /* ---------- 好友 ---------- */
@@ -529,7 +537,7 @@ class Game {
   }
   async steal(uid, owner, idx, out) {
     const [o, n, P, mine] = await all([this.canSee(uid, owner), this.cnt(uid, 'steal_n', 'day'), this.plot(owner, idx), this.myStealsMap(uid, owner)]);
-    if (n >= RULES.stealDailyLimit) throw conflict(`今天已经摘了 ${RULES.stealDailyLimit} 次，明天再来吧`, 'limit');
+    if (n >= RULES.stealHardLimit) throw conflict(`今天已经摘了 ${n} 次，手都酸了，明天再来吧`, 'limit');
     const now = this.now();
     if (!P.u || P.c < 0 || P.p < 1) throw conflict('这块地没有成熟的果实', 'not_ripe');
     if (now < P.ra + RULES.stealDelaySec * 1000) throw conflict(`刚成熟，主人保护中，${Math.ceil((P.ra + RULES.stealDelaySec * 1000 - now) / 1000)} 秒后才能摘`, 'protected');
@@ -543,25 +551,33 @@ class Game {
       this.db.wx(dupe, 'INSERT INTO steals (owner,thief,idx,cycle,crop,qty,blocked,at) VALUES (?,?,?,?,?,0,1,?)', owner, uid, idx, P.cycle, P.c, now); this.markSteal(uid, owner, idx, P.cycle, true);
       await this.msg(owner, 'dog', uid, { crop: P.c, n: 1 }, true); return { idx, blocked: true, bite, crop: P.c };
     }
-    const qty = clampN(Math.round(P.y0 * (RULES.stealPctMin + U.rand() * (RULES.stealPctMax - RULES.stealPctMin))), 1, left);
+    let qty = Math.round(P.y0 * (RULES.stealPctMin + U.rand() * (RULES.stealPctMax - RULES.stealPctMin)));
+    const crit = U.rand() < RULES.stealCritChance; if (crit) qty *= 2; // 手气爆棚：一次摘两份
+    qty = clampN(qty, 1, left);
     P.y -= qty; P.stolen += qty; this.savePlot(owner, P); // 并发偷同一块地：数据库的事务隔离会让后提交的一方冲突重试
     this.db.wx(dupe, 'INSERT INTO steals (owner,thief,idx,cycle,crop,qty,blocked,at) VALUES (?,?,?,?,?,?,0,?)', owner, uid, idx, P.cycle, P.c, qty, now); this.markSteal(uid, owner, idx, P.cycle, false);
     this.addInv(uid, 'c' + P.c, qty);
     this.db.w('UPDATE users SET steal_total=steal_total+1 WHERE id=?', uid); this.db.w('UPDATE users SET stolen_from_total=stolen_from_total+? WHERE id=?', qty, owner); this.pu(uid, x => x.steal_total++); this.pu(owner, x => x.stolen_from_total += qty);
-    this.bump(uid, 'steal'); this.bump(uid, 'steal_n', 1, 'day'); this.bump(uid, 'social', 1, 'all'); await this.addExp(uid, RULES.stealExp, out); this.metric('steals');
+    // 软上限：超过后照样能摘、能拿到果实，只是不再加经验
+    const tired = n >= RULES.stealSoftLimit;
+    this.bump(uid, 'steal'); this.bump(uid, 'steal_n', 1, 'day'); this.bump(uid, 'social', 1, 'all'); const exp = tired ? 0 : await this.addExp(uid, RULES.stealExp, out); this.metric('steals');
     await this.msg(owner, 'stolen', uid, { qty, items: { ['c' + P.c]: qty } }, true);
-    return { idx, qty, crop: P.c, left: P.y };
+    return { idx, qty, crop: P.c, left: P.y, crit, exp, tired };
   }
   async help(uid, owner, idx, out) {
     const [, n, P] = await all([this.canSee(uid, owner), this.cnt(uid, 'help_n', 'day'), this.plot(owner, idx)]);
-    if (n >= RULES.helpDailyLimit) throw conflict(`今天已经帮忙 ${RULES.helpDailyLimit} 次了，休息一下吧`, 'limit');
+    if (n >= RULES.helpHardLimit) throw conflict(`今天已经帮忙 ${n} 次了，休息一下吧`, 'limit');
     const k = P.pr.d ? 'd' : P.pr.w ? 'w' : P.pr.b ? 'b' : null; if (!k) throw conflict('这块地不需要帮忙', 'healthy');
     P.pr[k] = 0; const now = this.now();
+    // 邻居帮忙：作物顺带多长一点
+    if (P.p < 1 && RULES.helpBoost > 0) { P.p = Math.min(1, P.p + RULES.helpBoost); if (P.p >= 1) { P.ra = now; P.ev = []; } }
     this.savePlot(owner, P);
     this.db.w('INSERT OR IGNORE INTO helps (owner,helper,idx,cycle,kind,at) VALUES (?,?,?,?,?,?)', owner, uid, idx, P.cycle, k, now);
-    this.addGold(uid, RULES.helpGold, 'help'); await this.addExp(uid, RULES.helpExp, out);
+    // 软上限：超过后仍然可以帮忙，只是不再给奖励
+    const tired = n >= RULES.helpSoftLimit; let gold = 0, exp = 0;
+    if (!tired) { gold = RULES.helpGold; this.addGold(uid, gold, 'help'); exp = await this.addExp(uid, RULES.helpExp, out); }
     this.db.w('UPDATE users SET help_total=help_total+1 WHERE id=?', uid); this.pu(uid, x => x.help_total++); this.bump(uid, 'help'); this.bump(uid, 'help_n', 1, 'day'); this.bump(uid, 'social', 1, 'all');
-    await this.msg(owner, 'helped', uid, { kinds: k }, true); return { idx, kind: k };
+    await this.msg(owner, 'helped', uid, { kinds: k }, true); return { idx, kind: k, gold, exp, tired };
   }
   async guestbook(uid, owner) { if (uid !== owner) await this.canSee(uid, owner); return (await this.db.all('SELECT g.id,g.phrase,g.at,g.author,u.name,u.avatar FROM guestbook g LEFT JOIN users u ON u.id=g.author WHERE g.owner=? AND g.hidden=0 ORDER BY g.id DESC LIMIT 30', owner)).map(r => ({ id: r.id, phrase: r.phrase, at: r.at, author: r.author, name: r.name || '已注销玩家', avatar: J(r.avatar) || {} })); }
   async postGuestbook(uid, owner, phrase) {

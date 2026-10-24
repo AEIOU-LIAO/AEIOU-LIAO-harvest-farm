@@ -102,7 +102,7 @@ async function createCore(opts) {
   R('GET', '/api/health', { noTx: 1 }, async () => ({ ok: true, version: VERSION, schema: SCHEMA_VERSION, db: db.kind, now: game.now() }));
   R('GET', '/api/config', { noTx: 1 }, async () => game.publicConfig());
   R('POST', '/api/auth/guest', { authLimit: 1, guestLimit: 1 }, async (c) => { const uid = await game.createUser(c.body.name); const token = game.newSession(uid, c.ua); c.addDev(token); return { token, state: await st(uid) }; });
-  R('POST', '/api/auth/register', { authLimit: 1, guestLimit: 1 }, async (c) => { const uid = await game.createUser(c.body.name, c.body.username, c.body.password); const token = game.newSession(uid, c.ua); c.addDev(token); return { token, state: await st(uid) }; });
+  R('POST', '/api/auth/register', { authLimit: 1, guestLimit: 1 }, async (c) => { U.checkPw2(c.body.password, c.body.password2); const uid = await game.createUser(c.body.name, c.body.username, c.body.password); const token = game.newSession(uid, c.ua); c.addDev(token); return { token, state: await st(uid) }; });
   R('POST', '/api/auth/login', { authLimit: 1 }, async (c) => { const u = await game.login(c.body.username, c.body.password); if (u.banned) throw U.forbid('账号已被封禁：' + (u.ban_reason || '违反规则')); const token = (await c.devFor(u.id)) || game.newSession(u.id, c.ua); c.addDev(token); return { token, state: await st(u.id) }; });
   R('POST', '/api/auth/recover', { authLimit: 1 }, async (c) => { const r = await game.recover(c.body.username, c.body.code, c.body.password); const token = game.newSession(r.user.id, c.ua); c.addDev(token); return { token, recovery: r.recovery, state: await st(r.user.id) }; });
   R('GET', '/api/invite/:code', {}, async (c) => { const u = await db.get('SELECT * FROM users WHERE code=? AND banned=0', String(c.params.code)); if (!u) throw U.notFound('邀请链接无效'); return game.publicUser(u); });
@@ -119,8 +119,8 @@ async function createCore(opts) {
   R('POST', '/api/accounts/use', { authLimit: 1 }, async (c) => { const x = (await devList(c)).find(x => x.u.id === Number(c.body.id)); if (!x) throw U.notFound('这台设备上没有保存这个账号，请重新登录'); c.touchDev(); return { token: x.t, state: await st(x.u.id) }; });
   R('POST', '/api/accounts/remember', { auth: 1 }, async (c) => { c.addDev(c.token); return {}; });
   R('POST', '/api/accounts/forget', {}, async (c) => { const x = (await devList(c)).find(x => x.u.id === Number(c.body.id)); if (x) { db.w('DELETE FROM sessions WHERE token_hash=?', U.sha256(x.t)); c.dropDev(x.t); } return {}; });
-  R('POST', '/api/auth/bind', { auth: 1, authLimit: 1 }, (c) => game.bind(c.uid, c.body.username, c.body.password));
-  R('POST', '/api/auth/password', { auth: 1, authLimit: 1 }, async (c) => { await game.changePassword(c.uid, c.body.old, c.body.password); return { token: game.newSession(c.uid, c.ua) }; });
+  R('POST', '/api/auth/bind', { auth: 1, authLimit: 1 }, (c) => { U.checkPw2(c.body.password, c.body.password2); return game.bind(c.uid, c.body.username, c.body.password); });
+  R('POST', '/api/auth/password', { auth: 1, authLimit: 1 }, async (c) => { U.checkPw2(c.body.password, c.body.password2); await game.changePassword(c.uid, c.body.old, c.body.password); return { token: game.newSession(c.uid, c.ua) }; });
   R('GET', '/api/state', { auth: 1 }, (c) => st(c.uid));
   R('POST', '/api/me/profile', { auth: 1 }, async (c) => { await game.updateProfile(c.uid, c.body); return own(c.uid); });
   R('POST', '/api/me/migrate', { auth: 1 }, async (c) => own(c.uid, await game.migrate(c.uid, c.body)));
@@ -149,8 +149,8 @@ async function createCore(opts) {
   R('GET', '/api/achievements', { auth: 1 }, (c) => game.achievements(c.uid));
   R('POST', '/api/achievements/claim', { auth: 1 }, async (c) => own(c.uid, await game.claimAch(c.uid, String(c.body.id))));
   R('GET', '/api/orders', { auth: 1 }, (c) => game.orders(c.uid));
-  R('POST', '/api/orders/deliver', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.deliver(c.uid, U.int(c.body.slot, '订单', 0, 2), o), o); });
-  R('POST', '/api/orders/refresh', { auth: 1 }, async (c) => own(c.uid, await game.refreshOrder(c.uid, U.int(c.body.slot, '订单', 0, 2))));
+  R('POST', '/api/orders/deliver', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.deliver(c.uid, U.int(c.body.slot, '订单', 0, CFG.RULES.orderSlotsMax - 1), o), o); });
+  R('POST', '/api/orders/refresh', { auth: 1 }, async (c) => own(c.uid, await game.refreshOrder(c.uid, U.int(c.body.slot, '订单', 0, CFG.RULES.orderSlotsMax - 1))));
   R('GET', '/api/codex', { auth: 1 }, (c) => game.codexList(c.uid));
   R('GET', '/api/cosmetics', { auth: 1 }, (c) => game.cosmetics(c.uid));
   R('POST', '/api/cosmetics/buy', { auth: 1 }, async (c) => own(c.uid, await game.buyCosmetic(c.uid, String(c.body.kind), String(c.body.id))));

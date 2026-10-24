@@ -179,11 +179,13 @@ function harvestFx(x) {
   if (x.stolen) setTimeout(() => FX.text(i, `被摘走 ${x.stolen}`, '#ffb3a3', 15, 2), 300);
   if (x.golden) setTimeout(() => { FX.stars(i, 24); FX.text(i, `变异！金色${cr.name} ×${x.golden}`, '#ffd23a', 22, 3); sfx('golden'); toast(`出现变异！获得 金色${cr.name} ×${x.golden}`); }, 500);
   if (x.season2) setTimeout(() => FX.text(i, '进入第二季', '#c4f09a', 16, 2), 400);
+  if (x.bonus) setTimeout(() => { FX.coins(i, 10); FX.stars(i, 16); FX.text(i, `大丰收！额外 +${x.bonus}`, '#ffb84a', 22, 2); sfx('golden'); }, 650);
 }
 async function doHarvest(i) { const r = await api('/api/farm/harvest', { idx: i }); if (!r) return; sfx('harvest'); harvestFx(r.result); }
-function careFx(i, k, own) {
+function careFx(i, k, own, x) {
   if (k === 'd') { FX.drops(i); sfx('water'); } else if (k === 'w') { FX.leaves(i); sfx('weed'); } else { FX.puff(i); FX.stars(i, 6); sfx('bug'); }
-  FX.text(i, own ? ({ d: '浇水', w: '除草', b: '除虫' })[k] + ' +2经验' : `帮忙 +${RULES.helpExp}经验 +${RULES.helpGold}金币`, own ? '#9fe4ff' : '#c4f09a', 16);
+  const helpTx = x && x.tired ? '帮忙成功（今日奖励已领满）' : `帮忙 +${x && x.exp !== undefined ? x.exp : RULES.helpExp}经验 +${x && x.gold !== undefined ? x.gold : RULES.helpGold}金币`;
+  FX.text(i, own ? ({ d: '浇水', w: '除草', b: '除虫' })[k] + ' +2经验' : helpTx, own ? '#9fe4ff' : '#c4f09a', 16);
 }
 async function doCare(i) { const r = await api('/api/farm/care', { idx: i }); if (r) careFx(i, r.result.kind, true); }
 async function doShovel(i) { const P = view.plots[i]; if (P.c < 0) return; if (P.p >= 1) { toast('作物已成熟，先收获吧', 'warn'); sfx('err'); return; } const r = await api('/api/farm/shovel', { idx: i }); if (!r) return; FX.puff(i); FX.leaves(i, 'soil'); sfx('weed'); }
@@ -215,12 +217,14 @@ async function visit(f) {
 function goHome() { if (!S) return; view = { key: 'home', friend: null, plots: S.plots, farm: null }; hoverIdx = -1; sfx('open'); renderToolbar(); renderTitle(); renderFriends(); refreshState(); }
 function stealFx(x) {
   if (x.blocked) { dogBarkUntil = Date.now() + 2500; sfx('bark'); FX.text(x.idx, x.bite ? `被狗咬了 -${x.bite}金币` : '被狗赶走了', '#ff9a8a', 20); return; }
-  FX.stars(x.idx, 8); FX.text(x.idx, `${CROPS[x.crop].name} ×${x.qty}`, '#fff2c4', 22); FX.text(x.idx, `+${RULES.stealExp} 经验`, '#9fe4ff', 16, 1); sfx('steal');
+  FX.stars(x.idx, x.crit ? 18 : 8); FX.text(x.idx, `${x.crit ? '手气爆棚！' : ''}${CROPS[x.crop].name} ×${x.qty}`, x.crit ? '#ffd23a' : '#fff2c4', x.crit ? 24 : 22);
+  if (x.exp) FX.text(x.idx, `+${x.exp} 经验`, '#9fe4ff', 16, 1); else if (x.tired) FX.text(x.idx, '今日经验已满', '#c8c8c8', 14, 1);
+  sfx(x.crit ? 'golden' : 'steal');
 }
 async function fSteal(i) { const r = await api(`/api/farm/${view.friend.id}/steal`, { idx: i }); if (r) { stealFx(r.result); if (r.result.blocked) toast(`${view.friend.name} 家的狗把你赶走了${r.result.bite ? `，损失 ${r.result.bite} 金币` : ''}`, 'warn'); } }
-async function fHelp(i) { const r = await api(`/api/farm/${view.friend.id}/help`, { idx: i }); if (r) careFx(i, r.result.kind, false); }
-async function allSteal() { if (view.key === 'home') return; const r = await api(`/api/farm/${view.friend.id}/steal-all`); if (!r) return; const ok = r.result.filter(x => !x.err); stagger(ok, stealFx, 120); const got = ok.filter(x => !x.blocked).reduce((a, x) => a + x.qty, 0); if (got) setTimeout(() => toast(`一共摘到 ${got} 个果实`), ok.length * 120); }
-async function allHelp() { if (view.key === 'home') return; const r = await api(`/api/farm/${view.friend.id}/help-all`); if (!r) return; stagger(r.result.filter(x => !x.err), x => careFx(x.idx, x.kind, false), 120); }
+async function fHelp(i) { const r = await api(`/api/farm/${view.friend.id}/help`, { idx: i }); if (r) careFx(i, r.result.kind, false, r.result); }
+async function allSteal() { if (view.key === 'home') return; const r = await api(`/api/farm/${view.friend.id}/steal-all`); if (!r) return; const ok = r.result.filter(x => !x.err); stagger(ok, stealFx, 120); const got = ok.filter(x => !x.blocked).reduce((a, x) => a + x.qty, 0), crit = ok.filter(x => x.crit).length; if (got) setTimeout(() => toast(`一共摘到 ${got} 个果实${crit ? `，其中 ${crit} 次手气爆棚` : ''}`), ok.length * 120); }
+async function allHelp() { if (view.key === 'home') return; const r = await api(`/api/farm/${view.friend.id}/help-all`); if (!r) return; stagger(r.result.filter(x => !x.err), x => careFx(x.idx, x.kind, false, x), 120); }
 async function addFriendNow(u) { const r = await api('/api/friends/add', { id: u.id }); if (r) { sfx('level'); toast(`已添加 ${u.name} 为好友`); await loadFriends(); renderToolbar(); refreshState(); } }
 
 /* ============ 点击土地 ============ */

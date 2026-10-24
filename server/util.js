@@ -40,12 +40,19 @@ function cleanName(s) {
   const low = s.toLowerCase(); if (BANNED.some(w => low.includes(w))) throw bad('名字包含不允许的词');
   return s;
 }
+// 账号同时作为游戏昵称：2–10 个字，可以用中文、字母、数字、下划线和中间点，不能有空格
 function cleanUsername(s) {
-  s = String(s || '').trim(); if (!/^[A-Za-z0-9_]{4,20}$/.test(s)) throw bad('账号需为 4–20 位字母、数字或下划线'); return s;
+  s = String(s || '').normalize('NFKC').trim();
+  if (!s) throw bad('请填写账号');
+  if (/\s/.test(s)) throw bad('账号里不能有空格');
+  const n = [...s].length; if (n < 2 || n > 10) throw bad('账号需为 2–10 个字');
+  if (!/^[\p{L}\p{N}_·\-]+$/u.test(s)) throw bad('账号只能用中文、字母、数字、下划线');
+  return cleanName(s);
 }
+function checkPw2(pw, pw2) { if (pw2 !== undefined && pw2 !== null && String(pw2) !== String(pw)) throw bad('两次输入的密码不一致'); }
 function checkPw(pw) { pw = String(pw || ''); if (pw.length < 6 || pw.length > 64) throw bad('密码长度需为 6–64 位'); return pw; }
 const int = (v, name, lo, hi) => { const n = Number(v); if (!Number.isInteger(n) || n < lo || n > hi) throw bad((name || '参数') + '不合法'); return n; };
 function parseCookies(h) { const o = {}; String(h || '').split(';').forEach(p => { const i = p.indexOf('='); if (i > 0) { let v = p.slice(i + 1).trim(); try { v = decodeURIComponent(v); } catch (e) { } o[p.slice(0, i).trim()] = v; } }); return o; }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-module.exports = { ApiError, bad, forbid, notFound, conflict, sha256, randToken, hashPassword, checkPassword, randInt, rand, Limiter, parseCookies, cleanName, cleanUsername, checkPw, int, esc };
+module.exports = { ApiError, bad, forbid, notFound, conflict, sha256, randToken, hashPassword, checkPassword, randInt, rand, Limiter, parseCookies, cleanName, cleanUsername, checkPw, checkPw2, int, esc };

@@ -60,30 +60,45 @@ __def("shared/config.js", function (module, exports, __req) {
     { id: 21, name: '甜菜', lv: 21, seed: 6000, time: 10800, yield: 100, price: 88, exp: 1900, seasons: 1, rarity: 3, art: { type: 'root', shape: 'radish', leaf: '#4a9a3a', root: '#b8214a', blush: '#7a1030', hh: 72, is: 1.15 } },
     { id: 22, name: '黑美人西瓜', lv: 24, seed: 8500, time: 14400, yield: 108, price: 115, exp: 2700, seasons: 2, rarity: 4, art: { type: 'vine', kind: 'melon', fruit: '#1f5a2a', hh: 62, is: 1.0 } },
     { id: 23, name: '月光草莓', lv: 27, seed: 12000, time: 21600, yield: 120, price: 150, exp: 3800, seasons: 2, rarity: 4, art: { type: 'bush', kind: 'berry', fruit: '#f0e4ff', unripe: '#d8e8c8', nf: 5, h: 24, low: true, hh: 54, is: 1.2 } },
+    // v2.3 后期作物（Lv.28–44）
+    { id: 24, name: '火焰辣椒', lv: 28, seed: 9000, time: 9000, yield: 104, price: 120, exp: 2600, seasons: 2, rarity: 3, art: { type: 'bush', kind: 'chili', fruit: '#ff4a10', unripe: '#7fc04a', nf: 6, h: 54, hh: 78, is: 1.0 } },
+    { id: 25, name: '翡翠白菜', lv: 30, seed: 14000, time: 14400, yield: 112, price: 168, exp: 4300, seasons: 1, rarity: 3, art: { type: 'cabbage', head: '#3fcf8e', hh: 70, is: 1.1 } },
+    { id: 26, name: '胭脂萝卜', lv: 32, seed: 16000, time: 12600, yield: 116, price: 185, exp: 4600, seasons: 1, rarity: 3, art: { type: 'root', shape: 'radish', leaf: '#4fb040', root: '#e02a4a', blush: '#ff8aa0', hh: 72, is: 1.15 } },
+    { id: 27, name: '星空蓝莓', lv: 34, seed: 22000, time: 21600, yield: 124, price: 240, exp: 6200, seasons: 2, rarity: 4, art: { type: 'bush', kind: 'berry', fruit: '#2c2f9a', unripe: '#b8c8e8', nf: 6, h: 24, low: true, hh: 54, is: 1.2 } },
+    { id: 28, name: '金丝胡萝卜', lv: 36, seed: 26000, time: 18000, yield: 128, price: 270, exp: 6800, seasons: 1, rarity: 3, art: { type: 'root', shape: 'carrot', leaf: '#5ab84a', root: '#ffc21a', hh: 74, is: 1.15 } },
+    { id: 29, name: '琥珀南瓜', lv: 38, seed: 34000, time: 28800, yield: 132, price: 340, exp: 8800, seasons: 1, rarity: 4, art: { type: 'vine', kind: 'pumpkin', fruit: '#c8641a', hh: 64, is: 1.05 } },
+    { id: 30, name: '紫晶茄子', lv: 41, seed: 42000, time: 25200, yield: 136, price: 400, exp: 10500, seasons: 2, rarity: 4, art: { type: 'bush', kind: 'egg', fruit: '#4a1a72', unripe: '#8fae6a', nf: 3, h: 56, hh: 80, is: 1.0 } },
+    { id: 31, name: '黄金西瓜', lv: 44, seed: 60000, time: 36000, yield: 140, price: 560, exp: 14000, seasons: 2, rarity: 4, art: { type: 'vine', kind: 'melon', fruit: '#d8a81a', hh: 62, is: 1.0 } },
   ];
   const RARITY = ['', '普通', '稀有', '史诗', '传说'];
 
   const RULES = {
-    startGold: 300, startPlots: 6, maxLv: 30,
-    fertPrice: 60, fertBoost: 0.3, dogfoodPrice: 120, dogPrice: 400, dogNeedLv: 3, dogFeedMin: 60,
+    startGold: 300, startPlots: 6, maxLv: 45,
+    fertPrice: 60, fertBoost: 0.3, dogfoodPrice: 120, dogPrice: 400, dogNeedLv: 3, dogFeedMin: 120,
     redNeedLv: 5,
     // 偷菜
     stealDelaySec: 30,          // 成熟后的主人保护时间
     stealPctMin: 0.08, stealPctMax: 0.15, // 每次偷取占原始产量比例
     stealMaxPct: 0.4,           // 一块地最多被偷走的比例（主人保底 60%）
     newbieLv: 5, newbieMaxPct: 0.2, // 主人低于此等级时保底更高
-    stealDailyLimit: 80,        // 每人每天最多成功偷取次数
+    stealSoftLimit: 150,        // 每天前这么多次摘取有经验；之后照样能摘、能拿到果实，只是不加经验
+    stealHardLimit: 600,        // 防外挂的硬上限（正常玩家碰不到）
     stealExp: 3,
+    stealCritChance: 0.1,       // 手气爆棚：一次摘两份（仍受主人保底限制）
     dogBlockBase: 0.35, dogBlockPerLv: 0.03, dogBlockMax: 0.7, dogBiteMin: 10, dogBiteMax: 40,
     // 互助
-    helpDailyLimit: 60, helpExp: 4, helpGold: 6,
+    helpSoftLimit: 100, helpHardLimit: 600, helpExp: 4, helpGold: 6, // 超过软上限仍可帮忙，只是不再给奖励
+    helpBoost: 0.03,            // 每次帮忙让对方作物多长 3%
     // 生长
     probSlow: 0.62, soilSpeed: 1.2, soilYield: 1.2, season2Start: 0.45,
     goldenChance: 0.04, goldenPriceMult: 5,
+    bumperChance: 0.08, bumperBonus: 0.5, // 大丰收：额外多收 50%
+    // 订单：Lv.10 / 20 / 30 各多一个订单位
+    orderSlots: 3, orderSlotEvery: 10, orderSlotsMax: 6, orderRefresh: 5, orderRefreshCost: 50,
     // 市场
-    marketFee: 0.05, marketMinMult: 0.8, marketMaxMult: 2.0, marketMaxListings: 6, marketTtlHours: 24,
+    marketFee: 0.05, marketMinMult: 0.8, marketMaxMult: 2.0, marketMaxListings: 12, marketTtlHours: 48,
     // 留言
-    gbDailyLimit: 20,
+    gbDailyLimit: 50,
   };
 
   const TASKS = [
@@ -116,16 +131,21 @@ __def("shared/config.js", function (module, exports, __req) {
     { id: 'a_h3', stat: 'harvest_total', need: 3000, tx: '农场大亨', desc: '累计收获 3000 次', gold: 10000, title: '农场大亨' },
     { id: 'a_s1', stat: 'steal_total', need: 20, tx: '妙手空空', desc: '累计摘取好友果实 20 次', gold: 300, title: '妙手空空' },
     { id: 'a_s2', stat: 'steal_total', need: 300, tx: '神偷', desc: '累计摘取 300 次', gold: 3000, title: '月下神偷' },
+    { id: 'a_s3', stat: 'steal_total', need: 2000, tx: '江湖传说', desc: '累计摘取 2000 次', gold: 12000, title: '江湖传说' },
     { id: 'a_p1', stat: 'help_total', need: 20, tx: '热心邻居', desc: '累计帮好友 20 次', gold: 300, title: '热心邻居' },
     { id: 'a_p2', stat: 'help_total', need: 300, tx: '劳模', desc: '累计帮好友 300 次', gold: 3000, title: '劳动模范' },
+    { id: 'a_p3', stat: 'help_total', need: 2000, tx: '好人缘', desc: '累计帮好友 2000 次', gold: 12000, title: '十里八乡好人缘' },
     { id: 'a_f1', stat: 'friends', need: 3, tx: '呼朋唤友', desc: '拥有 3 位好友', gold: 500, title: '人气农夫' },
     { id: 'a_f2', stat: 'friends', need: 10, tx: '社交达人', desc: '拥有 10 位好友', gold: 2000, title: '社交达人' },
     { id: 'a_g1', stat: 'golden_total', need: 1, tx: '金光闪闪', desc: '收获第一个变异金色作物', gold: 500, title: '幸运儿' },
     { id: 'a_g2', stat: 'golden_total', need: 20, tx: '点石成金', desc: '收获 20 次金色作物', gold: 5000, title: '点石成金' },
     { id: 'a_c1', stat: 'codex', need: 10, tx: '收藏家', desc: '图鉴收集 10 种', gold: 1000, title: '收藏家' },
-    { id: 'a_c2', stat: 'codex', need: 24, tx: '博物学家', desc: '图鉴收集全部普通作物', gold: 6000, title: '博物学家' },
+    { id: 'a_c2', stat: 'codex', need: 24, tx: '博物学家', desc: '图鉴收集 24 种', gold: 6000, title: '博物学家' },
+    { id: 'a_c3', stat: 'codex', need: 32, tx: '万物有灵', desc: '图鉴收集全部 32 种普通作物', gold: 20000, title: '万物有灵' },
     { id: 'a_l1', stat: 'lv', need: 10, tx: '小有所成', desc: '达到 Lv.10', gold: 1000 },
     { id: 'a_l2', stat: 'lv', need: 20, tx: '远近闻名', desc: '达到 Lv.20', gold: 5000, title: '远近闻名' },
+    { id: 'a_l3', stat: 'lv', need: 30, tx: '一方乡绅', desc: '达到 Lv.30', gold: 15000, title: '一方乡绅' },
+    { id: 'a_l4', stat: 'lv', need: 40, tx: '农业宗师', desc: '达到 Lv.40', gold: 40000, title: '农业宗师' },
     { id: 'a_o1', stat: 'order_total', need: 30, tx: '诚信商户', desc: '完成 30 个订单', gold: 2000, title: '诚信商户' },
     { id: 'a_k1', stat: 'checkin_streak', need: 7, tx: '风雨无阻', desc: '连续签到 7 天', gold: 800, title: '勤劳农夫' },
   ];
@@ -225,10 +245,11 @@ __def("shared/config.js", function (module, exports, __req) {
     }
     return P;
   }
+  const orderSlots = lv => Math.min(RULES.orderSlotsMax, RULES.orderSlots + Math.floor(Math.max(0, lv) / RULES.orderSlotEvery));
   function stealCapPct(ownerLv) { return ownerLv < RULES.newbieLv ? RULES.newbieMaxPct : RULES.stealMaxPct; }
 
   const CFG = { COLS, ROWS, NPLOTS, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
-    expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct };
+    expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };
   if (typeof module !== 'undefined' && module.exports) module.exports = CFG; else root.GAMECFG = CFG;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -277,15 +298,22 @@ function cleanName(s) {
   const low = s.toLowerCase(); if (BANNED.some(w => low.includes(w))) throw bad('名字包含不允许的词');
   return s;
 }
+// 账号同时作为游戏昵称：2–10 个字，可以用中文、字母、数字、下划线和中间点，不能有空格
 function cleanUsername(s) {
-  s = String(s || '').trim(); if (!/^[A-Za-z0-9_]{4,20}$/.test(s)) throw bad('账号需为 4–20 位字母、数字或下划线'); return s;
+  s = String(s || '').normalize('NFKC').trim();
+  if (!s) throw bad('请填写账号');
+  if (/\s/.test(s)) throw bad('账号里不能有空格');
+  const n = [...s].length; if (n < 2 || n > 10) throw bad('账号需为 2–10 个字');
+  if (!/^[\p{L}\p{N}_·\-]+$/u.test(s)) throw bad('账号只能用中文、字母、数字、下划线');
+  return cleanName(s);
 }
+function checkPw2(pw, pw2) { if (pw2 !== undefined && pw2 !== null && String(pw2) !== String(pw)) throw bad('两次输入的密码不一致'); }
 function checkPw(pw) { pw = String(pw || ''); if (pw.length < 6 || pw.length > 64) throw bad('密码长度需为 6–64 位'); return pw; }
 const int = (v, name, lo, hi) => { const n = Number(v); if (!Number.isInteger(n) || n < lo || n > hi) throw bad((name || '参数') + '不合法'); return n; };
 function parseCookies(h) { const o = {}; String(h || '').split(';').forEach(p => { const i = p.indexOf('='); if (i > 0) { let v = p.slice(i + 1).trim(); try { v = decodeURIComponent(v); } catch (e) { } o[p.slice(0, i).trim()] = v; } }); return o; }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-module.exports = { ApiError, bad, forbid, notFound, conflict, sha256, randToken, hashPassword, checkPassword, randInt, rand, Limiter, parseCookies, cleanName, cleanUsername, checkPw, int, esc };
+module.exports = { ApiError, bad, forbid, notFound, conflict, sha256, randToken, hashPassword, checkPassword, randInt, rand, Limiter, parseCookies, cleanName, cleanUsername, checkPw, checkPw2, int, esc };
 
 });
 
@@ -856,8 +884,10 @@ class Game {
   async newCode() { for (let i = 0; i < 50; i++) { const c = String(U.randInt(1000000, 9999999)); if (!(await this.db.get('SELECT 1 FROM users WHERE code=?', c))) return c; } throw new Error('无法生成玩家号'); }
   createUser(name, username, password) {
     return this.db.tx(async () => {
-      const now = this.now(); name = U.cleanName(name || '小农夫');
-      if (username) { username = U.cleanUsername(username); U.checkPw(password); if (await this.db.get('SELECT 1 FROM users WHERE username=?', username)) throw conflict('该账号已被注册', 'taken'); }
+      const now = this.now();
+      // 注册账号：账号就是昵称
+      if (username) { username = U.cleanUsername(username); name = username; } else name = U.cleanName(name || '小农夫');
+      if (username) { U.checkPw(password); if (await this.db.get('SELECT 1 FROM users WHERE username=?', username)) throw conflict('该账号已被注册', 'taken'); }
       const av = { skin: 0, hair: 0, hat: 1, band: 0, shirt: 0, bg: 0 };
       const r = await this.db.run('INSERT INTO users (code,username,pass_hash,name,avatar,gold,created_at,last_active) VALUES (?,?,?,?,?,?,?,?)',
         await this.newCode(), username || null, username ? U.hashPassword(password) : null, name, JSON.stringify(av), RULES.startGold, now, now);
@@ -894,8 +924,9 @@ class Game {
       const u = await this.user(uid); if (u.username) throw bad('已经绑定过账号了'); username = U.cleanUsername(username); U.checkPw(password);
       if (await this.db.get('SELECT 1 FROM users WHERE username=?', username)) throw conflict('该账号已被注册', 'taken');
       const rec = U.randToken(9).replace(/[-_]/g, 'x').slice(0, 12).toUpperCase();
-      this.db.wx(conflict('该账号已被注册', 'taken'), 'UPDATE users SET username=?, pass_hash=?, recovery_hash=? WHERE id=?', username, U.hashPassword(password), U.sha256(rec), uid);
-      return { recovery: rec };
+      // 绑定后昵称与账号保持一致
+      this.db.wx(conflict('该账号已被注册', 'taken'), 'UPDATE users SET username=?, name=?, pass_hash=?, recovery_hash=? WHERE id=?', username, username, U.hashPassword(password), U.sha256(rec), uid);
+      return { recovery: rec, name: username };
     });
   }
   async changePassword(uid, oldPw, newPw) { const u = await this.user(uid); if (!U.checkPassword(oldPw, u.pass_hash)) throw new U.ApiError(401, 'bad_login', '原密码错误'); U.checkPw(newPw); this.db.w('UPDATE users SET pass_hash=? WHERE id=?', U.hashPassword(newPw), uid); this.db.w('DELETE FROM sessions WHERE user_id=?', uid); }
@@ -978,11 +1009,13 @@ class Game {
     const P = await this.plot(uid, idx); if (!P.u || P.c < 0) throw bad('这里没有作物'); if (P.p < 1) throw conflict('作物还没成熟', 'not_ripe');
     const cr = CROPS[P.c], n = P.y, now = this.now(); let golden = 0;
     if (n > 0) this.addInv(uid, 'c' + P.c, n);
+    // 大丰收：额外多收一部分（不影响别人可摘的数量）
+    let bonus = 0; if (n > 0 && U.rand() < RULES.bumperChance) { bonus = Math.max(1, Math.round(n * RULES.bumperBonus)); this.addInv(uid, 'c' + P.c, bonus); }
     if (U.rand() < RULES.goldenChance * await this.evMult('golden_mult', P.c)) { golden = Math.max(1, Math.round(P.y0 * 0.1)); this.addInv(uid, 'g' + P.c, golden); this.codex(uid, 'g' + P.c, golden); this.db.w('UPDATE users SET golden_total=golden_total+1 WHERE id=?', uid); this.pu(uid, x => x.golden_total++); }
-    this.codex(uid, 'c' + P.c, n);
+    this.codex(uid, 'c' + P.c, n + bonus);
     this.db.w('UPDATE users SET harvest_total=harvest_total+1 WHERE id=?', uid); this.pu(uid, x => x.harvest_total++); this.bump(uid, 'harvest');
     const exp = await this.addExp(uid, cr.exp, out);
-    const res = { idx, crop: P.c, n, golden, exp, stolen: P.stolen, season2: false };
+    const res = { idx, crop: P.c, n, bonus, golden, exp, stolen: P.stolen, season2: false };
     if (cr.seasons > 1 && P.sea < cr.seasons - 1) { P.sea++; P.p = RULES.season2Start; await this.startCycle(P, now); res.season2 = true; }
     else { P.c = -1; P.p = 0; P.y = 0; P.y0 = 0; P.stolen = 0; P.sea = 0; P.pr = { d: 0, w: 0, b: 0 }; P.ev = []; P.ra = 0; }
     this.savePlot(uid, P); return res;
@@ -1084,8 +1117,11 @@ class Game {
   async orders(uid) {
     const day = CFG.dayKey(this.now());
     let [u, rows, inv, refreshed] = await all([this.user(uid), this.db.all('SELECT * FROM orders WHERE user_id=? AND day=? ORDER BY slot', uid, day), this.inv(uid), this.cnt(uid, 'order_refresh', 'day')]);
-    if (!rows.length) { for (let s = 0; s < 3; s++) this.genOrder(uid, u, day, s); rows = await this.db.all('SELECT * FROM orders WHERE user_id=? AND day=? ORDER BY slot', uid, day); }
-    return { day, refreshLeft: Math.max(0, 3 - refreshed), list: rows.map(r => ({ slot: r.slot, item: r.item, qty: r.qty, gold: r.gold, exp: r.exp, done: !!r.done, have: inv[r.item] || 0 })) };
+    // 订单位随等级增加（Lv.10/20/30 各多一个）：缺哪个补哪个，升级当天也能马上拿到新订单
+    const slots = CFG.orderSlots(u.lv), have = new Set(rows.map(r => r.slot)); let added = false;
+    for (let s = 0; s < slots; s++) if (!have.has(s)) { this.genOrder(uid, u, day, s); added = true; }
+    if (added) rows = await this.db.all('SELECT * FROM orders WHERE user_id=? AND day=? ORDER BY slot', uid, day);
+    return { day, slots, refreshLeft: Math.max(0, RULES.orderRefresh - refreshed), refreshCost: RULES.orderRefreshCost, list: rows.map(r => ({ slot: r.slot, item: r.item, qty: r.qty, gold: r.gold, exp: r.exp, done: !!r.done, have: inv[r.item] || 0 })) };
   }
   genOrder(uid, u, day, slot) {
     const pool = CROPS.filter(c => c.lv <= Math.max(1, u.lv)); const cr = pool[U.randInt(Math.max(0, pool.length - 6), pool.length - 1)];
@@ -1101,7 +1137,7 @@ class Game {
     const day = CFG.dayKey(this.now());
     const [o, n, u] = await all([this.db.get('SELECT * FROM orders WHERE user_id=? AND day=? AND slot=?', uid, day, slot), this.cnt(uid, 'order_refresh', 'day'), this.user(uid)]);
     if (!o) throw notFound('订单不存在'); if (o.done) throw conflict('订单已完成', 'claimed');
-    if (n >= 3) throw conflict('今天的刷新次数用完了', 'limit'); this.addGold(uid, -50, 'order_refresh'); this.bump(uid, 'order_refresh', 1, 'day'); this.genOrder(uid, u, day, slot); return {};
+    if (n >= RULES.orderRefresh) throw conflict('今天的刷新次数用完了', 'limit'); this.addGold(uid, -RULES.orderRefreshCost, 'order_refresh'); this.bump(uid, 'order_refresh', 1, 'day'); this.genOrder(uid, u, day, slot); return {};
   }
 
   /* ---------- 好友 ---------- */
@@ -1202,7 +1238,7 @@ class Game {
   }
   async steal(uid, owner, idx, out) {
     const [o, n, P, mine] = await all([this.canSee(uid, owner), this.cnt(uid, 'steal_n', 'day'), this.plot(owner, idx), this.myStealsMap(uid, owner)]);
-    if (n >= RULES.stealDailyLimit) throw conflict(`今天已经摘了 ${RULES.stealDailyLimit} 次，明天再来吧`, 'limit');
+    if (n >= RULES.stealHardLimit) throw conflict(`今天已经摘了 ${n} 次，手都酸了，明天再来吧`, 'limit');
     const now = this.now();
     if (!P.u || P.c < 0 || P.p < 1) throw conflict('这块地没有成熟的果实', 'not_ripe');
     if (now < P.ra + RULES.stealDelaySec * 1000) throw conflict(`刚成熟，主人保护中，${Math.ceil((P.ra + RULES.stealDelaySec * 1000 - now) / 1000)} 秒后才能摘`, 'protected');
@@ -1216,25 +1252,33 @@ class Game {
       this.db.wx(dupe, 'INSERT INTO steals (owner,thief,idx,cycle,crop,qty,blocked,at) VALUES (?,?,?,?,?,0,1,?)', owner, uid, idx, P.cycle, P.c, now); this.markSteal(uid, owner, idx, P.cycle, true);
       await this.msg(owner, 'dog', uid, { crop: P.c, n: 1 }, true); return { idx, blocked: true, bite, crop: P.c };
     }
-    const qty = clampN(Math.round(P.y0 * (RULES.stealPctMin + U.rand() * (RULES.stealPctMax - RULES.stealPctMin))), 1, left);
+    let qty = Math.round(P.y0 * (RULES.stealPctMin + U.rand() * (RULES.stealPctMax - RULES.stealPctMin)));
+    const crit = U.rand() < RULES.stealCritChance; if (crit) qty *= 2; // 手气爆棚：一次摘两份
+    qty = clampN(qty, 1, left);
     P.y -= qty; P.stolen += qty; this.savePlot(owner, P); // 并发偷同一块地：数据库的事务隔离会让后提交的一方冲突重试
     this.db.wx(dupe, 'INSERT INTO steals (owner,thief,idx,cycle,crop,qty,blocked,at) VALUES (?,?,?,?,?,?,0,?)', owner, uid, idx, P.cycle, P.c, qty, now); this.markSteal(uid, owner, idx, P.cycle, false);
     this.addInv(uid, 'c' + P.c, qty);
     this.db.w('UPDATE users SET steal_total=steal_total+1 WHERE id=?', uid); this.db.w('UPDATE users SET stolen_from_total=stolen_from_total+? WHERE id=?', qty, owner); this.pu(uid, x => x.steal_total++); this.pu(owner, x => x.stolen_from_total += qty);
-    this.bump(uid, 'steal'); this.bump(uid, 'steal_n', 1, 'day'); this.bump(uid, 'social', 1, 'all'); await this.addExp(uid, RULES.stealExp, out); this.metric('steals');
+    // 软上限：超过后照样能摘、能拿到果实，只是不再加经验
+    const tired = n >= RULES.stealSoftLimit;
+    this.bump(uid, 'steal'); this.bump(uid, 'steal_n', 1, 'day'); this.bump(uid, 'social', 1, 'all'); const exp = tired ? 0 : await this.addExp(uid, RULES.stealExp, out); this.metric('steals');
     await this.msg(owner, 'stolen', uid, { qty, items: { ['c' + P.c]: qty } }, true);
-    return { idx, qty, crop: P.c, left: P.y };
+    return { idx, qty, crop: P.c, left: P.y, crit, exp, tired };
   }
   async help(uid, owner, idx, out) {
     const [, n, P] = await all([this.canSee(uid, owner), this.cnt(uid, 'help_n', 'day'), this.plot(owner, idx)]);
-    if (n >= RULES.helpDailyLimit) throw conflict(`今天已经帮忙 ${RULES.helpDailyLimit} 次了，休息一下吧`, 'limit');
+    if (n >= RULES.helpHardLimit) throw conflict(`今天已经帮忙 ${n} 次了，休息一下吧`, 'limit');
     const k = P.pr.d ? 'd' : P.pr.w ? 'w' : P.pr.b ? 'b' : null; if (!k) throw conflict('这块地不需要帮忙', 'healthy');
     P.pr[k] = 0; const now = this.now();
+    // 邻居帮忙：作物顺带多长一点
+    if (P.p < 1 && RULES.helpBoost > 0) { P.p = Math.min(1, P.p + RULES.helpBoost); if (P.p >= 1) { P.ra = now; P.ev = []; } }
     this.savePlot(owner, P);
     this.db.w('INSERT OR IGNORE INTO helps (owner,helper,idx,cycle,kind,at) VALUES (?,?,?,?,?,?)', owner, uid, idx, P.cycle, k, now);
-    this.addGold(uid, RULES.helpGold, 'help'); await this.addExp(uid, RULES.helpExp, out);
+    // 软上限：超过后仍然可以帮忙，只是不再给奖励
+    const tired = n >= RULES.helpSoftLimit; let gold = 0, exp = 0;
+    if (!tired) { gold = RULES.helpGold; this.addGold(uid, gold, 'help'); exp = await this.addExp(uid, RULES.helpExp, out); }
     this.db.w('UPDATE users SET help_total=help_total+1 WHERE id=?', uid); this.pu(uid, x => x.help_total++); this.bump(uid, 'help'); this.bump(uid, 'help_n', 1, 'day'); this.bump(uid, 'social', 1, 'all');
-    await this.msg(owner, 'helped', uid, { kinds: k }, true); return { idx, kind: k };
+    await this.msg(owner, 'helped', uid, { kinds: k }, true); return { idx, kind: k, gold, exp, tired };
   }
   async guestbook(uid, owner) { if (uid !== owner) await this.canSee(uid, owner); return (await this.db.all('SELECT g.id,g.phrase,g.at,g.author,u.name,u.avatar FROM guestbook g LEFT JOIN users u ON u.id=g.author WHERE g.owner=? AND g.hidden=0 ORDER BY g.id DESC LIMIT 30', owner)).map(r => ({ id: r.id, phrase: r.phrase, at: r.at, author: r.author, name: r.name || '已注销玩家', avatar: J(r.avatar) || {} })); }
   async postGuestbook(uid, owner, phrase) {
@@ -1495,7 +1539,7 @@ const PERSONAS = {
 };
 const PKEYS = Object.keys(PERSONAS);
 function pickPersona(r) { const tot = PKEYS.reduce((s, k) => s + PERSONAS[k].w, 0); let x = r() * tot; for (const k of PKEYS) { x -= PERSONAS[k].w; if (x <= 0) return k; } return 'office'; }
-function pickLv(r) { const x = r(); return x < 0.35 ? 2 + Math.floor(r() * 5) : x < 0.65 ? 7 + Math.floor(r() * 6) : x < 0.85 ? 13 + Math.floor(r() * 6) : x < 0.95 ? 19 + Math.floor(r() * 6) : 25 + Math.floor(r() * 5); }
+function pickLv(r) { const x = r(); return x < 0.35 ? 2 + Math.floor(r() * 5) : x < 0.65 ? 7 + Math.floor(r() * 6) : x < 0.85 ? 13 + Math.floor(r() * 6) : x < 0.95 ? 19 + Math.floor(r() * 6) : 25 + Math.floor(r() * 12); }
 
 // 每个真人每天最多被 NPC 影响的次数，避免打扰
 const CAP = { steal: 4, help: 6, buy: 6, gb: 2, add: 2 };
@@ -1777,7 +1821,7 @@ async function createCore(opts) {
   R('GET', '/api/health', { noTx: 1 }, async () => ({ ok: true, version: VERSION, schema: SCHEMA_VERSION, db: db.kind, now: game.now() }));
   R('GET', '/api/config', { noTx: 1 }, async () => game.publicConfig());
   R('POST', '/api/auth/guest', { authLimit: 1, guestLimit: 1 }, async (c) => { const uid = await game.createUser(c.body.name); const token = game.newSession(uid, c.ua); c.addDev(token); return { token, state: await st(uid) }; });
-  R('POST', '/api/auth/register', { authLimit: 1, guestLimit: 1 }, async (c) => { const uid = await game.createUser(c.body.name, c.body.username, c.body.password); const token = game.newSession(uid, c.ua); c.addDev(token); return { token, state: await st(uid) }; });
+  R('POST', '/api/auth/register', { authLimit: 1, guestLimit: 1 }, async (c) => { U.checkPw2(c.body.password, c.body.password2); const uid = await game.createUser(c.body.name, c.body.username, c.body.password); const token = game.newSession(uid, c.ua); c.addDev(token); return { token, state: await st(uid) }; });
   R('POST', '/api/auth/login', { authLimit: 1 }, async (c) => { const u = await game.login(c.body.username, c.body.password); if (u.banned) throw U.forbid('账号已被封禁：' + (u.ban_reason || '违反规则')); const token = (await c.devFor(u.id)) || game.newSession(u.id, c.ua); c.addDev(token); return { token, state: await st(u.id) }; });
   R('POST', '/api/auth/recover', { authLimit: 1 }, async (c) => { const r = await game.recover(c.body.username, c.body.code, c.body.password); const token = game.newSession(r.user.id, c.ua); c.addDev(token); return { token, recovery: r.recovery, state: await st(r.user.id) }; });
   R('GET', '/api/invite/:code', {}, async (c) => { const u = await db.get('SELECT * FROM users WHERE code=? AND banned=0', String(c.params.code)); if (!u) throw U.notFound('邀请链接无效'); return game.publicUser(u); });
@@ -1794,8 +1838,8 @@ async function createCore(opts) {
   R('POST', '/api/accounts/use', { authLimit: 1 }, async (c) => { const x = (await devList(c)).find(x => x.u.id === Number(c.body.id)); if (!x) throw U.notFound('这台设备上没有保存这个账号，请重新登录'); c.touchDev(); return { token: x.t, state: await st(x.u.id) }; });
   R('POST', '/api/accounts/remember', { auth: 1 }, async (c) => { c.addDev(c.token); return {}; });
   R('POST', '/api/accounts/forget', {}, async (c) => { const x = (await devList(c)).find(x => x.u.id === Number(c.body.id)); if (x) { db.w('DELETE FROM sessions WHERE token_hash=?', U.sha256(x.t)); c.dropDev(x.t); } return {}; });
-  R('POST', '/api/auth/bind', { auth: 1, authLimit: 1 }, (c) => game.bind(c.uid, c.body.username, c.body.password));
-  R('POST', '/api/auth/password', { auth: 1, authLimit: 1 }, async (c) => { await game.changePassword(c.uid, c.body.old, c.body.password); return { token: game.newSession(c.uid, c.ua) }; });
+  R('POST', '/api/auth/bind', { auth: 1, authLimit: 1 }, (c) => { U.checkPw2(c.body.password, c.body.password2); return game.bind(c.uid, c.body.username, c.body.password); });
+  R('POST', '/api/auth/password', { auth: 1, authLimit: 1 }, async (c) => { U.checkPw2(c.body.password, c.body.password2); await game.changePassword(c.uid, c.body.old, c.body.password); return { token: game.newSession(c.uid, c.ua) }; });
   R('GET', '/api/state', { auth: 1 }, (c) => st(c.uid));
   R('POST', '/api/me/profile', { auth: 1 }, async (c) => { await game.updateProfile(c.uid, c.body); return own(c.uid); });
   R('POST', '/api/me/migrate', { auth: 1 }, async (c) => own(c.uid, await game.migrate(c.uid, c.body)));
@@ -1824,8 +1868,8 @@ async function createCore(opts) {
   R('GET', '/api/achievements', { auth: 1 }, (c) => game.achievements(c.uid));
   R('POST', '/api/achievements/claim', { auth: 1 }, async (c) => own(c.uid, await game.claimAch(c.uid, String(c.body.id))));
   R('GET', '/api/orders', { auth: 1 }, (c) => game.orders(c.uid));
-  R('POST', '/api/orders/deliver', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.deliver(c.uid, U.int(c.body.slot, '订单', 0, 2), o), o); });
-  R('POST', '/api/orders/refresh', { auth: 1 }, async (c) => own(c.uid, await game.refreshOrder(c.uid, U.int(c.body.slot, '订单', 0, 2))));
+  R('POST', '/api/orders/deliver', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.deliver(c.uid, U.int(c.body.slot, '订单', 0, CFG.RULES.orderSlotsMax - 1), o), o); });
+  R('POST', '/api/orders/refresh', { auth: 1 }, async (c) => own(c.uid, await game.refreshOrder(c.uid, U.int(c.body.slot, '订单', 0, CFG.RULES.orderSlotsMax - 1))));
   R('GET', '/api/codex', { auth: 1 }, (c) => game.codexList(c.uid));
   R('GET', '/api/cosmetics', { auth: 1 }, (c) => game.cosmetics(c.uid));
   R('POST', '/api/cosmetics/buy', { auth: 1 }, async (c) => own(c.uid, await game.buyCosmetic(c.uid, String(c.body.kind), String(c.body.id))));
