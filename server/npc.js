@@ -48,146 +48,169 @@ const CAP = { steal: 4, help: 6, buy: 6, gb: 2, add: 2 };
 
 class Villagers {
   constructor(game) { this.g = game; this.db = game.db; }
-  ids() { return this.db.all("SELECT id FROM users WHERE role='npc' AND banned=0").map(r => r.id); }
+  async ids() { return (await this.db.all("SELECT id FROM users WHERE role='npc' AND banned=0")).map(r => r.id); }
   localHour(ms) { return (((ms + (this.g.opts.tzMin || 480) * 60000) / 3600000) % 24 + 24) % 24; }
   weekday(ms) { const d = new Date(ms + (this.g.opts.tzMin || 480) * 60000).getUTCDay(); return d === 0 || d === 6 ? 'we' : 'wd'; }
   st(u) { try { return (JSON.parse(u.settings || '{}').npc) || null; } catch (e) { return null; } }
-  saveSt(u, s) { let o = {}; try { o = JSON.parse(u.settings || '{}'); } catch (e) { } o.npc = s; this.db.run('UPDATE users SET settings=? WHERE id=?', JSON.stringify(o), u.id); }
-  uniqueName(r) { for (let i = 0; i < 40; i++) { let n = genName(r); try { n = U.cleanName(n); } catch (e) { continue; } if (!this.db.get('SELECT 1 FROM users WHERE name=?', n)) return n; } return U.cleanName(genName(r) + Math.floor(r() * 90 + 10)); }
-
-  /* ---------- 生成：带着合理的历史数据入场 ---------- */
-  ensure(n) {
-    const g = this.g, now = g.now();
-    // 旧版本留下的“村民”统一升级
-    this.db.all("SELECT * FROM users WHERE role='npc'").forEach(u => { const s = this.st(u); if (!s || s.v !== 2) this.dress(u.id, CFG.rng(CFG.hash32('up' + u.id + now)), u.lv); });
-    const have = this.db.get("SELECT COUNT(*) n FROM users WHERE role='npc'").n;
-    for (let i = have; i < n; i++) {
-      const r = CFG.rng(CFG.hash32('npc' + i + ':' + now)), lv = pickLv(r);
-      const uid = g.createUser(this.uniqueName(r));
-      this.dress(uid, r, lv);
-    }
+  saveSt(u, s) { let o = {}; try { o = JSON.parse(u.settings || '{}'); } catch (e) { } o.npc = s; this.db.w('UPDATE users SET settings=? WHERE id=?', JSON.stringify(o), u.id); }
+  async uniqueName(r) {
+    const cand = []; for (let i = 0; i < 12; i++) { let n = genName(r); try { n = U.cleanName(n); } catch (e) { continue; } cand.push(n); }
+    if (cand.length) { const taken = new Set((await this.db.all(`SELECT name FROM users WHERE name IN (${cand.map(() => '?').join(',')})`, ...cand)).map(x => x.name)); const ok = cand.find(n => !taken.has(n)); if (ok) return ok; }
+    return U.cleanName(genName(r).slice(0, 7) + Math.floor(r() * 90 + 10));
   }
-  dress(uid, r, lv) {
+
+  /* ---------- 生成：带着合理的历史数据入场（每个 NPC 一个事务） ---------- */
+  async ensure(n, budgetMs) {
+    const g = this.g, now = g.now(), t0 = Date.now();
+    // 旧版本留下的“村民”统一升级
+    for (const u of await this.db.all("SELECT * FROM users WHERE role='npc'")) { const s = this.st(u); if (!s || s.v !== 2) await this.db.tx(() => this.dress(u.id, CFG.rng(CFG.hash32('up' + u.id + now)), u.lv)); }
+    const have = (await this.db.get("SELECT COUNT(*) n FROM users WHERE role='npc'")).n;
+    for (let i = have; i < n; i++) {
+      if (budgetMs && Date.now() - t0 > budgetMs) return false;
+      const r = CFG.rng(CFG.hash32('npc' + i + ':' + now + ':' + Math.random())), lv = pickLv(r);
+      await this.db.tx(async () => { const uid = await g.createUser(await this.uniqueName(r)); this.db.w("UPDATE users SET role='npc' WHERE id=?", uid); await this.dress(uid, r, lv); });
+    }
+    return true;
+  }
+  async dress(uid, r, lv) {
     const g = this.g, now = g.now(), A = CFG.AVATAR_OPTS, hat = r() < 0.45 ? 1 : 0;
     const av = { skin: Math.floor(r() * A.skin.length), hair: Math.floor(r() * A.hair.length), hat, fringe: r() < 0.85 ? 1 : 0, pig: !hat && r() < 0.35 ? 1 : 0, band: Math.floor(r() * A.band.length), shirt: Math.floor(r() * A.shirt.length), bg: Math.floor(r() * A.bg.length) };
-    const u0 = g.user(uid); let name = u0.name; if (/^(王大爷|李婶|老张|春妮|阿强|秀兰|铁柱|小芳|刘叔|翠花|大海|桂英|阿福|玉兰|石头|巧云|老陈|杏儿|水生|红梅)$/.test(name)) name = this.uniqueName(r);
+    const u0 = await g.user(uid); let name = u0.name; if (/^(王大爷|李婶|老张|春妮|阿强|秀兰|铁柱|小芳|刘叔|翠花|大海|桂英|阿福|玉兰|石头|巧云|老陈|杏儿|水生|红梅)$/.test(name)) name = await this.uniqueName(r);
     const days = Math.max(1, Math.round(lv * (0.6 + r() * 0.9) + r() * 4)), created = now - days * 86400000 - Math.floor(r() * 86400000);
     const harvest = Math.round(Math.pow(lv, 1.7) * 7 * (0.7 + r() * 0.6)), steal = Math.round(harvest * (0.15 + r() * 0.35)), help = Math.round(harvest * (0.1 + r() * 0.3));
     const owned = Math.min(NPLOTS, RULES.startPlots + Math.floor(Math.max(0, lv - 2) / 0.8 * (0.5 + r() * 0.45)));
     const gold = Math.round(lv * lv * 35 + lv * 150 + r() * lv * 300 + 200);
     const dog = lv >= 3 && r() < 0.45 ? 1 : 0, persona = pickPersona(r);
     const yest = CFG.dayKey(now - 86400000);
-    this.db.run(`UPDATE users SET role='npc', name=?, lv=?, exp=?, gold=?, title='', theme='classic', frame='none', avatar=?, dog_own=?, dog_lv=?, dog_exp=0, dog_until=0,
+    const fields = { name, lv, exp: Math.floor(CFG.expNeed(lv) * r() * 0.9), gold, avatar: JSON.stringify(av), dog_own: dog, dog_lv: dog ? 1 + Math.floor(r() * Math.min(9, lv / 3)) : 1,
+      harvest_total: harvest, steal_total: steal, help_total: help, plant_total: Math.round(harvest * 1.1), golden_total: Math.round(harvest * 0.03 * r()), order_total: Math.round(lv * 1.5 * r()), earned_total: Math.round(gold * (3 + r() * 4)), stolen_from_total: Math.round(harvest * 2 * r()),
+      checkin_last: r() < 0.6 ? yest : CFG.dayKey(now - Math.floor(2 + r() * 5) * 86400000), checkin_streak: Math.floor(r() * Math.min(lv, 9)), created_at: created, last_active: now - Math.floor(r() * 20 * 3600000) };
+    this.db.w(`UPDATE users SET role='npc', name=?, lv=?, exp=?, gold=?, title='', theme='classic', frame='none', avatar=?, dog_own=?, dog_lv=?, dog_exp=0, dog_until=0,
       harvest_total=?, steal_total=?, help_total=?, plant_total=?, golden_total=?, order_total=?, earned_total=?, stolen_from_total=?, checkin_last=?, checkin_streak=?, created_at=?, last_active=?, seed=0 WHERE id=?`,
-      name, lv, Math.floor(CFG.expNeed(lv) * r() * 0.9), gold, JSON.stringify(av), dog, dog ? 1 + Math.floor(r() * Math.min(9, lv / 3)) : 1,
-      harvest, steal, help, Math.round(harvest * 1.1), Math.round(harvest * 0.03 * r()), Math.round(lv * 1.5 * r()), Math.round(gold * (3 + r() * 4)), Math.round(harvest * 2 * r()),
-      r() < 0.6 ? yest : CFG.dayKey(now - Math.floor(2 + r() * 5) * 86400000), Math.floor(r() * Math.min(lv, 9)), created, now - Math.floor(r() * 20 * 3600000), uid);
+      fields.name, fields.lv, fields.exp, fields.gold, fields.avatar, fields.dog_own, fields.dog_lv, fields.harvest_total, fields.steal_total, fields.help_total, fields.plant_total, fields.golden_total, fields.order_total, fields.earned_total, fields.stolen_from_total, fields.checkin_last, fields.checkin_streak, fields.created_at, fields.last_active, uid);
     // 图鉴、成就、称号、装扮
-    CROPS.filter(c => c.lv <= lv).forEach(c => { if (r() < 0.9) this.db.run('INSERT OR IGNORE INTO codex (user_id,item,first_at,n) VALUES (?,?,?,?)', uid, 'c' + c.id, created + Math.floor(r() * (now - created)), 5 + Math.floor(r() * 200)); if (r() < 0.06) this.db.run('INSERT OR IGNORE INTO codex (user_id,item,first_at,n) VALUES (?,?,?,?)', uid, 'g' + c.id, now - Math.floor(r() * days) * 86400000, 1 + Math.floor(r() * 3)); });
-    const u = g.user(uid), stats = g.achStats(u); const titles = [];
-    CFG.ACHIEVEMENTS.forEach(a => { if (stats[a.stat] >= a.need) { this.db.run('INSERT OR IGNORE INTO claims (user_id,key,at) VALUES (?,?,?)', uid, 'ach:' + a.id, created + Math.floor(r() * (now - created))); if (a.title) titles.push(a.title); CFG.FRAMES.filter(f => f.ach === a.id).forEach(f => this.db.run('INSERT OR IGNORE INTO cosmetics (user_id,item,at) VALUES (?,?,?)', uid, 'frame:' + f.id, now)); } });
-    if (titles.length && r() < 0.55) this.db.run('UPDATE users SET title=? WHERE id=?', titles[Math.floor(r() * titles.length)], uid);
-    if (lv >= 8 && r() < 0.35) { const th = CFG.THEMES.filter(t => t.price && t.price <= lv * 1200); if (th.length) { const t = th[Math.floor(r() * th.length)]; this.db.run('INSERT OR IGNORE INTO cosmetics (user_id,item,at) VALUES (?,?,?)', uid, 'theme:' + t.id, now); this.db.run('UPDATE users SET theme=? WHERE id=?', t.id, uid); } }
-    if (lv >= 10 && r() < 0.3) { const fr = CFG.FRAMES.filter(f => f.price && f.price <= lv * 600); if (fr.length) { const f = fr[Math.floor(r() * fr.length)]; this.db.run('INSERT OR IGNORE INTO cosmetics (user_id,item,at) VALUES (?,?,?)', uid, 'frame:' + f.id, now); this.db.run('UPDATE users SET frame=? WHERE id=?', f.id, uid); } }
+    let codexN = 0;
+    CROPS.filter(c => c.lv <= lv).forEach(c => { if (r() < 0.9) { codexN++; this.db.w('INSERT OR IGNORE INTO codex (user_id,item,first_at,n) VALUES (?,?,?,?)', uid, 'c' + c.id, created + Math.floor(r() * (now - created)), 5 + Math.floor(r() * 200)); } if (r() < 0.06) { codexN++; this.db.w('INSERT OR IGNORE INTO codex (user_id,item,first_at,n) VALUES (?,?,?,?)', uid, 'g' + c.id, now - Math.floor(r() * days) * 86400000, 1 + Math.floor(r() * 3)); } });
+    const u = Object.assign({}, u0, fields), stats = g.achStatsOf(u, { friends: 0, codex: codexN }); const titles = [];
+    CFG.ACHIEVEMENTS.forEach(a => { if (stats[a.stat] >= a.need) { this.db.w('INSERT OR IGNORE INTO claims (user_id,key,at) VALUES (?,?,?)', uid, 'ach:' + a.id, created + Math.floor(r() * (now - created))); if (a.title) titles.push(a.title); CFG.FRAMES.filter(f => f.ach === a.id).forEach(f => this.db.w('INSERT OR IGNORE INTO cosmetics (user_id,item,at) VALUES (?,?,?)', uid, 'frame:' + f.id, now)); } });
+    if (titles.length && r() < 0.55) this.db.w('UPDATE users SET title=? WHERE id=?', titles[Math.floor(r() * titles.length)], uid);
+    if (lv >= 8 && r() < 0.35) { const th = CFG.THEMES.filter(t => t.price && t.price <= lv * 1200); if (th.length) { const t = th[Math.floor(r() * th.length)]; this.db.w('INSERT OR IGNORE INTO cosmetics (user_id,item,at) VALUES (?,?,?)', uid, 'theme:' + t.id, now); this.db.w('UPDATE users SET theme=? WHERE id=?', t.id, uid); } }
+    if (lv >= 10 && r() < 0.3) { const fr = CFG.FRAMES.filter(f => f.price && f.price <= lv * 600); if (fr.length) { const f = fr[Math.floor(r() * fr.length)]; this.db.w('INSERT OR IGNORE INTO cosmetics (user_id,item,at) VALUES (?,?,?)', uid, 'frame:' + f.id, now); this.db.w('UPDATE users SET frame=? WHERE id=?', f.id, uid); } }
     // 土地与作物：大部分地在种，一部分已经成熟（主人还没上线收）
-    this.db.run('UPDATE plots SET u=0, soil=0, c=-1, p=0, y=0, y0=0, stolen=0 WHERE user_id=?', uid);
+    this.db.w('UPDATE plots SET u=0, soil=0, c=-1, p=0, y=0, y0=0, stolen=0 WHERE user_id=?', uid);
     const nRed = lv >= 6 ? Math.floor(r() * Math.min(owned, (lv - 5) / 2)) : 0;
-    UNLOCK_ORDER.slice(0, owned).forEach((idx, k) => this.db.run('UPDATE plots SET u=1, soil=?, t=? WHERE user_id=? AND idx=?', k < nRed ? 1 : 0, now, uid, idx));
+    UNLOCK_ORDER.slice(0, owned).forEach((idx, k) => this.db.w('UPDATE plots SET u=1, soil=?, t=? WHERE user_id=? AND idx=?', k < nRed ? 1 : 0, now, uid, idx));
     const pool = CROPS.filter(c => c.lv <= lv).sort((a, b) => b.lv - a.lv), main = pool[Math.floor(r() * Math.min(3, pool.length))], alt = pool[Math.floor(r() * Math.min(6, pool.length))];
-    g.plots(uid).forEach(P => {
-      if (!P.u || r() < 0.12) return;
-      const cr = r() < 0.7 ? main : alt; P.c = cr.id; P.p = 0; P.sea = 0; g.startCycle(P, now);
+    for (const P of await g.plots(uid)) {
+      if (!P.u || r() < 0.12) continue;
+      const cr = r() < 0.7 ? main : alt; P.c = cr.id; P.p = 0; P.sea = 0; await g.startCycle(P, now);
       const x = r(); P.p = x < 0.35 ? 1 : 0.05 + r() * 0.9; if (P.p >= 1) { P.ra = now - Math.floor((3 + r() * 120) * 60000); P.ev = []; } else P.ev = P.ev.filter(e => e[0] > now);
       if (P.p < 1 && r() < 0.25) P.pr[['d', 'w', 'b'][Math.floor(r() * 3)]] = 1;
       g.savePlot(uid, P);
-    });
-    this.db.run('DELETE FROM inventory WHERE user_id=?', uid); g.addInv(uid, 'fert', Math.floor(r() * 8)); if (dog) g.addInv(uid, 'dogfood', Math.floor(r() * 4));
+    }
+    this.db.w('DELETE FROM inventory WHERE user_id=?', uid); g.addInv(uid, 'fert', Math.floor(r() * 8)); if (dog) g.addInv(uid, 'dogfood', Math.floor(r() * 4));
     pool.slice(0, 3).forEach(c => { if (r() < 0.6) g.addInv(uid, 'c' + c.id, 5 + Math.floor(r() * 40)); });
-    this.db.run('UPDATE users SET settings=? WHERE id=?', JSON.stringify({ sound: true, music: true, tut: 1, npc: { v: 2, persona, until: 0, seed: Math.floor(r() * 1e9) } }), uid);
+    this.db.w('UPDATE users SET settings=? WHERE id=?', JSON.stringify({ sound: true, music: true, tut: 1, npc: { v: 2, persona, until: 0, seed: Math.floor(r() * 1e9) } }), uid);
   }
 
-  /* ---------- 每 30 秒：决定谁在线、在线的人做什么 ---------- */
-  tick(tickSec) {
-    const g = this.g, now = g.now(), h = this.localHour(now), wk = this.weekday(now), day = CFG.dayKey(now);
-    this.ids().forEach(id => {
-      const u = g.user(id); let s = this.st(u); if (!s) return; const P = PERSONAS[s.persona] || PERSONAS.office;
+  /* ---------- 定时：决定谁在线、在线的人做什么 ----------
+     tickSec：距离上一次运行的秒数（无服务器部署时可能是几分钟，按时长折算上线概率）
+     budgetMs：本次最多运行多久（超时就留到下一次） */
+  async tick(tickSec, budgetMs) {
+    const g = this.g, now = g.now(), h = this.localHour(now), wk = this.weekday(now), day = CFG.dayKey(now), t0 = Date.now();
+    const rows = await this.db.all("SELECT id,settings,last_active FROM users WHERE role='npc' AND banned=0");
+    for (const u of rows) {
+      if (budgetMs && Date.now() - t0 > budgetMs) break;
+      const id = u.id; let s = this.st(u); if (!s) continue; const P = PERSONAS[s.persona] || PERSONAS.office;
       if (s.until > now) {
-        this.db.run('UPDATE users SET last_active=? WHERE id=?', now, id);
-        try { this.act(id, s, P); } catch (e) { if (!(e instanceof U.ApiError)) throw e; }
-        if (s.until <= now + tickSec * 1000) s.phase = 'off';
-        this.saveSt(g.user(id), s); return;
+        // 每个动作各自一个小事务（不把整段在线行为锁在一个长事务里，不阻塞真人玩家）
+        try { await this.act(id, s, P); } catch (e) { if (!(e instanceof U.ApiError)) throw e; }
+        if (s.until <= now + Math.min(tickSec, 300) * 1000) s.phase = 'off';
+        const cur = await g.user(id); let o = {}; try { o = JSON.parse(cur.settings || '{}'); } catch (e) { }
+        if (o.npc && o.npc.until === s.until) { o.npc = s; await this.db.run('UPDATE users SET settings=?, last_active=? WHERE id=?', JSON.stringify(o), now, id); }
+        continue;
       }
       // 是否开始一次上线：按作息时段、当天心情（偶尔一整天不上线）
       const mood = (CFG.hash32('mood' + id + day) % 100) / 100, dayMult = mood < 0.08 ? 0 : 0.5 + mood;
       let inten = 0; (P[wk] || P.wd).forEach(([a, b, k]) => { if ((h >= a && h < b) || (b > 24 && h < b - 24)) inten = Math.max(inten, k); });
-      const lam = inten * dayMult * 1.1, p = 1 - Math.exp(-lam * tickSec / 3600);
-      if (U.rand() < p && now - (s.last || 0) > 20 * 60000) { s.until = now + U.randInt(P.len[0], P.len[1]) * 60000; s.last = now; s.phase = 'farm'; this.db.run('UPDATE users SET last_active=? WHERE id=?', now, id); this.saveSt(u, s); }
-    });
+      const lam = inten * dayMult * 1.1, p = 1 - Math.exp(-lam * Math.min(tickSec, 3600) / 3600);
+      if (U.rand() < p && now - (s.last || 0) > 20 * 60000) {
+        s.until = now + U.randInt(P.len[0], P.len[1]) * 60000; s.last = now; s.phase = 'farm';
+        let o = {}; try { o = JSON.parse(u.settings || '{}'); } catch (e) { } o.npc = s; await this.db.run('UPDATE users SET settings=?, last_active=? WHERE id=?', JSON.stringify(o), now, id);
+      }
+    }
   }
-  sp(fn) { try { return this.db.sp(fn); } catch (e) { if (!(e instanceof U.ApiError)) throw e; return null; } }
-  act(id, s, P) {
-    if (s.phase === 'farm') { this.farmRoutine(id, P); s.phase = 'social'; return; }
-    if (s.phase === 'social') { if (U.rand() < 0.55 * P.social + 0.15) this.social(id, P); if (U.rand() < 0.12) this.market(id); if (U.rand() < 0.15) this.tidy(id, P); }
+  async sp(fn) { try { return await this.db.sp(fn); } catch (e) { if (!(e instanceof U.ApiError)) throw e; return null; } }
+  async act(id, s, P) {
+    if (s.phase === 'farm') { await this.farmRoutine(id, P); s.phase = 'social'; return; }
+    if (s.phase === 'social') { if (U.rand() < 0.55 * P.social + 0.15) await this.social(id, P); if (U.rand() < 0.12) await this.market(id); if (U.rand() < 0.15) await this.tidy(id, P); }
   }
   // 上线第一件事：签到、领奖、收菜、卖菜、交订单、照料、补种、扩建
-  farmRoutine(id, P) {
-    const g = this.g; let u = g.user(id); const out = {};
-    if (u.checkin_last !== CFG.dayKey(g.now())) this.sp(() => g.checkin(id, out));
-    const T = g.tasks(id); ['daily', 'weekly', 'newbie'].forEach(kind => T[kind].forEach(t => { if (!t.claimed && t.prog >= t.need) this.sp(() => g.claimTask(id, kind, t.id, out)); }));
-    g.achievements(id).forEach(a => { if (!a.claimed && a.prog >= a.need) { const r = this.sp(() => g.claimAch(id, a.id)); if (r && r.title && U.rand() < 0.4) this.db.run('UPDATE users SET title=? WHERE id=?', r.title, id); } });
-    g.plots(id).filter(p => p.u && p.c >= 0 && p.p >= 1).forEach(p => this.sp(() => g.harvest(id, p.idx, out)));
-    const ord = g.orders(id); ord.list.forEach(o => { if (!o.done && g.invQty(id, o.item) >= o.qty && U.rand() < 0.8) this.sp(() => g.deliver(id, o.slot, out)); });
-    Object.entries(g.inv(id)).forEach(([item, q]) => { if (/^[cg]\d+$/.test(item) && q > 0) { const keep = /^g/.test(item) ? 0 : Math.min(q, U.randInt(0, 25)); if (q - keep > 0) this.sp(() => g.sell(id, item, q - keep)); } });
-    this.tidy(id, P, true);
-    u = g.user(id);
-    if (u.dog_own && u.dog_until < g.now() + 15 * 60000) { if (!g.invQty(id, 'dogfood') && u.gold > 1500) this.sp(() => g.buy(id, 'dogfood', U.randInt(1, 3))); if (g.invQty(id, 'dogfood')) this.sp(() => g.feedDog(id)); }
-    if (!u.dog_own && u.lv >= RULES.dogNeedLv && u.gold > 1800 && U.rand() < 0.25) this.sp(() => g.buyDog(id));
-    u = g.user(id); const owned = this.db.get('SELECT COUNT(*) n FROM plots WHERE user_id=? AND u=1', id).n;
-    if (owned < NPLOTS && u.lv >= CFG.plotNeedLv(owned) && u.gold > CFG.plotCost(owned) * 1.4 && U.rand() < 0.5) this.sp(() => g.expand(id, -1, out));
-    u = g.user(id); if (u.lv >= RULES.redNeedLv && u.gold > CFG.redCost(this.db.get('SELECT COUNT(*) n FROM plots WHERE user_id=? AND soil=1', id).n) * 2.5 && U.rand() < 0.15) { const p = g.plots(id).find(x => x.u && !x.soil); if (p) this.sp(() => g.red(id, p.idx, out)); }
-    if (!g.invQty(id, 'fert') && u.gold > 3000 && U.rand() < 0.2) this.sp(() => g.buy(id, 'fert', U.randInt(2, 6)));
-    this.replant(id);
-    u = g.user(id); if (u.lv >= 6 && U.rand() < 0.03) { const own = new Set(g.cosmetics(id)); const th = CFG.THEMES.filter(t => t.price && !own.has('theme:' + t.id) && t.price * 3 < u.gold); if (th.length) { const t = th[U.randInt(0, th.length - 1)]; if (this.sp(() => g.buyCosmetic(id, 'theme', t.id))) this.db.run('UPDATE users SET theme=? WHERE id=?', t.id, id); } }
+  async farmRoutine(id, P) {
+    const g = this.g; let u = await g.user(id); const out = {};
+    if (u.checkin_last !== CFG.dayKey(g.now())) await this.sp(() => g.checkin(id, out));
+    const T = await g.tasks(id);
+    for (const kind of ['daily', 'weekly', 'newbie']) for (const t of T[kind]) if (!t.claimed && t.prog >= t.need) await this.sp(() => g.claimTask(id, kind, t.id, out));
+    for (const a of await g.achievements(id)) if (!a.claimed && a.prog >= a.need) { const r = await this.sp(() => g.claimAch(id, a.id)); if (r && r.title && U.rand() < 0.4) this.db.w('UPDATE users SET title=? WHERE id=?', r.title, id); }
+    for (const p of (await g.plots(id)).filter(p => p.u && p.c >= 0 && p.p >= 1)) await this.sp(() => g.harvest(id, p.idx, out));
+    const ord = await g.orders(id); let inv = await g.inv(id);
+    for (const o of ord.list) if (!o.done && (inv[o.item] || 0) >= o.qty && U.rand() < 0.8) { if (await this.sp(() => g.deliver(id, o.slot, out))) inv[o.item] -= o.qty; }
+    for (const [item, q] of Object.entries(inv)) { if (/^[cg]\d+$/.test(item) && q > 0) { const keep = /^g/.test(item) ? 0 : Math.min(q, U.randInt(0, 25)); if (q - keep > 0) await this.sp(() => g.sell(id, item, q - keep, q)); } }
+    await this.tidy(id, P, true);
+    [u, inv] = await Promise.all([g.user(id), g.inv(id)]);
+    if (u.dog_own && u.dog_until < g.now() + 15 * 60000) { if (!inv.dogfood && u.gold > 1500) { const n = U.randInt(1, 3); if (await this.sp(() => g.buy(id, 'dogfood', n))) inv.dogfood = n; } if (inv.dogfood) await this.sp(() => g.feedDog(id)); }
+    if (!u.dog_own && u.lv >= RULES.dogNeedLv && u.gold > 1800 && U.rand() < 0.25) await this.sp(() => g.buyDog(id));
+    let plots; [u, plots] = await Promise.all([g.user(id), g.plots(id)]); const owned = plots.filter(p => p.u).length;
+    if (owned < NPLOTS && u.lv >= CFG.plotNeedLv(owned) && u.gold > CFG.plotCost(owned) * 1.4 && U.rand() < 0.5) await this.sp(() => g.expand(id, -1, out));
+    [u, plots] = await Promise.all([g.user(id), g.plots(id)]);
+    if (u.lv >= RULES.redNeedLv && u.gold > CFG.redCost(plots.filter(p => p.soil).length) * 2.5 && U.rand() < 0.15) { const p = plots.find(x => x.u && !x.soil); if (p) await this.sp(() => g.red(id, p.idx, out)); }
+    if (!inv.fert && u.gold > 3000 && U.rand() < 0.2) await this.sp(() => g.buy(id, 'fert', U.randInt(2, 6)));
+    await this.replant(id);
+    u = await g.user(id); if (u.lv >= 6 && U.rand() < 0.03) { const own = new Set(await g.cosmetics(id)); const th = CFG.THEMES.filter(t => t.price && !own.has('theme:' + t.id) && t.price * 3 < u.gold); if (th.length) { const t = th[U.randInt(0, th.length - 1)]; if (await this.sp(() => g.buyCosmetic(id, 'theme', t.id))) this.db.w('UPDATE users SET theme=? WHERE id=?', t.id, id); } }
   }
   // 照料自己的地：不同的人勤快程度不同
-  tidy(id, P, full) { const g = this.g; g.plots(id).forEach(p => { if (p.u && p.c >= 0 && p.p < 1 && (p.pr.d || p.pr.w || p.pr.b) && U.rand() < (full ? P.care : P.care * 0.4)) { for (let k = 0; k < 3; k++) if (!this.sp(() => g.care(id, p.idx))) break; } }); if (full && U.rand() < 0.3) { const p = g.plots(id).find(x => x.u && x.c >= 0 && x.p < 0.8); if (p && g.invQty(id, 'fert')) this.sp(() => g.fert(id, p.idx)); } }
+  async tidy(id, P, full) {
+    const g = this.g; const [plots, inv] = await Promise.all([g.plots(id), g.inv(id)]);
+    for (const p of plots) { if (p.u && p.c >= 0 && p.p < 1 && (p.pr.d || p.pr.w || p.pr.b) && U.rand() < (full ? P.care : P.care * 0.4)) { for (let k = 0; k < 3; k++) if (!(await this.sp(() => g.care(id, p.idx)))) break; } }
+    if (full && U.rand() < 0.3) { const p = plots.find(x => x.u && x.c >= 0 && x.p < 0.8); if (p && inv.fert) await this.sp(() => g.fert(id, p.idx)); }
+  }
   // 补种：根据离下次上线的时间挑作物（晚上种长的，白天种短的）
-  replant(id) {
-    const g = this.g, u = g.user(id), empty = g.plots(id).filter(p => p.u && p.c < 0); if (!empty.length) return;
+  async replant(id) {
+    const g = this.g, [u, plots] = await Promise.all([g.user(id), g.plots(id)]), empty = plots.filter(p => p.u && p.c < 0); if (!empty.length) return;
     const h = this.localHour(g.now()), horizon = (h >= 21 || h < 5) ? 6 + U.rand() * 4 : 0.5 + U.rand() * 3; // 小时
     const cand = CROPS.filter(c => c.lv <= u.lv && c.seed * empty.length <= u.gold * 0.7);
-    if (!cand.length) { const cheap = CROPS.filter(c => c.lv <= u.lv).sort((a, b) => a.seed - b.seed)[0]; if (cheap) empty.forEach(p => this.sp(() => g.plant(id, p.idx, cheap.id))); return; }
+    if (!cand.length) { const cheap = CROPS.filter(c => c.lv <= u.lv).sort((a, b) => a.seed - b.seed)[0]; if (cheap) for (const p of empty) await this.sp(() => g.plant(id, p.idx, cheap.id)); return; }
     const score = c => -Math.abs(Math.log((c.time / 3600 + 0.05) / horizon)) + (c.yield * c.price - c.seed) / Math.max(1, c.time) * 2 + U.rand() * 0.6;
     const best = cand.slice().sort((a, b) => score(b) - score(a)), main = best[0], alt = best[Math.min(1, best.length - 1)];
-    empty.forEach(p => this.sp(() => g.plant(id, p.idx, U.rand() < 0.75 ? main.id : alt.id)));
+    for (const p of empty) await this.sp(() => g.plant(id, p.idx, U.rand() < 0.75 ? main.id : alt.id));
   }
   // 串门：优先找偷过自己的人（报复）、好友，再随机找最近活跃的人
-  social(id, P) {
+  async social(id, P) {
     const g = this.g, now = g.now(), day = 'd' + CFG.dayKey(now);
-    const revenge = this.db.all('SELECT DISTINCT thief AS id FROM steals WHERE owner=? AND at>? AND blocked=0', id, now - 86400000).map(r => r.id);
-    const friends = this.db.all('SELECT b AS id FROM friends WHERE a=?', id).map(r => r.id);
-    const active = this.db.all('SELECT id FROM users WHERE banned=0 AND id<>? AND last_active>? ORDER BY RANDOM() LIMIT 12', id, now - 2 * 86400000).map(r => r.id);
+    const [rv, fr, ac] = await Promise.all([this.db.all('SELECT DISTINCT thief AS id FROM steals WHERE owner=? AND at>? AND blocked=0', id, now - 86400000), this.db.all('SELECT b AS id FROM friends WHERE a=?', id), this.db.all('SELECT id FROM users WHERE banned=0 AND id<>? AND last_active>? ORDER BY RANDOM() LIMIT 12', id, now - 2 * 86400000)]);
+    const revenge = rv.map(r => r.id), friends = fr.map(r => r.id), active = ac.map(r => r.id);
     const x = U.rand(), pool = x < 0.35 && revenge.length ? revenge : x < 0.6 && friends.length ? friends : active; if (!pool.length) return;
     const t = pool[U.randInt(0, pool.length - 1)]; if (t === id) return;
-    const tu = this.db.get('SELECT role FROM users WHERE id=?', t); if (!tu) return; const human = tu.role !== 'npc';
-    const cap = k => human && g.cnt(t, 'npcx_' + k, day) >= CAP[k], mark = k => { if (human) g.bump(t, 'npcx_' + k, 1, 'day'); };
-    const v = this.sp(() => g.visit(id, t)); if (!v) return;
+    const tu = await this.db.get('SELECT role FROM users WHERE id=?', t); if (!tu) return; const human = tu.role !== 'npc';
+    const C = human ? await g.counters(t) : () => 0, used = {};
+    const cap = k => human && C('npcx_' + k, day) + (used[k] || 0) >= CAP[k], mark = k => { if (human) { g.bump(t, 'npcx_' + k, 1, 'day'); used[k] = (used[k] || 0) + 1; } };
+    const v = await this.sp(() => g.visit(id, t)); if (!v) return;
     let stole = 0, helped = 0;
-    v.plots.forEach(p => {
-      if (p.canSteal && !cap('steal') && U.rand() < (revenge.includes(t) ? 0.9 : 0.65)) { const r = this.sp(() => g.steal(id, t, p.idx, {})); if (r) { mark('steal'); if (!r.blocked) stole++; } }
-      else if ((p.pr.d || p.pr.w || p.pr.b) && p.p < 1 && !cap('help') && U.rand() < (friends.includes(t) ? 0.7 : 0.4)) { if (this.sp(() => g.help(id, t, p.idx, {}))) { mark('help'); helped++; } }
-    });
-    if (!cap('gb') && U.rand() < 0.05) { const ph = stole ? (U.rand() < 0.5 ? 1 : 6) : helped ? (U.rand() < 0.5 ? 2 : 3) : [0, 4, 8, 9][U.randInt(0, 3)]; if (this.sp(() => g.postGuestbook(id, t, ph))) mark('gb'); }
-    if (!friends.includes(t) && !cap('add') && U.rand() < (revenge.includes(t) ? 0.12 : 0.05)) { if (this.sp(() => g.addFriend(id, t))) mark('add'); }
+    for (const p of v.plots) {
+      if (p.canSteal && !cap('steal') && U.rand() < (revenge.includes(t) ? 0.9 : 0.65)) { const r = await this.sp(() => g.steal(id, t, p.idx, {})); if (r) { mark('steal'); if (!r.blocked) stole++; } }
+      else if ((p.pr.d || p.pr.w || p.pr.b) && p.p < 1 && !cap('help') && U.rand() < (friends.includes(t) ? 0.7 : 0.4)) { if (await this.sp(() => g.help(id, t, p.idx, {}))) { mark('help'); helped++; } }
+    }
+    if (!cap('gb') && U.rand() < 0.05) { const ph = stole ? (U.rand() < 0.5 ? 1 : 6) : helped ? (U.rand() < 0.5 ? 2 : 3) : [0, 4, 8, 9][U.randInt(0, 3)]; if (await this.sp(() => g.postGuestbook(id, t, ph))) mark('gb'); }
+    if (!friends.includes(t) && !cap('add') && U.rand() < (revenge.includes(t) ? 0.12 : 0.05)) { if (await this.sp(() => g.addFriend(id, t))) mark('add'); }
   }
   // 集市：摆摊卖多余的作物，买价格公道的货
-  market(id) {
-    const g = this.g, now = g.now(), day = 'd' + CFG.dayKey(now); g.expireListings(); const u = g.user(id);
+  async market(id) {
+    const g = this.g, now = g.now(), day = 'd' + CFG.dayKey(now); await g.expireListings(); const u = await g.user(id);
     if (U.rand() < 0.5) {
-      if (this.db.get("SELECT COUNT(*) n FROM market WHERE seller=? AND status='open'", id).n < 3) { const items = Object.entries(g.inv(id)).filter(([k, q]) => /^c\d+$/.test(k) && q >= 12); if (items.length) { const [item, q] = items[U.randInt(0, items.length - 1)], b = g.priceBand(item); const price = Math.max(b.min, Math.min(b.max, Math.round(g.unitPrice(item) * (0.95 + U.rand() * 0.35)))); this.sp(() => g.listItem(id, item, Math.min(q, U.randInt(8, 30)), price)); } }
+      if ((await this.db.get("SELECT COUNT(*) n FROM market WHERE seller=? AND status='open'", id)).n < 3) { const items = Object.entries(await g.inv(id)).filter(([k, q]) => /^c\d+$/.test(k) && q >= 12); if (items.length) { const [item, q] = items[U.randInt(0, items.length - 1)], b = g.priceBand(item); const price = Math.max(b.min, Math.min(b.max, Math.round(await g.unitPrice(item) * (0.95 + U.rand() * 0.35)))); await this.sp(() => g.listItem(id, item, Math.min(q, U.randInt(8, 30)), price)); } }
     } else {
-      const ls = this.db.all("SELECT m.*, s.role AS srole FROM market m JOIN users s ON s.id=m.seller WHERE m.status='open' AND m.seller<>? AND m.created_at<? ORDER BY RANDOM() LIMIT 8", id, now - 3 * 60000);
-      for (const m of ls) { if (m.price > g.unitPrice(m.item) * 1.12 || m.qty * m.price > u.gold * 0.3) continue; const human = m.srole !== 'npc'; if (human && g.cnt(m.seller, 'npcx_buy', day) >= CAP.buy) continue; if (U.rand() < 0.45) { if (this.sp(() => g.buyListing(id, m.id, {})) && human) g.bump(m.seller, 'npcx_buy', 1, 'day'); break; } }
+      const ls = await this.db.all("SELECT m.*, s.role AS srole FROM market m JOIN users s ON s.id=m.seller WHERE m.status='open' AND m.seller<>? AND m.created_at<? ORDER BY RANDOM() LIMIT 8", id, now - 3 * 60000);
+      for (const m of ls) { if (m.price > await g.unitPrice(m.item) * 1.12 || m.qty * m.price > u.gold * 0.3) continue; const human = m.srole !== 'npc'; if (human && await g.cnt(m.seller, 'npcx_buy', day) >= CAP.buy) continue; if (U.rand() < 0.45) { if (await this.sp(() => g.buyListing(id, m.id, {})) && human) g.bump(m.seller, 'npcx_buy', 1, 'day'); break; } }
     }
   }
 }

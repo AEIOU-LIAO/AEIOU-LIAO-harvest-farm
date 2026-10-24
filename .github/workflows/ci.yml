@@ -11,8 +11,23 @@ jobs:
         with: { node-version: '22' }
       - name: 构建产物与源码一致
         run: npm run check-build
-      - name: 接口与并发测试
+      - name: 接口与并发测试（本地 SQLite + EdgeOne 入口）
         run: npm test
+      - name: 同一套测试跑在模拟的 Turso 上（含 40ms 网络延迟）
+        run: npm run test:turso
+        env: { TEST_LATENCY: '40' }
+      - name: EdgeOne 静态构建
+        run: npm run build:edgeone && test -f dist/index.html && test -f dist/vendor/three.min.js
+  # EdgeOne 云函数的 Node 版本可能低于 22：确认入口在 Node 18 / 20 上能正常加载（不依赖 node:sqlite）
+  edgeone-compat:
+    runs-on: ubuntu-latest
+    strategy: { matrix: { node: ['18', '20'] } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ matrix.node }}' }
+      - name: 加载云函数入口
+        run: node -e "import('./cloud-functions/api/[[default]].js').then(m => { if (typeof m.onRequest !== 'function') throw new Error('no onRequest'); return m.onRequest({ request: new Request('https://x/api/health'), env: {} }); }).then(r => r.json()).then(j => { console.log(j); if (!/TURSO_DATABASE_URL/.test(j.error)) process.exit(1); })"
   # 可选：合并到 main 后通过 SSH 让服务器执行 deploy.sh
   # 启用方法：仓库 Settings → Secrets 添加 DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY，Variables 添加 DEPLOY_ENABLED=true
   deploy:

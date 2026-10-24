@@ -7,7 +7,9 @@
 - **拟真 NPC 玩家**：服务器运行一批 NPC，在其他玩家眼里和真人没有区别，详见下文。
 - **真实多人**：偷菜、互助、留言都作用在对方的真实数据上。
 - **服务器权威**：金币、经验、作物生长、偷菜结果、交易全部由服务器计算并持久化；浏览器只负责显示与发请求。
-- **零依赖**：只需要 Node.js 22.13 或更高版本。数据库用 Node 内置的 SQLite（单个文件），不需要 `npm install`，也不需要额外的数据库服务。
+- **零依赖、两种部署方式**：没有任何 npm 依赖。
+  - **EdgeOne Pages + Turso**（推荐，不需要自己的服务器）：页面和接口都在 EdgeOne 上，数据存在 Turso 云数据库（SQLite 兼容，免费额度足够前期使用）。
+  - **自己的服务器**：Node.js 22.13+，数据库用 Node 内置的 SQLite（单个文件）。
 
 ---
 
@@ -18,23 +20,28 @@ index.html          游戏页面（由 src/ 构建出的单文件，可直接被
 admin.html          运营后台页面
 shared/config.js    前后端共用：作物、规则、任务、成就、装扮、生长算法、时区
 server/             服务端
-  index.js          HTTP 服务、路由、鉴权、幂等、限流、备份、指标
+  app.js            请求处理核心：路由、鉴权、幂等、限流、指标、后台任务（与运行平台无关）
+  index.js          本机 / 自己服务器上的 HTTP 服务（静态页面、定时器、备份）
   game.js           游戏逻辑（全部在数据库事务中执行）
   admin.js          运营后台接口
-  db.js             SQLite 表结构与版本化迁移
+  db.js             数据库层：表结构与版本化迁移；本地 SQLite / Turso 两种后端，同一套异步接口
   util.js           密码哈希、令牌、限流、输入校验
   npc.js            拟真 NPC 玩家（作息、经营、社交、集市）
   cli.js            运维命令（备份/恢复/设管理员/重置密码）
 src/                前端源码（world3d 3D 场景，game 客户端逻辑，ui 弹窗，icons 矢量图标，net 网络层，avatar2d 头像）
 vendor/three.min.js Three.js r149（MIT 许可，见 vendor/THREE-LICENSE.txt）
+cloud-functions/    EdgeOne Pages 云函数入口（api/[[default]].js 处理所有 /api/* 请求）
+edgeone.json        EdgeOne 构建、函数时长、每分钟定时任务、安全响应头
 test/api.test.js    自动化测试（16 组，含并发偷菜、幂等、权限、交易守恒、NPC）
+test/edgeone.test.js EdgeOne 入口测试（按云函数方式调用）
+test/turso-mock.js  本地模拟的 Turso（协议一致、独立连接、可加网络延迟），测试用
 deploy/             一键部署脚本、systemd 服务、Nginx 反向代理配置
 docs/ACCEPTANCE.md  功能验收矩阵、测试结果、未解决问题
 ```
 
 ## NPC 玩家
 
-前期真人少，服务器默认运行 24 个 NPC（`.env` 里的 `NPC_COUNT` 可以调整，设为 0 就关闭）。
+前期真人少，服务器默认运行 24 个 NPC（环境变量 `NPC_COUNT` 可以调整，设为 0 就关闭）。自己的服务器上每 30 秒运行一次；EdgeOne 上由每分钟一次的定时任务驱动（玩家在线的页面也会顺手触发，数据库租约保证同一时间只运行一份）。
 
 - **看起来像真人**：网名按真实风格生成，比如“晚风与你”“Kevin_88”“爱吃草莓的兔子”“张伟”；等级、注册时间、头像、称号、头像框、累计数据都和等级相符。
 - **有自己的作息**：每个 NPC 属于一种作息类型（上班族、学生、夜猫子、早起的人、居家、重度玩家、偶尔玩），只在对应时段上线，在线时头像亮绿点。离线时作物照常生长、成熟，可以被人摘。
@@ -50,7 +57,7 @@ docs/ACCEPTANCE.md  功能验收矩阵、测试结果、未解决问题
 - 同一台设备可以保存多个账号（最多 8 个）。登录页顶部显示“本机账号”，点头像直接进入；游戏里在“设置 → 切换账号”切换或新建。
 - 打开网页时，如果之前登录过，会自动进入最近使用的账号，不需要每次登录。
 - **苹果设备**：Safari 会定期清理网页脚本写入的本地存储，所以账号主要由服务器下发的 HttpOnly Cookie（`hf_dev`，有效期 400 天，只发往 `/api`）保存，本地存储只作为备份。实测清空网页存储后刷新，仍能自动进入原账号。
-- 这依赖页面和接口**同域部署**（README 方案 A）。如果前端放在 EdgeOne、接口在另一个域名（方案 B），Safari 会拦截跨站 Cookie，只能靠本地存储，长期不访问后可能需要重新登录。
+- 这依赖页面和接口**同域部署**。EdgeOne 方案（页面和接口在同一个域名下）和自己服务器的方案都满足；只有“页面和接口分在两个域名”（方案 C）时，Safari 会拦截跨站 Cookie，只能靠本地存储。
 - “添加到主屏幕”打开的网页 App 和 Safari 是两套独立存储，需要各自登录一次。
 - 游客账号仍建议绑定账号密码：换设备或清除 Cookie 后只能靠账号密码找回。
 
@@ -70,9 +77,40 @@ npm start                 # 或：node server/index.js
 
 ## 部署
 
-### 方案 A（推荐）：在自己的 Linux 服务器上运行
+### 方案 A（推荐）：EdgeOne Pages + Turso，不需要自己的服务器
 
-游戏页面和接口都由同一个 Node 服务提供，Nginx 只做反向代理和 HTTPS。不需要购买任何新服务。
+页面由 EdgeOne 静态托管，`/api/*` 由 EdgeOne 云函数处理，数据存在 Turso。推送代码到 GitHub 后 EdgeOne 自动重新部署。
+
+**1. 准备 Turso 数据库**（一次性）：在 [app.turso.tech](https://app.turso.tech) 用 GitHub 登录，新建数据库（区域选东京 `aws-ap-northeast-1`），复制数据库地址（`libsql://…`）并生成一个可读写、永不过期的令牌。表结构会在第一次访问时自动创建。
+
+**2. 在 EdgeOne Pages 创建项目**：
+1. 控制台 → 创建项目 → 导入 Git 仓库 → 选择 `AEIOU-LIAO-harvest-farm`。
+2. **生产分支选 `edgeone`**（EdgeOne 只自动发布这个分支；以后合并到 main 后可以改回 main）。
+3. 框架预设选“其他 / 无”。构建命令、输出目录、函数时长、定时任务都已写在 `edgeone.json` 里，不用手填。
+4. 环境变量（项目设置 → 环境变量）：
+
+| 变量 | 值 |
+|---|---|
+| `TURSO_DATABASE_URL` | Turso 数据库地址，`libsql://…` |
+| `TURSO_AUTH_TOKEN` | Turso 令牌 |
+| `NODE_ENV` | `production` |
+| `ADMIN_USERNAMES` | （可选）管理员账号，多个用逗号分隔；先在游戏里绑定账号再填 |
+| `NPC_COUNT` | （可选）NPC 数量，默认 24 |
+
+5. 加速区域：没有已备案的域名时选“全球可用区（不含中国大陆）”。
+6. 部署完成后打开 `https://你的域名/api/health`，看到 `"db":"turso"` 就说明接口和数据库都通了；再打开首页开始玩。
+
+> 修改环境变量后需要重新部署一次才会生效。令牌只填在 EdgeOne 的环境变量里，不要写进代码或提交到 GitHub。
+
+**这个方案下的注意事项**：
+- 数据全部在 Turso，云函数实例随时创建、销毁都不影响存档；多个实例同时运行时通过数据库事务保证一致。
+- NPC 由每分钟一次的定时任务驱动（`edgeone.json` 的 `schedules`），每次最多运行 40 秒。
+- 备份由 Turso 负责（控制台可以按时间点恢复），`server/cli.js backup` 只用于自己服务器上的本地数据库。
+- 数据库在东京，每次数据库往返约 50–80 毫秒。服务端把一次操作需要的读写合并成 2–5 次往返，实测一次操作约 0.2–0.5 秒（详见“成本与容量”）。
+
+### 方案 B：在自己的 Linux 服务器上运行
+
+游戏页面和接口都由同一个 Node 服务提供，Nginx 只做反向代理和 HTTPS。
 
 ```bash
 # 首次部署（会安装 Node 22 和 Nginx、注册 systemd 服务、配置反向代理）
@@ -88,17 +126,13 @@ sudo bash /var/www/harvest-farm/deploy/deploy.sh
 1. 把域名（如 `farm.peiqi1.top`）的 DNS 指向这台服务器，修改 `/etc/nginx/conf.d/harvest-farm.conf` 里的 `server_name`，然后执行 `sudo certbot --nginx -d farm.peiqi1.top` 开启 HTTPS。
 2. 在游戏里注册账号，然后设为管理员：`cd /var/www/harvest-farm && sudo node server/cli.js make-admin 你的账号`，再打开 `https://你的域名/admin.html`。
 
-也可以用 Docker：`docker compose up -d --build`（数据保存在 `./data`）。
+也可以用 Docker：`docker compose up -d --build`（数据保存在 `./data`）。自己的服务器上也可以改用 Turso：在 `.env` 里填 `TURSO_DATABASE_URL` 和 `TURSO_AUTH_TOKEN` 即可。
 
-### 方案 B：前端继续放在 EdgeOne，接口放在自己的服务器
-
-EdgeOne 静态托管不能运行 Node 和数据库，所以接口仍然要部署在一台服务器上（按方案 A 部署即可），再让 EdgeOne 上的页面去调用它：
+### 方案 C：前端放在 EdgeOne，接口放在另一个域名的服务器
 
 1. 给接口服务配一个 HTTPS 域名，例如 `api.peiqi1.top`（必须是 HTTPS，否则 HTTPS 页面会被浏览器拦截）。
 2. 在服务器的 `.env` 里设置 `CORS_ORIGINS=https://farm.peiqi1.top`，然后重启服务。
 3. 构建指定接口地址的页面并提交：`API_BASE=https://api.peiqi1.top npm run build`。
-
-> ⚠️ **合并到 main 之前请先确定用哪种方案。** 当前 EdgeOne 会自动发布 main 分支的 `index.html`。如果直接合并、接口还没部署，线上页面会提示“连接不上服务器”。建议先在服务器上用 `BRANCH=v2-multiplayer sudo -E bash deploy/deploy.sh` 部署验证，确认没问题后再合并。
 
 ### 环境隔离
 
@@ -108,12 +142,12 @@ EdgeOne 静态托管不能运行 Node 和数据库，所以接口仍然要部署
 |---|---|
 | 开发 | `npm run dev`，使用 `data/dev.db`，开测试时钟 |
 | 测试 | `npm test` 使用内存数据库，互不影响；也可以在另一个目录部署 `BRANCH=v2-multiplayer`，用 `PORT=3001`、`DB_PATH=data/staging.db` |
-| 生产 | `NODE_ENV=production`（测试时钟强制关闭），`DB_PATH=data/farm.db`，开启自动备份 |
+| 生产 | `NODE_ENV=production`（测试时钟强制关闭）；EdgeOne 用 Turso，自己的服务器用 `DB_PATH=data/farm.db` 并开启自动备份 |
 
 ### 数据库迁移、备份与恢复
 
-- 迁移：表结构变更写在 `server/db.js` 的 `MIGRATIONS` 数组里。服务启动时按版本号依次执行，每一步都在事务中完成，失败会回滚且服务不会启动。
-- 自动备份：默认每 24 小时用 `VACUUM INTO` 生成一份一致性快照到 `data/backups/`，保留最近 7 份；`deploy.sh` 每次更新前也会先备份一次。
+- 迁移：表结构变更写在 `server/db.js` 的 `MIGRATIONS` 数组里。服务启动（EdgeOne 上是函数冷启动）时按版本号依次执行，在排他事务中完成，失败会回滚且服务不会启动；版本已是最新时不加锁、不写入。
+- 自动备份（自己的服务器）：默认每 24 小时用 `VACUUM INTO` 生成一份一致性快照到 `data/backups/`，保留最近 7 份；`deploy.sh` 每次更新前也会先备份一次。
 - 手动备份：`node server/cli.js backup`
 - 恢复：先停止服务（`sudo systemctl stop harvest-farm`），执行 `node server/cli.js restore data/backups/farm-xxxx.db`（当前数据库会先另存一份），再启动服务。
 
@@ -139,18 +173,21 @@ node server/cli.js info
 ## 测试
 
 ```bash
-npm test          # 16 组接口测试，约 15 秒
+npm test                         # 16 组接口测试 + EdgeOne 入口测试（本地 SQLite）
+npm run test:turso               # 同样 16 组测试，数据库换成本地模拟的 Turso
+TEST_LATENCY=60 npm run test:turso  # 再给每次数据库请求加 60 毫秒延迟（接近从国内访问东京）
 ```
 
-覆盖内容包括：账号与跨设备登录、本机多账号（Cookie 保存、点选进入、移除、退出）、邀请链接与一键加好友、开放互访与屏蔽、拟真 NPC（接口不泄露身份、按作息上线经营、偷菜帮忙买货、赛季奖励不被抢）、偷菜数量守恒、40 个请求并发偷同一块地、重复提交（幂等键）、保护期、狗狗拦截、每日上限、新手保底、互助、集市并发购买与金币守恒、奖励不可重复领取、排行榜不可篡改、后台权限、活动与配置生效、封禁、导出与注销、限流、生长与时区计算。端到端浏览器测试和压测结果见 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)。
+覆盖内容包括：账号与跨设备登录、本机多账号（Cookie 保存、点选进入、移除、退出）、邀请链接与一键加好友、开放互访与屏蔽、拟真 NPC（接口不泄露身份、按作息上线经营、偷菜帮忙买货、赛季奖励不被抢）、偷菜数量守恒、40 个请求并发偷同一块地、重复提交（幂等键）、保护期、狗狗拦截、每日上限、新手保底、互助、集市并发购买与金币守恒、奖励不可重复领取、排行榜不可篡改、后台权限、活动与配置生效、封禁、导出与注销、限流、生长与时区计算；EdgeOne 入口的初始化、HTTPS Cookie、换设备、多实例共用数据库、定时任务去重。端到端浏览器测试和压测结果见 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)。
 
 ## 成本与容量
 
-- **费用**：方案 A 在现有服务器上运行，没有新增费用。不依赖任何付费第三方服务。
-- **资源**：服务进程常驻内存约 75 MB，200 名测试玩家的压测中最高约 125 MB。数据库单文件，每位玩家约几十 KB。24 个 NPC 每 30 秒运行一次，CPU 占用很低。
+- **费用**：EdgeOne Pages 目前免费（云函数每月 100 万次调用）；Turso 免费版 5 GB 存储、每月 5 亿次读和 1000 万次写，任何一项超出会被暂停（不会自动扣费），可以在 Turso 控制台查看用量，接近上限时再升级（约 5–6 美元/月）。自己的服务器方案没有额外费用。
+- **数据库往返**（EdgeOne + Turso）：登录校验时顺带读回玩家的土地、库存和计数器；同一次操作里读过的数据在内存里复用；不需要结果的写入合并到最后和提交一起发出。实测往返次数：查看状态 2 次，一键种植 / 一键收获 / 卖全部 / 签到 2 次，种一块 / 偷一块 3–4 次，一键偷 5 次。
+- **实测延迟**（模拟东京 60 毫秒往返，10 名玩家 + 24 个 NPC 持续操作）：写操作中位约 0.2 秒、95% 在 1.1 秒内；查询约 0.13–0.2 秒；零错误。极端情况下 30 个写操作同一瞬间到达，中位约 1.2 秒、最慢约 7 秒，全部成功，金币账本、库存和偷菜记录完全一致。
+- **写入上限**：SQLite（包括 Turso）同一时间只有一个写入者，写操作会排队执行。按每次写操作约 2–4 次往返估算，整体约每秒 4–6 次写操作，适合前期几十人同时在线；人数明显增多时可以换成国内的云数据库，或改用自己的服务器（本地 SQLite 每秒上千次）。
+- **自己的服务器**：服务进程常驻内存约 75 MB；50 个并发连接下每秒约 1100 次请求，95% 在 90 毫秒内完成。
 - **前端**：首次加载约 830 KB（其中 three.js 约 600 KB，开启 gzip 后约 150 KB，浏览器会缓存一周）。3D 场景每帧约 180 次绘制调用、12 万到 16 万个三角形。
-- **性能**：在本机压测中，50 个并发连接下每秒约 1100 次请求，95% 的请求在 90 毫秒内完成，没有出错。每位在线玩家约 15 秒轮询一次，单进程可以支撑上千人同时在线。
-- **升级路径**：玩家规模明显超过单机能力时，可以把 `server/db.js` 换成 PostgreSQL（业务代码都通过 `db.get/all/run/tx` 访问数据库，改动集中），再部署多个 Node 实例。
 
 ## 合规提醒
 

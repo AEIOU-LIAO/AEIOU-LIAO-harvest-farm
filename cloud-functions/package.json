@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "EdgeOne 云函数目录：入口为 ESM；服务端代码在 ../server（CommonJS）"
+}

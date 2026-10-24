@@ -1,0 +1,31 @@
+{
+  "buildCommand": "npm run build:edgeone",
+  "installCommand": "npm install --no-audit --no-fund",
+  "outputDirectory": "dist",
+  "nodeVersion": "22.11.0",
+  "cloudFunctions": {
+    "nodejs": {
+      "maxDuration": 60,
+      "includeFiles": ["server/**", "shared/**"]
+    }
+  },
+  "schedules": [
+    { "name": "farm-npc", "cron": "* * * * *", "path": "/api/cron", "method": "POST", "timezone": "Asia/Shanghai" }
+  ],
+  "headers": [
+    {
+      "source": "/*",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "same-origin" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" }
+      ]
+    },
+    { "source": "/index.html", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+    { "source": "/vendor/*", "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }] }
+  ],
+  "redirects": [
+    { "source": "/admin", "destination": "/admin.html", "statusCode": 302 }
+  ]
+}

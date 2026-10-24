@@ -6,8 +6,12 @@ const test = require('node:test'), assert = require('node:assert/strict');
 const { createApp } = require('../server/index');
 const CFG = require('../shared/config');
 
+// TEST_TURSO=1：改用本地模拟的 Turso（HTTP 协议、独立连接、可加网络延迟 TEST_LATENCY 毫秒）
+const { startMock } = require('./turso-mock');
 async function start(o) {
-  const app = createApp(Object.assign({ db: ':memory:', testClock: true, backupHours: 0, admins: [], quiet: true, noRateLimit: true, npcCount: 0 }, o));
+  const mock = process.env.TEST_TURSO ? await startMock({ latencyMs: +(process.env.TEST_LATENCY || 0) }) : null;
+  if (mock) o = Object.assign({ tursoUrl: mock.url, tursoToken: mock.token }, o);
+  const app = await createApp(Object.assign({ db: ':memory:', testClock: true, backupHours: 0, admins: [], quiet: true, noRateLimit: true, npcCount: 0, noTimers: true }, o));
   await new Promise(r => app.server.listen(0, '127.0.0.1', r));
   const base = 'http://127.0.0.1:' + app.server.address().port;
   const call = async (method, path, body, token, ik) => {
@@ -18,7 +22,7 @@ async function start(o) {
   const clock = ms => call('POST', '/api/test/clock', { ms });
   const plantAll = async (u, crop) => { const r = await call('POST', '/api/farm/plant-all', { crop: crop || 0 }, u.token); assert.ok(r.ok, r.error); return r; };
   const friends = async (a, b) => { const r = await call('POST', '/api/invite/accept', { code: a.code }, b.token); assert.ok(r.ok, r.error); };
-  return { app, call, guest, clock, plantAll, friends, close: () => app.close() };
+  return { app, mock, call, guest, clock, plantAll, friends, close: async () => { await app.close(); if (mock) await mock.close(); } };
 }
 const inv = async (t, u) => (await t.call('GET', '/api/state', null, u.token)).inv;
 
@@ -95,35 +99,36 @@ test('拟真 NPC：看起来和真人一样、按作息上线经营、会偷菜�
     const ripe = nb.list.find(u => u.steal > 0); assert.ok(ripe, '有 NPC 的菜成熟了');
     const s = await t.call('POST', `/api/farm/${ripe.id}/steal-all`, null, me.token); assert.ok(s.ok, s.error);
     // 让所有 NPC 上线：会收菜、补种、更新在线状态
-    const online = phase => db.all("SELECT id, settings FROM users WHERE role='npc'").forEach(r => { const o = JSON.parse(r.settings); o.npc.until = game.now() + 600000; o.npc.phase = phase; db.run('UPDATE users SET settings=? WHERE id=?', JSON.stringify(o), r.id); });
-    const ripeCnt = () => db.get("SELECT COUNT(*) n FROM plots p JOIN users u ON u.id=p.user_id WHERE u.role='npc' AND p.c>=0 AND p.p>=1").n;
-    const before = ripeCnt(); online('farm'); db.tx(() => t.app.vill.tick(30));
-    assert.ok(ripeCnt() < before, `NPC 上线后收了菜（成熟 ${before} → ${ripeCnt()}）`);
-    assert.ok(db.get("SELECT COUNT(*) n FROM plots p JOIN users u ON u.id=p.user_id WHERE u.role='npc' AND p.u=1 AND p.c<0").n <= 2, 'NPC 补种了空地');
+    const online = async phase => { for (const r of await db.all("SELECT id, settings FROM users WHERE role='npc'")) { const o = JSON.parse(r.settings); o.npc.until = game.now() + 600000; o.npc.phase = phase; await db.run('UPDATE users SET settings=? WHERE id=?', JSON.stringify(o), r.id); } };
+    const ripeCnt = async () => (await db.get("SELECT COUNT(*) n FROM plots p JOIN users u ON u.id=p.user_id WHERE u.role='npc' AND p.c>=0 AND p.p>=1")).n;
+    const tick = () => t.app.vill.tick(30);
+    const before = await ripeCnt(); await online('farm'); await tick();
+    const after = await ripeCnt(); assert.ok(after < before, `NPC 上线后收了菜（成熟 ${before} → ${after}）`);
+    assert.ok((await db.get("SELECT COUNT(*) n FROM plots p JOIN users u ON u.id=p.user_id WHERE u.role='npc' AND p.u=1 AND p.c<0")).n <= 2, 'NPC 补种了空地');
     assert.ok((await t.call('GET', '/api/neighbors', null, me.token)).list.every(u => u.online), '在线状态显示为在线');
     // NPC 会来摘玩家的菜（每人每天最多 4 次）、也会来帮忙
     await t.plantAll(me, 0); await t.clock(20 * 60000);
-    for (let i = 0; i < 80; i++) { online('social'); db.tx(() => t.app.vill.tick(30)); }
-    const stolen = db.get("SELECT COUNT(*) n FROM steals s JOIN users u ON u.id=s.thief WHERE s.owner=? AND u.role='npc'", me.id).n;
+    for (let i = 0; i < 80; i++) { await online('social'); await tick(); }
+    const stolen = (await db.get("SELECT COUNT(*) n FROM steals s JOIN users u ON u.id=s.thief WHERE s.owner=? AND u.role='npc'", me.id)).n;
     assert.ok(stolen >= 1 && stolen <= 4, `NPC 摘菜 ${stolen} 次（上限 4）`);
     const msgs = (await t.call('GET', '/api/messages', null, me.token)).list; assert.ok(msgs.some(m => m.kind === 'visit' || m.kind === 'stolen'));
     msgs.forEach(m => assert.equal(m.npc, undefined));
     // NPC 会买走价格公道的挂单
     await t.call('POST', '/api/farm/harvest-all', null, me.token);
     const L = await t.call('POST', '/api/market/list', { item: 'c0', qty: 5, price: 3 }, me.token); assert.ok(L.ok, L.error);
-    await t.clock(4 * 60000); for (let i = 0; i < 150 && db.get('SELECT status FROM market WHERE id=?', L.result.id).status === 'open'; i++) { online('social'); db.tx(() => t.app.vill.tick(30)); }
-    assert.equal(db.get('SELECT status FROM market WHERE id=?', L.result.id).status, 'sold', 'NPC 买走了挂单');
+    await t.clock(4 * 60000); for (let i = 0; i < 150 && (await db.get('SELECT status FROM market WHERE id=?', L.result.id)).status === 'open'; i++) { await online('social'); await tick(); }
+    assert.equal((await db.get('SELECT status FROM market WHERE id=?', L.result.id)).status, 'sold', 'NPC 买走了挂单');
     // 金币按真实规则流动：NPC 金币有限且不会为负
-    db.all("SELECT gold FROM users WHERE role='npc'").forEach(r => assert.ok(r.gold >= 0 && r.gold < 1e6));
+    (await db.all("SELECT gold FROM users WHERE role='npc'")).forEach(r => assert.ok(r.gold >= 0 && r.gold < 1e6));
     // 排行榜包含 NPC；但赛季奖励只在真人之间排名
     const rk = await t.call('GET', '/api/rank?dim=lv&scope=global', null, me.token); assert.ok(rk.list.length > 1);
     const last = GAMECFG_week(game.now() - 7 * 86400000); const npc1 = nb.list[0].id;
-    db.run('INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)', npc1, last, 'sp', 99999);
-    db.run('INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)', me.id, last, 'sp', 5000);
+    await db.run('INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)', npc1, last, 'sp', 99999);
+    await db.run('INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)', me.id, last, 'sp', 5000);
     const se = await t.call('GET', '/api/season', null, me.token); assert.ok(se.last.rank >= 2); assert.equal(se.last.reward, 5000, '真人中排第一，拿第一名奖励');
     // 运营后台能区分 NPC，指标不被注水
-    const adm = t.app.admin.stats(); assert.equal(adm.totals.users, 1); assert.equal(adm.totals.npcs, 10);
-    assert.ok(t.app.admin.players('').some(u => u.npc));
+    const adm = await t.app.admin.stats(); assert.equal(adm.totals.users, 1); assert.equal(adm.totals.npcs, 10);
+    assert.ok((await t.app.admin.players('')).some(u => u.npc));
   } finally { await t.close(); }
 });
 const GAMECFG_week = ms => CFG.weekKey(ms);
@@ -198,15 +203,15 @@ test('规则：保护期、狗狗防护、每日上限、新手保底', async ()
     await t.call('POST', '/api/farm/plant', { idx, crop: 0 }, a.token);
     // 用化肥直接催熟到成熟 → 刚成熟处于保护期
     for (let i = 0; i < 3; i++) await t.call('POST', '/api/farm/fert', { idx }, a.token);
-    t.app.db.run(`UPDATE plots SET pr='{"d":0,"w":0,"b":0}', ev='[]' WHERE user_id=? AND idx=?`, a.id, idx); await t.clock(5000);
+    await t.app.db.run(`UPDATE plots SET pr='{"d":0,"w":0,"b":0}', ev='[]' WHERE user_id=? AND idx=?`, a.id, idx); await t.clock(5000);
     const p = await t.call('POST', `/api/farm/${a.id}/steal`, { idx }, b.token); assert.equal(p.code, 'protected');
     await t.clock(CFG.RULES.stealDelaySec * 1000 + 1000);
     const ok = await t.call('POST', `/api/farm/${a.id}/steal`, { idx }, b.token); assert.ok(ok.ok, ok.error);
     // 狗狗：给 A 一只满级吃饱的狗，拦截率 70%
-    t.app.db.run('UPDATE users SET dog_own=1, dog_lv=10, dog_until=? WHERE id=?', t.app.game.now() + 3600000, a.id);
+    await t.app.db.run('UPDATE users SET dog_own=1, dog_lv=10, dog_until=? WHERE id=?', t.app.game.now() + 3600000, a.id);
     let blocked = 0; const thieves = []; for (let i = 0; i < 20; i++) { const x = await t.guest('T' + i); await t.friends(a, x); thieves.push(x); }
     await t.call('POST', '/api/farm/harvest', { idx }, a.token); await t.plantAll(a, 0); await t.clock(200000);
-    t.app.db.run('UPDATE plots SET y=100000, y0=100000 WHERE user_id=? AND c=0', a.id); t.app.db.run('UPDATE users SET lv=10 WHERE id=?', a.id); // 加大产量，避免先触发保底上限
+    await t.app.db.run('UPDATE plots SET y=100000, y0=100000 WHERE user_id=? AND c=0', a.id); await t.app.db.run('UPDATE users SET lv=10 WHERE id=?', a.id); // 加大产量，避免先触发保底上限
     const keep = [CFG.RULES.stealPctMin, CFG.RULES.stealPctMax]; CFG.RULES.stealPctMin = 0.001; CFG.RULES.stealPctMax = 0.002; // 每次只摘很少，保证 20 次都能走到狗狗判定
     const codes = []; for (const x of thieves) { const r = await t.call('POST', `/api/farm/${a.id}/steal`, { idx: CFG.UNLOCK_ORDER[1] }, x.token); codes.push(r.ok ? (r.result.blocked ? 'B' : 'S') : r.code); if (r.ok && r.result.blocked) blocked++; }
     [CFG.RULES.stealPctMin, CFG.RULES.stealPctMax] = keep;
@@ -219,7 +224,7 @@ test('规则：保护期、狗狗防护、每日上限、新手保底', async ()
     const pl = (await t.call('GET', '/api/state', null, c2.token)).plots.find(q => q.idx === CFG.UNLOCK_ORDER[3]);
     assert.ok(pl.stolen > 0 && pl.stolen <= Math.floor(pl.y0 * CFG.RULES.newbieMaxPct), `新手最多被偷 20%（${pl.stolen}/${pl.y0}）`);
     // 每日上限
-    t.app.db.run("INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)", b.id, 'd' + CFG.dayKey(t.app.game.now()), 'steal_n', CFG.RULES.stealDailyLimit);
+    await t.app.db.run("INSERT OR REPLACE INTO counters (user_id,period,key,val) VALUES (?,?,?,?)", b.id, 'd' + CFG.dayKey(t.app.game.now()), 'steal_n', CFG.RULES.stealDailyLimit);
     assert.equal((await t.call('POST', `/api/farm/${a.id}/steal`, { idx: CFG.UNLOCK_ORDER[2] }, b.token)).code, 'limit');
   } finally { await t.close(); }
 });
@@ -229,7 +234,7 @@ test('互助：真实修改好友农田并给奖励', async () => {
   try {
     const a = await t.guest('A'), b = await t.guest('B'); await t.friends(a, b);
     const idx = CFG.UNLOCK_ORDER[0]; await t.call('POST', '/api/farm/plant', { idx, crop: 0 }, a.token);
-    t.app.db.run(`UPDATE plots SET pr='{"d":1,"w":0,"b":1}' WHERE user_id=? AND idx=?`, a.id, idx);
+    await t.app.db.run(`UPDATE plots SET pr='{"d":1,"w":0,"b":1}' WHERE user_id=? AND idx=?`, a.id, idx);
     const g = (await t.call('GET', '/api/state', null, b.token)).me.gold;
     const r = await t.call('POST', `/api/farm/${a.id}/help-all`, null, b.token); assert.ok(r.ok); assert.equal(r.result.length, 2);
     const pl = (await t.call('GET', '/api/state', null, a.token)).plots.find(p => p.idx === idx); assert.deepEqual([pl.pr.d, pl.pr.b], [0, 0]);
@@ -288,7 +293,7 @@ test('排行榜反映服务器数据；客户端无法篡改', async () => {
   const t = await start();
   try {
     const a = await t.guest('A'), b = await t.guest('B'); await t.friends(a, b);
-    t.app.db.run('UPDATE users SET gold=99999 WHERE id=?', b.id);
+    await t.app.db.run('UPDATE users SET gold=99999 WHERE id=?', b.id);
     const r = await t.call('GET', '/api/rank?dim=gold&scope=friends', null, a.token); assert.equal(r.list[0].id, b.id); assert.equal(r.list[0].score, 99999);
     const p = await t.call('POST', '/api/me/profile', { gold: 1e9, lv: 30, exp: 1e9 }, a.token); assert.ok(p.ok);
     const s = await t.call('GET', '/api/state', null, a.token); assert.equal(s.me.gold, CFG.RULES.startGold); assert.equal(s.me.lv, 1, '资料接口忽略金币/等级等字段');
@@ -303,7 +308,7 @@ test('运营后台：非管理员不可访问；活动与数值配置实时生�
     const a = await t.guest('A'), adm = await t.guest('运营');
     assert.equal((await t.call('GET', '/api/admin/stats', null, a.token)).status, 403);
     assert.equal((await t.call('GET', '/api/admin/stats')).status, 401);
-    t.app.db.run("UPDATE users SET role='admin' WHERE id=?", adm.id);
+    await t.app.db.run("UPDATE users SET role='admin' WHERE id=?", adm.id);
     const s = await t.call('GET', '/api/admin/stats', null, adm.token); assert.ok(s.ok); assert.equal(s.totals.users, 2);
     const now = t.app.game.now();
     assert.ok((await t.call('POST', '/api/admin/events', { name: '经验翻倍', kind: 'exp_mult', mult: 2, start_at: now - 1000, end_at: now + 86400000, enabled: true }, adm.token)).ok);

@@ -1720,6 +1720,8 @@ function bindGlobal() {
   setInterval(() => { if (started && document.hidden && PREF.notify) refreshState(); }, 60000);
   setInterval(() => { if (started && !document.hidden && view.key !== 'home') visitRefresh(); }, 10000);
   setInterval(() => { if (started && !document.hidden) renderLog(); }, 30000);
+  // 后台任务（虚拟玩家等）：无服务器部署时由在线页面顺手触发，服务器端有租约去重
+  setInterval(() => { if (started && !document.hidden) NET.post('/api/cron', {}).catch(() => { }); }, 60000 + Math.floor(Math.random() * 15000));
 }
 async function visitRefresh() { if (view.key === 'home') return; const key = view.key; try { const r = await NET.get('/api/farm/' + view.friend.id); if (view.key === key) applyFarm(r.farm); } catch (e) { if (e.status === 403) { toast('无法再访问这个农场了', 'warn'); goHome(); } } }
 window.addEventListener('DOMContentLoaded', () => { bindGlobal(); boot(); });

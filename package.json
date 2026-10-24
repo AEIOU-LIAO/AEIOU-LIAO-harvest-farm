@@ -1,14 +1,16 @@
 {
   "name": "harvest-farm",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "private": true,
   "description": "丰收农场：真实多人联网的网页农场偷菜游戏（零依赖：Node 22 + 内置 SQLite）",
-  "engines": { "node": ">=22.13" },
+  "engines": { "node": ">=18" },
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning server/index.js",
     "dev": "FARM_TEST_CLOCK=1 DB_PATH=data/dev.db node --disable-warning=ExperimentalWarning --watch server/index.js",
     "build": "node src/build.js",
-    "test": "node --disable-warning=ExperimentalWarning --test --test-concurrency=1 test/api.test.js",
+    "build:edgeone": "node deploy/edgeone-dist.js",
+    "test": "node --disable-warning=ExperimentalWarning --test --test-concurrency=1 test/api.test.js test/edgeone.test.js",
+    "test:turso": "TEST_TURSO=1 node --disable-warning=ExperimentalWarning --test --test-concurrency=1 test/api.test.js",
     "check-build": "node src/build.js && git diff --exit-code index.html",
     "backup": "node --disable-warning=ExperimentalWarning server/cli.js backup",
     "admin": "node --disable-warning=ExperimentalWarning server/cli.js"
