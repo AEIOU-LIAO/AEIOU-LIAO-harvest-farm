@@ -1,0 +1,9 @@
+// 每日任务
+[
+  {"id":"plant","ic":"🌱","tx":"种植作物","need":12,"gold":150,"exp":30},
+  {"id":"harvest","ic":"🧺","tx":"收获作物","need":15,"gold":250,"exp":50},
+  {"id":"care","ic":"💧","tx":"浇水 / 除草 / 除虫","need":6,"gold":150,"exp":30},
+  {"id":"steal","ic":"🥷","tx":"摘取别人的果实","need":6,"gold":220,"exp":40},
+  {"id":"help","ic":"🤝","tx":"帮别人打理农田","need":4,"gold":180,"exp":35},
+  {"id":"sell","ic":"💰","tx":"卖出作物赚取金币","need":800,"gold":300,"exp":60}
+]

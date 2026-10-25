@@ -1,0 +1,17 @@
+// 鱼：买鱼苗放进池塘，time 秒后长大，每条鱼苗收 yield 条，每条卖 sell
+[
+  {"id":0,"name":"小鲫鱼","lv":1,"price":20,"time":600,"yield":2,"sell":18,"exp":6,"col":"#b8c0b0","size":0.8},
+  {"id":1,"name":"金鱼","lv":3,"price":60,"time":1800,"yield":2,"sell":52,"exp":14,"col":"#ff8a2a","size":0.75},
+  {"id":2,"name":"草鱼","lv":6,"price":150,"time":3600,"yield":3,"sell":78,"exp":30,"col":"#7a9a6a","size":1.05},
+  {"id":3,"name":"鲤鱼","lv":10,"price":400,"time":7200,"yield":3,"sell":195,"exp":60,"col":"#c8a060","size":1.1},
+  {"id":4,"name":"锦鲤","lv":15,"price":1200,"time":14400,"yield":3,"sell":610,"exp":130,"col":"#ff5a3a","size":1.15,"spots":"#ffffff"},
+  {"id":5,"name":"金龙鱼","lv":22,"price":4000,"time":28800,"yield":3,"sell":1950,"exp":300,"col":"#ffcc2a","size":1.25},
+  {"id":6,"name":"鳜鱼","lv":35,"price":9000,"time":28800,"yield":3,"sell":4200,"exp":520,"col":"#9a8a4a","size":1.2,"spots":"#3a3020"},
+  {"id":7,"name":"石斑鱼","lv":60,"price":22000,"time":36000,"yield":3,"sell":10000,"exp":900,"col":"#b85a3a","size":1.3,"spots":"#f0d0b0"},
+  {"id":8,"name":"金枪鱼","lv":100,"price":60000,"time":36000,"yield":3,"sell":27000,"exp":1600,"col":"#3a5a8a","size":1.45},
+  {"id":9,"name":"蓝鳍金枪","lv":200,"price":160000,"time":43200,"yield":3,"sell":72000,"exp":3000,"col":"#2a4ab8","size":1.55},
+  {"id":10,"name":"紫晶锦鲤","lv":400,"price":450000,"time":43200,"yield":3,"sell":200000,"exp":5600,"col":"#a86aff","size":1.3,"spots":"#ffffff"},
+  {"id":11,"name":"红龙鱼","lv":800,"price":1300000,"time":57600,"yield":3,"sell":580000,"exp":10500,"col":"#e8282a","size":1.6},
+  {"id":12,"name":"鲲","lv":1600,"price":4000000,"time":72000,"yield":3,"sell":1800000,"exp":20000,"col":"#5ab8e8","size":1.8},
+  {"id":13,"name":"金鳞神鲤","lv":3000,"price":12000000,"time":86400,"yield":3,"sell":5500000,"exp":38000,"col":"#ffd23a","size":1.7,"spots":"#fff4b0"}
+]

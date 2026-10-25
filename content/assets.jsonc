@@ -1,0 +1,13 @@
+// 美术资源清单。每个资源由 tools/pack_art.py 处理后放在 base 目录：<file>.glb / <file>.glb.gz / tex/（手机 1024）/ tex2k/（高清 2048）
+// stage：test 技术测试 · candidate 外观候选 · approved 甲方确认外观 · live 已上线游戏
+// kind：hero 人物 · dog 狗 · creature 生物 · building 建筑 · prop 道具
+// anims：已有的动作（空 = 静态模型）· accessories：可以单独显示 / 隐藏的配件网格名 · tiers：贴图档位
+[
+  {"id":"v1_hero_boy","kind":"hero","name":"男主角（灰盒）","stage":"test","base":"art/v1_test/hero_boy/","file":"hero_boy","tiers":["1k"],"anims":["idle","walk"],"accessories":["hat","bag","scarf"],"heightM":1.71},
+  {"id":"v1_hero_girl","kind":"hero","name":"女主角（灰盒）","stage":"test","base":"art/v1_test/hero_girl/","file":"hero_girl","tiers":["1k"],"anims":["idle","walk"],"accessories":["hat","bag","scarf"],"heightM":1.71},
+  {"id":"v1_dog_collie","kind":"dog","name":"边牧（灰盒，10 种毛色）","stage":"test","base":"art/v1_test/dog_collie/","file":"dog_collie","tiers":["1k"],"anims":["idle","walk"],"accessories":["harness","collar","bandana","tag"],"heightM":0.85,"coats":"art/v1_test/dog_collie/textures/dog_coat_{coat}_basecolor.jpg"},
+  {"id":"v2_hero_boy","kind":"hero","name":"男主角","stage":"approved","base":"art/v2_static_review/hero_boy/","file":"hero_boy","tiers":["1k","2k"],"anims":[],"accessories":[],"heightM":1.6,"note":"2026-10-25 甲方确认外观；等美术 v3 绑定 + idle"},
+  {"id":"v2_hero_girl","kind":"hero","name":"女主角","stage":"candidate","base":"art/v2_static_review/hero_girl/","file":"hero_girl","tiers":["1k","2k"],"anims":[],"accessories":[],"heightM":1.6},
+  {"id":"v2_dog_fuwang","kind":"dog","name":"福旺","stage":"approved","base":"art/v2_static_review/dog_fuwang/","file":"dog_fuwang","tiers":["1k","2k"],"anims":[],"accessories":[],"heightM":0.8,"note":"2026-10-25 甲方确认外观；v3 要标定肩高 0.5 m、身体摆正、胸背带拆开"},
+  {"id":"v2_dog_ruibao","kind":"dog","name":"睿宝","stage":"candidate","base":"art/v2_static_review/dog_ruibao/","file":"dog_ruibao","tiers":["1k","2k"],"anims":[],"accessories":[],"heightM":0.8}
+]

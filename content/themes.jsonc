@@ -1,0 +1,9 @@
+// 房子主题（装扮）
+[
+  {"id":"classic","name":"经典红顶","price":0,"th":{"roof":"#c8483a","wall":"#f6e7c8","tree":"#4aa83a","bush":"#4ea43a"}},
+  {"id":"sakura","name":"樱花小屋","price":3000,"th":{"roof":"#d9658a","wall":"#fff0e0","tree":"#5ab84e","bush":"#52b04a"}},
+  {"id":"ocean","name":"海风蓝顶","price":3000,"th":{"roof":"#3e7ac8","wall":"#f0ead0","tree":"#3f9a3a","bush":"#3f9a3a"}},
+  {"id":"cabin","name":"林间木屋","price":6000,"th":{"roof":"#7a5a3a","wall":"#f2dfc0","tree":"#6aa83a","bush":"#6aa83a"}},
+  {"id":"lavender","name":"薰衣草庄园","price":12000,"th":{"roof":"#9a6ad9","wall":"#fff4f8","tree":"#58b890","bush":"#4aa87a"}},
+  {"id":"autumn","name":"金秋农舍","price":20000,"th":{"roof":"#d9822a","wall":"#fff2d6","tree":"#d9a03a","bush":"#c89a3a"}}
+]

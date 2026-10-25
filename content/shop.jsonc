@@ -1,0 +1,8 @@
+// 商店道具。price 可以写 "$rules.xxx" 引用 rules 里的价格
+[
+  {"id":"fert","name":"化肥","ic":"🧪","price":"$rules.fertPrice","desc":"让作物成长进度 +30%"},
+  {"id":"dogfood","name":"狗粮","ic":"🍖","price":"$rules.dogfoodPrice","desc":"小狗吃饱后看家 2 小时，并获得成长经验"},
+  {"id":"ffeed","name":"鱼饲料","ic":"🐟","price":80,"desc":"一份让一条鱼的生长时间缩短 30%，鱼塘里可以一键喂"},
+  {"id":"sfeed","name":"精饲料","ic":"🌾","price":150,"desc":"一份让一只羊的羊毛多长半茬，牧场里可以一键喂"},
+  {"id":"tfert","name":"果树营养液","ic":"💧","price":200,"desc":"一份让一棵果树长大快 30%（已结果的树多结半茬），果园里可以一键施"}
+]

@@ -1,0 +1,11 @@
+// 更多颜色的边牧（领养后自己起名字）。coat 毛色 id 对应美术资源
+[
+  {"coat":"black","name":"经典黑白边牧","lv":30,"price":50000},
+  {"coat":"red","name":"巧克力红白边牧","lv":80,"price":150000},
+  {"coat":"redmerle","name":"红陨石边牧","lv":150,"price":400000},
+  {"coat":"tri","name":"三色边牧","lv":300,"price":1000000},
+  {"coat":"lilac","name":"丁香紫边牧","lv":600,"price":3000000},
+  {"coat":"slate","name":"石板蓝边牧","lv":1000,"price":8000000},
+  {"coat":"merle","name":"蓝陌边牧","lv":1500,"price":15000000},
+  {"coat":"gold","name":"黄白边牧","lv":2000,"price":25000000}
+]

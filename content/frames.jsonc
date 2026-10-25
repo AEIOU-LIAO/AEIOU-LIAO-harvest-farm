@@ -1,0 +1,9 @@
+// 头像框（装扮）
+[
+  {"id":"none","name":"无","price":0,"color":""},
+  {"id":"wood","name":"原木框","price":1000,"color":"#a8743a"},
+  {"id":"leaf","name":"青叶框","price":2500,"color":"#5cb83c"},
+  {"id":"gold","name":"黄金框","price":8000,"color":"#ffc61a"},
+  {"id":"star","name":"星光框","price":0,"color":"#b08aff","ach":"a_c1"},
+  {"id":"thief","name":"神偷框","price":0,"color":"#3a3a5a","ach":"a_s2"}
+]

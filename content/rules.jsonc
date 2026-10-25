@@ -1,0 +1,29 @@
+// 游戏规则数值（偷菜、互助、生长、订单、市场…）。改这里就能调整数值，不用改代码。
+// 注意：改动会影响所有玩家，改之前先和甲方确认。
+{
+  "startGold": 300, "startPlots": 6, "maxLv": 4000,
+  "fertPrice": 60, "fertBoost": 0.3, "dogfoodPrice": 120, "dogPrice": 400, "dogNeedLv": 3, "dogFeedMin": 120, // dogPrice/dogNeedLv 为旧字段，狗的数值见 DOGS
+  "redNeedLv": 5,
+  // 偷菜
+  "stealDelaySec": 30,          // 成熟后的主人保护时间
+  "stealPctMin": 0.1, "stealPctMax": 0.2, // 每次偷取占原始产量比例
+  "stealMaxPct": 0.5,           // 一块地最多被偷走的比例（主人保底 50%）
+  "newbieLv": 5, "newbieMaxPct": 0.25, // 主人低于此等级时保底更高
+  // v2.7 起偷菜、帮忙都没有每日次数和经验上限（自家私服，玩得开心最重要）
+  "stealExp": 3,
+  "stealCritChance": 0.1,       // 手气爆棚：一次摘两份（仍受主人保底限制）
+  "dogBlockBase": 0.35, "dogBlockPerLv": 0.03, "dogBlockMax": 0.7, "dogBiteMin": 10, "dogBiteMax": 40,
+  // 互助
+  "helpExp": 4, "helpGold": 6,
+  "helpBoost": 0.03,            // 每次帮忙让对方作物多长 3%
+  // 生长
+  "probSlow": 0.62, "season2Start": 0.45,
+  "goldenChance": 0.04, "goldenPriceMult": 5,
+  "bumperChance": 0.08, "bumperBonus": 0.5, // 大丰收：额外多收 50%
+  // 订单：Lv.10 / 20 / 30 各多一个订单位
+  "orderSlots": 3, "orderSlotEvery": 10, "orderSlotsMax": 6, "orderRefresh": 20, "orderRefreshCost": 30,
+  // 市场
+  "marketFee": 0.05, "marketMinMult": 0.5, "marketMaxMult": 5.0, "marketMaxListings": 30, "marketTtlHours": 168,
+  // 留言
+  "gbDailyLimit": 500,
+}

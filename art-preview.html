@@ -41,12 +41,14 @@ button:disabled{opacity:.4}
 <div id="toast"></div>
 <script src="vendor/three.min.js"></script>
 <script src="vendor/three-addons.js"></script>
+<script src="shared/content.js"></script>
+<script src="lib/assets3.js"></script>
 <script>
 'use strict';
 /* 美术交付预览：独立页面，不读写游戏存档，不影响游戏。
    V2（默认）：Tripo 真实 3D 外观候选，静态模型（没有骨骼和动作），手机默认 1024 贴图，可切 2K 高清。
    V1：技术灰盒测试包（有 idle / walk），留作对照。 */
-const PAGE_VER = 6;
+const PAGE_VER = 7;
 const VERS = {
   v2: { label: 'V2 外观', base: 'art/v2_static_review/', still: true,
     roster: [['hero_boy', '男主角', 'hero', 'hero_boy'], ['hero_girl', '女主角', 'hero', 'hero_girl'], ['dog_fuwang', '福旺', 'dog', 'dog_fuwang'], ['dog_ruibao', '睿宝', 'dog', 'dog_ruibao']],
@@ -96,47 +98,21 @@ function resize() { const w = innerWidth, h = innerHeight; R.setPixelRatio(Math.
 addEventListener('resize', resize);
 
 /* ---------- 资源加载 ---------- */
-const gl = new T.GLTFLoader(), tl = new T.TextureLoader(), cache = {}, texFile = {};
-const fileTex = (url, srgb) => texFile[url] || (texFile[url] = new Promise(ok => tl.load(url, t => { t.flipY = false; if (srgb) t.encoding = T.sRGBEncoding; t.anisotropy = 4; ok(t); }, undefined, () => ok(null))));
-async function fetchBytes(url, label) {
-  const r = await fetch(url); if (!r.ok) throw new Error(url + ' HTTP ' + r.status);
-  const total = +r.headers.get('content-length') || 0; if (!r.body || !r.body.getReader) return new Uint8Array(await r.arrayBuffer());
-  const rd = r.body.getReader(), parts = []; let got = 0;
-  for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; if (label) progress(label, total ? got / total : 0, got); }
-  const out = new Uint8Array(got); let o = 0; parts.forEach(p => { out.set(p, o); o += p.length; }); return out;
-}
-async function gunzip(u8) { if (u8[0] !== 0x1f || u8[1] !== 0x8b) return u8; const s = new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip')); return new Uint8Array(await new Response(s).arrayBuffer()); }
-/* 下载 gzip 版 GLB（体积约 1/2~1/5），浏览器自带 DecompressionStream 解压；不支持就下载未压缩版 */
-async function fetchGLB(dir, n, label) {
-  let u8; if (typeof DecompressionStream !== 'undefined') { try { u8 = await gunzip(await fetchBytes(dir + n + '/' + n + '.glb.gz', label)); } catch (e) { u8 = null; } }
-  if (!u8) u8 = await fetchBytes(dir + n + '/' + n + '.glb', label);
-  return new Promise((ok, no) => gl.parse(u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength), dir + n + '/', ok, no));
-}
-/* GLB 里没有内嵌图片（tools/pack_art.py 去掉了，手机微信解码内嵌图片会出错），材质 extras 里记着贴图名，按名字加载单独的 jpg */
-async function applyTextures(g, dir, n, hi) {
-  const J = g.parser.json, mats = new Set(), folder = hi ? '/tex2k/' : '/tex/';
-  g.scene.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => mats.add(m)); });
-  await Promise.all([...mats].map(async m => { const d = (J.materials || []).find(x => x.name === m.name); if (!d) return; const ex = d.extras || {}, old = [m.map, m.normalMap, m.roughnessMap];
-    if (ex.baseColorTexture) { const t = await fileTex(dir + n + folder + ex.baseColorTexture + '.jpg', true); if (t) m.map = t; }
-    if (ex.normalTexture) { const t = await fileTex(dir + n + folder + ex.normalTexture + '.jpg', false); if (t) m.normalMap = t; }
-    if (ex.metallicRoughnessTexture) { const t = await fileTex(dir + n + folder + ex.metallicRoughnessTexture + '.jpg', false); if (t) { m.roughnessMap = m.metalnessMap = t; } else { m.metalness = 0; m.roughness = 0.8; } }
-    else if (!d.pbrMetallicRoughness || d.pbrMetallicRoughness.metallicFactor === undefined) { /* 没有金属度贴图时不要当成全金属 */ if (!ex.metallicRoughnessTexture && m.metalness === 1) m.metalness = 0; }
-    m.needsUpdate = true;
-    /* 换高清 / 换回手机版时释放另一套贴图，省显存 */
-    old.forEach(t => { if (t && t !== m.map && t !== m.normalMap && t !== m.roughnessMap) { t.dispose(); for (const k in texFile) texFile[k].then(x => { if (x === t) delete texFile[k]; }); } }); }));
-  g.hi = !!hi; return g;
-}
+/* 资源统一由 lib/assets3.js 加载（清单来自 content/assets.jsonc；V0.1 起游戏也用同一个模块） */
+const quiet = new Set();
+const lib = new Assets3({ manifest: GAMECONTENT.ASSETS, onProgress: (id, k, b) => { if (!quiet.has(id)) progress(lib.info(id).name, k, b); } });
+const aid = (n, v) => (v || ver) + '_' + n;
 function progress(label, k, bytes) { const el = $('load'); const txt = `正在加载${label}… ${k ? Math.round(k * 100) + '%' : Math.round(bytes / 1024) + ' KB'}`; if (el) el.textContent = txt; else if (label) toast(txt, 800); }
 const NAME = n => (VERS[ver].roster.find(r => r[0] === n) || [n, n])[1];
-const loadGLB = (n, quiet, vv) => { const V = VERS[vv || ver], key = (vv || ver) + ':' + n; return cache[key] || (cache[key] = fetchGLB(V.base, n, quiet ? '' : NAME(n)).then(g => applyTextures(g, V.base, n, false)).catch(e => { delete cache[key]; throw e; })); };
-const coatTex = k => fileTex(VERS.v1.base + 'dog_collie/textures/dog_coat_' + k + '_basecolor.jpg', true);
+const coatTex = k => lib.texture(lib.info('v1_dog_collie').coats.replace('{coat}', k), true);
 const stats = { loadMs: 0, glbMs: {}, fps: [], stress: null };
 
 /* ---------- 状态 ---------- */
 let ver = /[?&]v1\b/.test(location.search) ? 'v1' : 'v2', who = VERS[ver].roster[0][0], clip = 'idle', moving = false, coat = 'fuwang', hat = true, view = 'near', hi = false, cur = null, stress = null, showTok = 0;
 function kindOf(n) { return (VERS[ver].roster.find(r => r[0] === n) || [])[2] || 'hero'; }
-function instance(g) { const s = T.SkeletonUtils.clone(g.scene); s.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } }); const mx = new T.AnimationMixer(s); return { s, mx, clips: g.animations, acts: {}, g }; }
-function play(inst, name, fade) { const c = T.AnimationClip.findByName(inst.clips, name); if (!c) return; const a = inst.acts[name] || (inst.acts[name] = inst.mx.clipAction(c)); Object.values(inst.acts).forEach(x => { if (x !== a) x.fadeOut(fade || 0.25); }); a.reset().fadeIn(fade || 0.25).play(); inst.clip = name; }
+async function instance(n, tier) { const inst = await lib.spawn(aid(n), { tier }); return { inst, s: inst.object, id: aid(n) }; }
+function drop(c) { if (!c) return; scene.remove(c.s); lib.release(c.inst); }
+function play(c, name, fade) { const real = c.inst.play(name, fade); if (real) c.clip = real; }
 function setAcc(s, map) { s.traverse(o => { if (o.name in map) o.visible = !!map[o.name]; }); }
 async function setCoat(inst, k) { const t = await coatTex(k); inst.s.traverse(o => { if (o.isMesh) { const ms = [].concat(o.material).map(m => { if (m.name !== 'dog_coat') return m; if (!m.userData.own) { m = m.clone(); m.userData.own = 1; } m.map = t; m.needsUpdate = true; return m; }); o.material = Array.isArray(o.material) ? ms : ms[0]; } }); setAcc(inst.s, ACC[k] || ACC.other); }
 
@@ -144,19 +120,19 @@ async function show() { try { await show0(); } catch (e) { showErr('加载角色
 async function show0() {
   const tok = ++showTok;
   if (stress) stopStress();
-  const n = who, v = ver, t0 = performance.now(), g = await (cache[v + ':' + n] ? (toast('正在加载' + NAME(n) + '…', 1200), cache[v + ':' + n]) : loadGLB(n)); if (!stats.glbMs[v + ':' + n]) stats.glbMs[v + ':' + n] = Math.round(performance.now() - t0);
+  const n = who, v = ver, t0 = performance.now(); if (lib.glb[aid(n)]) toast('正在加载' + NAME(n) + '…', 1200); quiet.delete(aid(n));
   if (tok !== showTok) return;
-  if (hi !== !!g.hi && VERS[v].still) { await applyTextures(g, VERS[v].base, n, hi); if (tok !== showTok) return; }
-  const inst = instance(g); inst.kind = kindOf(n);
+  const inst = await instance(n, VERS[v].still && hi ? '2k' : '1k'); inst.kind = kindOf(n); if (!stats.glbMs[aid(n)]) stats.glbMs[aid(n)] = Math.round(performance.now() - t0);
+  if (tok !== showTok) { lib.release(inst.inst); return; }
   if (v === 'v1') { if (inst.kind === 'dog') await setCoat(inst, coat); else setAcc(inst.s, { hat, bag: 1, scarf: 1 }); }
   if (tok !== showTok) return;
-  if (cur) scene.remove(cur.s);
+  drop(cur);
   cur = inst; scene.add(cur.s); applyView(true);
   if (v === 'v1') play(cur, clip, 0.01);
   renderBars();
 }
 /* 只在近看时用高清：离开这个角色时把高清贴图换回手机版，省显存 */
-async function setHi(on) { hi = on; if (!cur || !VERS[ver].still) return; toast(on ? '正在加载 2K 高清贴图…' : '换回手机版贴图', 1500); await applyTextures(cur.g, VERS[ver].base, who, on); renderBars(); }
+async function setHi(on) { hi = on; if (!cur || !VERS[ver].still) return; toast(on ? '正在加载 2K 高清贴图…' : '换回手机版贴图', 1500); await lib.load(aid(who), on ? '2k' : '1k'); renderBars(); }
 function applyView(keepYaw) { const V = VIEWS[view], k = cur ? cur.kind : 'hero'; cam.fov = V.fov; cam.updateProjectionMatrix(); farm.visible = view === 'top'; scene.fog.near = view === 'top' ? 70 : 30; scene.fog.far = view === 'top' ? 160 : 80;
   if (view === 'near') Object.assign(orbit, k === 'dog' ? { dist: VERS[ver].still ? 2.6 : 2.4, ty: 0.42 } : { dist: 4.2, ty: 0.9 }, keepYaw ? {} : { pitch: 0.18 });
   else Object.assign(orbit, { dist: V.dist, pitch: V.pitch, ty: k === 'dog' ? 0.3 : 0.8 });
@@ -182,7 +158,7 @@ function renderBars() {
 }
 function bind() {
   document.querySelectorAll('[data-ver]').forEach(x => x.onclick = () => { if (x.dataset.ver === ver) return; ver = x.dataset.ver; who = VERS[ver].roster[0][0]; hi = false; show(); });
-  document.querySelectorAll('[data-who]').forEach(x => x.onclick = () => { if (cur && VERS[ver].still && cur.g.hi && who !== x.dataset.who) applyTextures(cur.g, VERS[ver].base, who, false); who = x.dataset.who; hi = false; show(); });
+  document.querySelectorAll('[data-who]').forEach(x => x.onclick = () => { if (cur && VERS[ver].still && hi && who !== x.dataset.who) lib.load(aid(who), '1k'); who = x.dataset.who; hi = false; show(); });
   document.querySelectorAll('[data-clip]').forEach(x => x.onclick = () => { clip = x.dataset.clip; if (clip === 'idle') moving = false; if (cur) play(cur, clip); renderBars(); });
   const mv = $('move'); if (mv) mv.onclick = () => { moving = !moving; if (moving) { clip = 'walk'; if (cur) play(cur, 'walk'); } else if (cur) cur.s.position.set(0, 0, 0); renderBars(); };
   document.querySelectorAll('[data-view]').forEach(x => x.onclick = () => { view = x.dataset.view; applyView(); renderBars(); });
@@ -202,18 +178,18 @@ function applyMorph(dt) { if (!cur || !morphPulse) return; morphPulse.t += dt; c
 async function startStress() {
   toast('压力测试准备中…', 3000);
   const V = VERS[ver], heroN = V.roster.find(r => r[2] === 'hero')[0], dogs = V.roster.filter(r => r[2] === 'dog').map(r => r[0]);
-  const [H, ...D] = await Promise.all([loadGLB(heroN), ...dogs.map(d => loadGLB(d))]); if (!V.still) await Promise.all(COATS.map(c => coatTex(c[0])));
-  const list = [], h = instance(H); h.kind = 'hero'; if (!V.still) { setAcc(h.s, { hat: 1, bag: 1, scarf: 1 }); play(h, 'walk', 0.01); } h.r = 1.6; h.ph = 0; h.spd = V.still ? 0.8 : STRIDE.hero; list.push(h);
-  for (let i = 0; i < 10; i++) { const d = instance(D[i % D.length]); d.kind = 'dog'; if (!V.still) { await setCoat(d, COATS[i][0]); play(d, 'walk', 0.01); d.mx.setTime(i * 0.13); d.ts = 2.2; } d.r = 2.6 + (i % 3) * 1.1; d.ph = i * 0.63; d.spd = V.still ? 0.9 : STRIDE.dog * 2.2; list.push(d); }
-  if (!$('btn-stress').classList.contains('on')) return;
-  if (cur) { scene.remove(cur.s); cur = null; }
+  if (!V.still) await Promise.all(COATS.map(c => coatTex(c[0])));
+  const list = [], h = await instance(heroN, '1k'); h.kind = 'hero'; if (!V.still) { setAcc(h.s, { hat: 1, bag: 1, scarf: 1 }); play(h, 'walk', 0.01); } h.r = 1.6; h.ph = 0; h.spd = V.still ? 0.8 : STRIDE.hero; list.push(h);
+  for (let i = 0; i < 10; i++) { const d = await instance(dogs[i % dogs.length], '1k'); d.kind = 'dog'; if (!V.still) { await setCoat(d, COATS[i][0]); play(d, 'walk', 0.01); if (d.inst.mixer) d.inst.mixer.setTime(i * 0.13); d.ts = 2.2; } d.r = 2.6 + (i % 3) * 1.1; d.ph = i * 0.63; d.spd = V.still ? 0.9 : STRIDE.dog * 2.2; list.push(d); }
+  if (!$('btn-stress').classList.contains('on')) { list.forEach(x => lib.release(x.inst)); return; }
+  drop(cur); cur = null;
   list.forEach(x => { x.s.position.set(Math.cos(x.ph) * x.r, 0, Math.sin(x.ph) * x.r); x.s.rotation.y = -x.ph; scene.add(x.s); });
   stress = { list, t: 0, frames: [] }; view = 'near'; farm.visible = false; renderBars(); Object.assign(orbit, { dist: 11, ty: 0.4, pitch: 0.5 }); cam.fov = 34; cam.updateProjectionMatrix(); layout();
   toast(`压力测试：1 个主角 + 10 只狗${V.still ? '（静态模型，只是绕圈移动）' : ''}，11 秒后出结果`);
 }
-function stopStress() { stress.list.forEach(x => scene.remove(x.s)); stress = null; }
+function stopStress() { stress.list.forEach(drop); stress = null; }
 function stepStress(dt) {
-  stress.t += dt; stress.list.forEach(x => { x.ph += x.spd / x.r * dt; x.s.position.set(Math.cos(x.ph) * x.r, 0, Math.sin(x.ph) * x.r); x.s.rotation.y = -x.ph; x.mx.timeScale = x.ts || 1; x.mx.update(dt); });
+  stress.t += dt; stress.list.forEach(x => { x.ph += x.spd / x.r * dt; x.s.position.set(Math.cos(x.ph) * x.r, 0, Math.sin(x.ph) * x.r); x.s.rotation.y = -x.ph; if (x.inst.mixer) x.inst.mixer.timeScale = x.ts || 1; x.inst.update(dt); });
   if (stress.t > 1) stress.frames.push(dt);
   if (stress.t > 11 && !stats.stress) { const f = stress.frames, avg = f.reduce((a, b) => a + b, 0) / f.length, sorted = f.slice().sort((a, b) => b - a), p95 = sorted[Math.floor(sorted.length * 0.05)];
     stats.stress = { ver, tex: VERS[ver].still ? (hi ? '2K' : '1K') : '1K', avgFps: +(1 / avg).toFixed(1), lowFps: +(1 / p95).toFixed(1), calls: R.info.render.calls, tris: R.info.render.triangles };
@@ -239,7 +215,7 @@ function frame(now) {
   if (fpsAcc > 0.5) { stats.fps.push(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
   const focus = new T.Vector3(0, orbit.ty, 0);
   if (stress) stepStress(dt);
-  else if (cur) { cur.mx.update(dt); applyMorph(dt);
+  else if (cur) { cur.inst.update(dt); applyMorph(dt);
     if (moving && cur.clip === 'walk') { const sp = STRIDE[cur.kind]; cur.ang = (cur.ang || 0) + sp / 2 * dt; cur.s.position.set(Math.sin(cur.ang) * 2, 0, Math.cos(cur.ang) * 2 - 2); cur.s.rotation.y = cur.ang + Math.PI / 2; focus.set(cur.s.position.x, orbit.ty, cur.s.position.z); } }
   const dd = orbit.dist * fitK; cam.position.set(focus.x + Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * dd, focus.y + Math.sin(orbit.pitch) * dd, focus.z + Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * dd);
   if (cam.position.y < 0.25) cam.position.y = 0.25; /* 镜头不能钻到地面下面 */
@@ -252,7 +228,7 @@ function frame(now) {
 renderBars(); resize();
 (async () => { const t0 = performance.now(); await show(); stats.loadMs = Math.round(performance.now() - t0); if ($('load')) $('load').remove(); requestAnimationFrame(frame);
   /* 第一个角色出来后，后台预加载同一版本的其他角色 */
-  setTimeout(() => VERS[ver].roster.forEach(r => loadGLB(r[0], true).catch(() => { })), 500); })();
+  setTimeout(() => VERS[ver].roster.forEach(r => { quiet.add(aid(r[0])); lib.load(aid(r[0])).catch(() => { }); }), 500); })();
 window.__art = { report, stats, get cur() { return cur; } };
 window.__dbg = () => stress ? stress.list.map(x => [x.s.position.x, x.s.position.z]) : null; window.__camY = () => cam.position.y;
 </script>

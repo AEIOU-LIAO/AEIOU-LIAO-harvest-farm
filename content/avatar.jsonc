@@ -1,0 +1,8 @@
+// 头像可选颜色
+{
+  "skin": ["#ffd9b0","#ffe4cc","#f2c89a","#e8b88a","#c8946a"],
+  "hair": ["#2a1a10","#6a3a1a","#e8a0c0","#d9b84a","#4a5ad8"],
+  "shirt": ["#4a8fd8","#ff7aa5","#6aa84a","#8a5a3a","#b08aff","#ff9a1f"],
+  "band": ["#d9553a","#3a7ad9","#3a9a5a"],
+  "bg": [["#a8e4ff","#d8f5b8"],["#ffd9ec","#fff0e0"],["#c8ecff","#e8f6c8"],["#ffe8b8","#ffd09a"],["#e8d8ff","#ffe0f0"]]
+}

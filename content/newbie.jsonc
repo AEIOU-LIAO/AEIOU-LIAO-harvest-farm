@@ -1,0 +1,9 @@
+// 新手引导任务
+[
+  {"id":"n_plant","stat":"plant","tx":"在空地上种下第一颗种子","need":1,"gold":50},
+  {"id":"n_harvest","stat":"harvest","tx":"收获一次作物","need":1,"gold":80},
+  {"id":"n_sell","stat":"sell","tx":"在仓库卖出作物","need":1,"gold":80},
+  {"id":"n_friend","stat":"friend","tx":"加一位好友（附近的人、村民或邀请朋友都可以）","need":1,"gold":200},
+  {"id":"n_visit","stat":"visit","tx":"去别人的农场串门","need":1,"gold":100},
+  {"id":"n_social","stat":"social","tx":"在别人的农场摘一次果实或帮一次忙","need":1,"gold":200}
+]

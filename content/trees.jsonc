@@ -1,0 +1,21 @@
+// 果树：grow 秒长大，之后每 period 秒结 yield 个果子，每个卖 sell
+[
+  {"id":0,"name":"苹果树","fruit":"苹果","lv":3,"price":800,"grow":3600,"period":5400,"yield":6,"sell":28,"exp":30,"col":"#e8352a"},
+  {"id":1,"name":"桃树","fruit":"水蜜桃","lv":8,"price":2000,"grow":7200,"period":7200,"yield":6,"sell":55,"exp":55,"col":"#ff9aa8","blossom":"#ffc8d8"},
+  {"id":2,"name":"橙子树","fruit":"橙子","lv":15,"price":5000,"grow":10800,"period":9000,"yield":7,"sell":95,"exp":90,"col":"#ff9a1a"},
+  {"id":3,"name":"梨树","fruit":"雪梨","lv":25,"price":12000,"grow":14400,"period":10800,"yield":7,"sell":170,"exp":150,"col":"#d8e070"},
+  {"id":4,"name":"樱桃树","fruit":"樱桃","lv":40,"price":30000,"grow":21600,"period":14400,"yield":8,"sell":330,"exp":260,"col":"#c8102a","blossom":"#ffe0ec"},
+  {"id":5,"name":"柿子树","fruit":"柿子","lv":60,"price":70000,"grow":28800,"period":18000,"yield":8,"sell":640,"exp":420,"col":"#ff7a10"},
+  {"id":6,"name":"荔枝树","fruit":"荔枝","lv":90,"price":160000,"grow":36000,"period":21600,"yield":9,"sell":1250,"exp":700,"col":"#d8303a"},
+  {"id":7,"name":"芒果树","fruit":"芒果","lv":130,"price":380000,"grow":43200,"period":25200,"yield":9,"sell":2600,"exp":1150,"col":"#ffc21a"},
+  {"id":8,"name":"石榴树","fruit":"石榴","lv":200,"price":900000,"grow":57600,"period":28800,"yield":10,"sell":5200,"exp":1900,"col":"#b8102a"},
+  {"id":9,"name":"金苹果树","fruit":"金苹果","lv":400,"price":3000000,"grow":86400,"period":36000,"yield":10,"sell":15000,"exp":4200,"col":"#ffd23a"},
+  {"id":10,"name":"蓝莓树","fruit":"巨型蓝莓","lv":550,"price":5500000,"grow":86400,"period":36000,"yield":12,"sell":22000,"exp":5600,"col":"#4a5ad8"},
+  {"id":11,"name":"榴莲树","fruit":"榴莲","lv":750,"price":10000000,"grow":100800,"period":43200,"yield":10,"sell":48000,"exp":8000,"col":"#c8b84a"},
+  {"id":12,"name":"山竹树","fruit":"山竹","lv":1000,"price":18000000,"grow":108000,"period":43200,"yield":12,"sell":70000,"exp":11000,"col":"#6a1a4a"},
+  {"id":13,"name":"樱花果树","fruit":"樱花果","lv":1400,"price":32000000,"grow":115200,"period":46800,"yield":12,"sell":120000,"exp":15000,"col":"#ff9ac8","blossom":"#ffd8ec"},
+  {"id":14,"name":"星果树","fruit":"星星果","lv":1900,"price":55000000,"grow":122400,"period":50400,"yield":12,"sell":200000,"exp":20000,"col":"#ffe86a"},
+  {"id":15,"name":"月光梨树","fruit":"月光梨","lv":2500,"price":90000000,"grow":129600,"period":54000,"yield":12,"sell":320000,"exp":26000,"col":"#e8f0ff","blossom":"#ffffff"},
+  {"id":16,"name":"仙桃树","fruit":"蟠桃","lv":3200,"price":150000000,"grow":144000,"period":57600,"yield":12,"sell":520000,"exp":34000,"col":"#ff8a9a","blossom":"#ffc8d8"},
+  {"id":17,"name":"世界树","fruit":"生命果","lv":3900,"price":260000000,"grow":172800,"period":64800,"yield":12,"sell":900000,"exp":46000,"col":"#7affc8"}
+]

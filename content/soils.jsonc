@@ -1,0 +1,7 @@
+// 土地等级：普通 → 红土地 → 黑土地 → 金土地。升级费用 = base + step × 已达到该等级的地块数
+[
+  {"id":0,"name":"普通土地","lv":0,"speed":1,"yield":1,"base":0,"step":0},
+  {"id":1,"name":"红土地","lv":5,"speed":1.2,"yield":1.2,"base":1500,"step":600},
+  {"id":2,"name":"黑土地","lv":15,"speed":1.35,"yield":1.4,"base":8000,"step":2000},
+  {"id":3,"name":"金土地","lv":28,"speed":1.5,"yield":1.65,"base":30000,"step":6000}
+]

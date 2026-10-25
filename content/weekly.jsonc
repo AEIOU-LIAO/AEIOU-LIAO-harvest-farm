@@ -1,0 +1,8 @@
+// 每周任务
+[
+  {"id":"w_harvest","stat":"harvest","ic":"🧺","tx":"本周收获作物","need":120,"gold":1500,"exp":300},
+  {"id":"w_steal","stat":"steal","ic":"🥷","tx":"本周摘取别人的果实","need":40,"gold":1200,"exp":240},
+  {"id":"w_help","stat":"help","ic":"🤝","tx":"本周帮别人打理","need":30,"gold":1200,"exp":240},
+  {"id":"w_order","stat":"order","ic":"📦","tx":"本周完成订单","need":10,"gold":2000,"exp":400},
+  {"id":"w_trade","stat":"trade","ic":"🏷️","tx":"本周在集市成交","need":5,"gold":1000,"exp":200}
+]

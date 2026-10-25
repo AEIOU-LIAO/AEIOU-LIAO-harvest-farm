@@ -1,0 +1,15 @@
+// 羊：每 period 秒长一茬羊毛，剪 wool 份 woolName，每份卖 sell
+[
+  {"id":0,"name":"小绵羊","lv":4,"price":500,"period":7200,"wool":2,"woolName":"白羊毛","sell":48,"exp":20,"body":"#fbf8f0","face":"#3a3230"},
+  {"id":1,"name":"黑面羊","lv":12,"price":2000,"period":10800,"wool":3,"woolName":"黑羊毛","sell":85,"exp":45,"body":"#f2ede2","face":"#151214"},
+  {"id":2,"name":"羊驼","lv":20,"price":6000,"period":14400,"wool":3,"woolName":"羊驼毛","sell":230,"exp":90,"body":"#e8d2a8","face":"#e8d2a8","alpaca":true},
+  {"id":3,"name":"美利奴羊","lv":40,"price":18000,"period":14400,"wool":4,"woolName":"美利奴羊毛","sell":520,"exp":180,"body":"#fffaf0","face":"#f0d8c8"},
+  {"id":4,"name":"白羊驼","lv":70,"price":45000,"period":18000,"wool":4,"woolName":"白羊驼毛","sell":1200,"exp":320,"body":"#fbf8f2","face":"#fbf8f2","alpaca":true},
+  {"id":5,"name":"卷毛羊","lv":120,"price":110000,"period":18000,"wool":4,"woolName":"卷羊毛","sell":2800,"exp":560,"body":"#f4eee0","face":"#2a2224"},
+  {"id":6,"name":"咖啡羊驼","lv":200,"price":280000,"period":21600,"wool":5,"woolName":"咖啡驼毛","sell":5600,"exp":950,"body":"#9a6a42","face":"#7a5032","alpaca":true},
+  {"id":7,"name":"彩虹羊","lv":350,"price":700000,"period":21600,"wool":5,"woolName":"彩虹羊毛","sell":13000,"exp":1600,"body":"#ffd0ec","face":"#3a3230"},
+  {"id":8,"name":"黑羊驼","lv":600,"price":1800000,"period":25200,"wool":5,"woolName":"黑驼毛","sell":30000,"exp":2800,"body":"#3a3236","face":"#2a2226","alpaca":true},
+  {"id":9,"name":"云朵羊","lv":1000,"price":5000000,"period":28800,"wool":6,"woolName":"云朵绒","sell":72000,"exp":5000,"body":"#eaf4ff","face":"#8aa0c8"},
+  {"id":10,"name":"金羊毛羊","lv":1800,"price":14000000,"period":32400,"wool":6,"woolName":"金羊毛","sell":180000,"exp":9000,"body":"#ffd86a","face":"#6a4a1a"},
+  {"id":11,"name":"星光羊驼","lv":3000,"price":40000000,"period":36000,"wool":6,"woolName":"星光驼绒","sell":480000,"exp":16000,"body":"#c8b8ff","face":"#c8b8ff","alpaca":true}
+]

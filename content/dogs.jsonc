@@ -1,0 +1,5 @@
+// 看家狗：福旺、睿宝。拦截率 = min(max, base + perLv × (等级 - 1))；bite 被咬一口扣的金币
+[
+  {"id":"fuwang","name":"福旺","col":"dog","price":300,"lv":2,"bite":5,"base":0.3,"perLv":0.03,"max":0.6,"desc":"蓝陌边牧，灰白相间带黑斑，机灵亲人，咬一口 5 金币"},
+  {"id":"ruibao","name":"睿宝","col":"dog2","price":3000,"lv":10,"bite":15,"base":0.4,"perLv":0.03,"max":0.7,"desc":"黄白边牧，金棕色被毛配白色毛领，聪明敏捷，咬一口 15 金币"}
+]
