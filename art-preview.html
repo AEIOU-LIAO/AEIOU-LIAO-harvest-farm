@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>新角色预览</title>
+<style>
+:root{--panel:rgba(36,29,20,.92);--line:rgba(232,190,110,.35);--gold:#e8b84a;--ink:#f5ead2;--mut:#bfae8c}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#cfe6f5;color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;overflow:hidden}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.bar{position:fixed;left:8px;right:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:8px;border-radius:14px;background:var(--panel);border:1px solid var(--line);box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:2}
+#top{top:max(8px,env(safe-area-inset-top));flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}#top::-webkit-scrollbar{display:none}#top>*{flex:none}
+#bot{bottom:max(8px,env(safe-area-inset-bottom))}
+.bar b{color:#fff1cc;margin-right:4px;white-space:nowrap}
+button{font:inherit;color:var(--ink);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:6px 10px;cursor:pointer;white-space:nowrap;touch-action:manipulation}
+button.on{background:linear-gradient(#f1c95c,#c8902a);color:#2a1c08;border-color:#f6d77a;font-weight:700}
+.sep{width:1px;height:22px;background:var(--line);margin:0 2px}
+.chip{display:inline-flex;align-items:center;gap:5px}.chip i{width:12px;height:12px;border-radius:50%;display:inline-block;border:1px solid rgba(255,255,255,.4)}
+#hud{position:fixed;right:10px;top:70px;z-index:2;padding:6px 10px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font:12px/1.5 ui-monospace,Menlo,monospace;color:#ffe9b0;white-space:pre}
+#note{position:fixed;left:10px;top:70px;z-index:2;max-width:min(360px,60vw);padding:8px 10px;border-radius:10px;background:rgba(150,40,20,.88);border:1px solid #ffb08a;font-size:12.5px}
+#concept{position:fixed;inset:0;z-index:5;background:rgba(10,8,5,.88);display:none;align-items:center;justify-content:center;padding:16px}
+#concept.show{display:flex}#concept img{max-width:100%;max-height:100%;border-radius:10px}
+#concept span{position:absolute;top:14px;right:16px;font-size:14px;background:var(--panel);padding:6px 12px;border-radius:10px;border:1px solid var(--line)}
+#load{position:fixed;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:#2a2116;color:#ffe9b0;font-size:15px}
+#toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);z-index:7;background:var(--panel);border:1px solid var(--gold);padding:8px 14px;border-radius:10px;display:none}
+@media (max-width:600px){button{padding:6px 8px;font-size:13px}.bar{gap:5px;padding:6px}#note{max-width:58vw;font-size:11.5px}}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="load">正在加载新角色…</div>
+<div class="bar" id="top">
+  <b>新角色预览 v1_test</b>
+  <button data-who="hero_boy" class="on">男主角</button><button data-who="hero_girl">女主角</button><button data-who="dog">边牧</button>
+  <span class="sep"></span>
+  <button data-clip="idle" class="on">待机</button><button data-clip="walk">走路</button><button id="move">边走边移动</button>
+  <span class="sep"></span>
+  <button id="btn-concept">看设定图</button><button id="btn-stress">压力测试</button><button id="btn-copy">复制测试结果</button>
+  <a href="/" style="margin-left:auto"><button>回游戏</button></a>
+</div>
+<div class="bar" id="bot"></div>
+<div id="note">这是美术的「技术灰盒测试包」：只用来测试导入流程和手机性能，<b>不是最终外观</b>，也还没有放进游戏。</div>
+<div id="hud"></div>
+<div id="concept"><img alt="设定图"><span>点任意处关闭</span></div>
+<div id="toast"></div>
+<script src="vendor/three.min.js"></script>
+<script src="vendor/three-addons.js"></script>
+<script>
+'use strict';
+/* 美术测试包预览：独立页面，不读写游戏存档，不影响游戏 */
+const BASE = 'art/v1_test/';
+const COATS = [['fuwang', '福旺', '#8c96a4'], ['ruibao', '睿宝', '#e3a64a'], ['black', '黑白', '#222'], ['red', '巧克力红白', '#7a3a1e'], ['redmerle', '红陨石', '#c47a5a'], ['tri', '三色', '#3a2a20'], ['lilac', '丁香紫', '#a898a0'], ['slate', '石板蓝', '#5a6270'], ['merle', '蓝陌', '#9aa4b4'], ['gold', '黄白', '#e8b860']];
+const ACC = { fuwang: { harness: 1, collar: 0, bandana: 0, tag: 0 }, ruibao: { harness: 0, collar: 1, bandana: 0, tag: 0 }, other: { harness: 0, collar: 0, bandana: 1, tag: 1 } };
+const STRIDE = { hero: 0.64, dog: 0.27 }; /* 程序实测的等效步幅（米/周期），美术标注是 0.88 / 0.44 */
+const MORPH = { hero: [['blink', '眨眼'], ['smile', '微笑'], ['mouth_open', '张嘴'], ['surprise', '惊讶']], dog: [['blink', '眨眼'], ['pant', '哈气'], ['happy', '开心']] };
+const $ = id => document.getElementById(id), T = THREE;
+const R = new T.WebGLRenderer({ canvas: $('cv'), antialias: true, powerPreference: 'high-performance' });
+R.outputEncoding = T.sRGBEncoding; R.toneMapping = T.ACESFilmicToneMapping; R.toneMappingExposure = 1.05; R.shadowMap.enabled = true; R.shadowMap.type = T.PCFSoftShadowMap;
+const scene = new T.Scene(); scene.background = new T.Color('#cfe6f5'); scene.fog = new T.Fog('#cfe6f5', 18, 45);
+scene.add(new T.HemisphereLight(0xfff6e0, 0x6a8a4a, 0.85));
+const sun = new T.DirectionalLight(0xfff0d8, 2.3); sun.position.set(4, 8, 5); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8 }); scene.add(sun); scene.add(sun.target);
+{ const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.fillStyle = '#7fb85a'; x.fillRect(0, 0, 256, 256); for (let i = 0; i < 2600; i++) { x.fillStyle = `hsl(${92 + Math.random() * 20},${40 + Math.random() * 20}%,${36 + Math.random() * 16}%)`; x.fillRect(Math.random() * 256, Math.random() * 256, 1.5, 3); }
+  const tx = new T.CanvasTexture(c); tx.wrapS = tx.wrapT = T.RepeatWrapping; tx.repeat.set(30, 30); tx.encoding = T.sRGBEncoding;
+  const g = new T.Mesh(new T.CircleGeometry(40, 48), new T.MeshStandardMaterial({ map: tx, roughness: 1 })); g.rotation.x = -Math.PI / 2; g.receiveShadow = true; scene.add(g); }
+const cam = new T.PerspectiveCamera(34, 1, 0.05, 120);
+const orbit = { yaw: 0.5, pitch: 0.18, dist: 4.2, ty: 0.9 };
+/* 镜头对准上下两个按钮栏之间的空白区域，角色不会被按钮挡住 */
+let fitK = 1;
+function layout() { const w = innerWidth, h = innerHeight, tb = $('top').getBoundingClientRect().bottom, bt = $('bot').getBoundingClientRect().top; $('note').style.top = $('hud').style.top = (tb + 8) + 'px';
+  const top = tb + 8, bot = Math.min(h, bt - 8), cy = (top + bot) / 2; fitK = Math.max(h > w ? 1.3 : 0.9, h / Math.max(120, bot - top) * 0.62); cam.setViewOffset(w, h, 0, h / 2 - cy, w, h); cam.updateProjectionMatrix(); hudFix(); }
+/* 帧率框的文字是后来才填的，变宽后可能盖住提示框：每秒检查一次，重叠就挪到提示框下面 */
+function hudFix() { const nr = $('note').getBoundingClientRect(), hr = $('hud').getBoundingClientRect(); if (nr.right > hr.left - 6 && hr.top < nr.bottom) $('hud').style.top = (nr.bottom + 6) + 'px'; }
+setInterval(hudFix, 1000);
+function resize() { const w = innerWidth, h = innerHeight; R.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); layout(); }
+addEventListener('resize', resize); resize();
+
+/* ---- 资源 ---- */
+const gl = new T.GLTFLoader(), tl = new T.TextureLoader(), cache = {}, texC = {};
+const loadGLB = n => cache[n] || (cache[n] = new Promise((ok, no) => gl.load(BASE + n + '/' + n + '.glb', ok, undefined, no)));
+const coatTex = k => texC[k] || (texC[k] = new Promise((ok, no) => tl.load(BASE + 'dog_collie/textures/dog_coat_' + k + '_basecolor.jpg', t => { t.flipY = false; t.encoding = T.sRGBEncoding; ok(t); }, undefined, no)));
+const stats = { loadMs: 0, glbMs: {}, fps: [], stress: null };
+
+let who = 'hero_boy', clip = 'idle', moving = false, coat = 'fuwang', hat = true, cur = null, stress = null;
+function instance(gltf) { const s = T.SkeletonUtils.clone(gltf.scene); s.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } }); const mx = new T.AnimationMixer(s); return { s, mx, clips: gltf.animations, acts: {} }; }
+function play(inst, name, fade) { const c = T.AnimationClip.findByName(inst.clips, name); if (!c) return; const a = inst.acts[name] || (inst.acts[name] = inst.mx.clipAction(c)); Object.values(inst.acts).forEach(x => { if (x !== a) x.fadeOut(fade || 0.25); }); a.reset().fadeIn(fade || 0.25).play(); inst.clip = name; }
+function setAcc(s, map) { s.traverse(o => { if (o.name in map) o.visible = !!map[o.name]; }); }
+async function setCoat(inst, k) { const t = await coatTex(k); inst.s.traverse(o => { if (o.isMesh) { const ms = [].concat(o.material).map(m => { if (m.name !== 'dog_coat') return m; if (!m.userData.own) { m = m.clone(); m.userData.own = 1; } m.map = t; m.needsUpdate = true; return m; }); o.material = Array.isArray(o.material) ? ms : ms[0]; } }); setAcc(inst.s, ACC[k] || ACC.other); }
+async function show() {
+  if (stress) stopStress();
+  if (cur) { scene.remove(cur.s); cur = null; }
+  const n = who === 'dog' ? 'dog_collie' : who, t0 = performance.now(), g = await loadGLB(n); if (!stats.glbMs[n]) stats.glbMs[n] = Math.round(performance.now() - t0);
+  cur = instance(g); cur.kind = who === 'dog' ? 'dog' : 'hero'; scene.add(cur.s);
+  if (cur.kind === 'dog') { await setCoat(cur, coat); Object.assign(orbit, { dist: 2.4, ty: 0.42 }); } else { setAcc(cur.s, { hat, bag: 1, scarf: 1 }); Object.assign(orbit, { dist: 4.2, ty: 0.9 }); }
+  play(cur, clip, 0.01); renderBottom();
+}
+function renderBottom() {
+  const b = $('bot'); let h = '';
+  if (who === 'dog') h += '<b>毛色</b>' + COATS.map(([k, n, c]) => `<button class="chip ${k === coat ? 'on' : ''}" data-coat="${k}"><i style="background:${c}"></i>${n}</button>`).join('');
+  else h += `<b>配件</b><button id="hat" class="${hat ? 'on' : ''}">草帽</button>`;
+  h += '<span class="sep"></span><b>表情</b>' + MORPH[who === 'dog' ? 'dog' : 'hero'].map(([k, n]) => `<button data-morph="${k}">${n}</button>`).join('');
+  b.innerHTML = h; layout();
+  b.querySelectorAll('[data-coat]').forEach(x => x.onclick = async () => { coat = x.dataset.coat; if (cur) await setCoat(cur, coat); renderBottom(); });
+  const hb = $('hat'); if (hb) hb.onclick = () => { hat = !hat; if (cur) setAcc(cur.s, { hat }); renderBottom(); };
+  b.querySelectorAll('[data-morph]').forEach(x => x.onclick = () => pulseMorph(x.dataset.morph));
+}
+let morphPulse = null;
+function pulseMorph(k) { morphPulse = { k, t: 0 }; }
+function applyMorph(dt) { if (!cur || !morphPulse) return; morphPulse.t += dt; const v = Math.sin(Math.min(1, morphPulse.t / 1.2) * Math.PI); cur.s.traverse(o => { if (o.morphTargetDictionary && morphPulse.k in o.morphTargetDictionary) o.morphTargetInfluences[o.morphTargetDictionary[morphPulse.k]] = v; }); if (morphPulse.t > 1.2) morphPulse = null; }
+
+/* ---- 压力测试：1 个主角 + 10 只狗一起走 ---- */
+async function startStress() {
+  if (cur) { scene.remove(cur.s); cur = null; }
+  const H = await loadGLB('hero_boy'), D = await loadGLB('dog_collie'); const list = [];
+  const h = instance(H); setAcc(h.s, { hat: 1, bag: 1, scarf: 1 }); play(h, 'walk', 0.01); h.r = 1.6; h.ph = 0; h.spd = STRIDE.hero; scene.add(h.s); list.push(h);
+  for (let i = 0; i < 10; i++) { const d = instance(D); await setCoat(d, COATS[i][0]); play(d, 'walk', 0.01); d.mx.setTime(i * 0.13); d.r = 2.4 + (i % 3) * 0.9; d.ph = i * 0.63; d.spd = STRIDE.dog * 2.2; d.ts = 2.2; scene.add(d.s); list.push(d); }
+  stress = { list, t: 0, frames: [], t0: performance.now() }; Object.assign(orbit, { dist: 11, ty: 0.4, pitch: 0.5 }); toast('压力测试：1 个主角 + 10 只狗，10 秒后出结果');
+}
+function stopStress() { stress.list.forEach(x => scene.remove(x.s)); stress = null; }
+function stepStress(dt) {
+  stress.t += dt; stress.list.forEach(x => { const w = x.spd / x.r; x.ph += w * dt; x.s.position.set(Math.cos(x.ph) * x.r, 0, Math.sin(x.ph) * x.r); x.s.rotation.y = -x.ph; x.mx.timeScale = x.ts || 1; x.mx.update(dt); });
+  if (stress.t > 1) stress.frames.push(dt);
+  if (stress.t > 11 && !stats.stress) { const f = stress.frames, avg = f.reduce((a, b) => a + b, 0) / f.length, sorted = f.slice().sort((a, b) => b - a), p95 = sorted[Math.floor(sorted.length * 0.05)];
+    stats.stress = { avgFps: +(1 / avg).toFixed(1), lowFps: +(1 / p95).toFixed(1), calls: R.info.render.calls, tris: R.info.render.triangles }; toast(`压力测试结果：平均 ${stats.stress.avgFps} 帧/秒，卡顿时 ${stats.stress.lowFps} 帧/秒。可以点「复制测试结果」发给 Claude`, 6000); }
+}
+
+/* ---- 交互 ---- */
+document.querySelectorAll('[data-who]').forEach(b => b.onclick = () => { who = b.dataset.who; document.querySelectorAll('[data-who]').forEach(x => x.classList.toggle('on', x === b)); show(); });
+document.querySelectorAll('[data-clip]').forEach(b => b.onclick = () => { clip = b.dataset.clip; document.querySelectorAll('[data-clip]').forEach(x => x.classList.toggle('on', x === b)); if (clip === 'idle') { moving = false; $('move').classList.remove('on'); } if (cur) play(cur, clip); });
+$('move').onclick = () => { moving = !moving; $('move').classList.toggle('on', moving); if (moving && clip !== 'walk') document.querySelector('[data-clip="walk"]').click(); if (!moving && cur) cur.s.position.set(0, 0, 0); };
+$('btn-stress').onclick = () => { if (stress) { stopStress(); show(); $('btn-stress').classList.remove('on'); } else { stats.stress = null; startStress(); $('btn-stress').classList.add('on'); } };
+$('btn-concept').onclick = () => { const k = who === 'dog' ? (coat === 'ruibao' ? 'dog_ruibao' : 'dog_fuwang') : who; $('concept').querySelector('img').src = 'art/concept/' + k + '.jpg'; $('concept').classList.add('show'); };
+$('concept').onclick = () => $('concept').classList.remove('show');
+$('btn-copy').onclick = async () => { const txt = JSON.stringify(report(), null, 1); try { await navigator.clipboard.writeText(txt); toast('已复制，粘贴到和 Claude 的对话里就行'); } catch (e) { prompt('长按全选复制：', txt); } };
+function report() { let gpu = ''; try { const g = R.getContext(), e = g.getExtension('WEBGL_debug_renderer_info'); gpu = e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; } catch (e) { } const f = stats.fps.slice(-30); return { page: 'art-preview v1_test', ua: navigator.userAgent, screen: `${screen.width}x${screen.height}@${devicePixelRatio}`, gpu, loadMs: stats.loadMs, glbMs: stats.glbMs, fps: f.length ? +(f.reduce((a, b) => a + b, 0) / f.length).toFixed(1) : null, stress: stats.stress, time: new Date().toISOString() }; }
+let tt = 0; function toast(s, ms) { const t = $('toast'); t.textContent = s; t.style.display = 'block'; clearTimeout(tt); tt = setTimeout(() => t.style.display = 'none', ms || 2600); }
+/* 拖动旋转视角，双指 / 滚轮缩放 */
+const pts = new Map(); let pinch = 0;
+$('cv').addEventListener('pointerdown', e => { pts.set(e.pointerId, [e.clientX, e.clientY]); try { $('cv').setPointerCapture(e.pointerId); } catch (x) { } if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
+$('cv').addEventListener('pointermove', e => { const p = pts.get(e.pointerId); if (!p) return; if (pts.size === 2) { pts.set(e.pointerId, [e.clientX, e.clientY]); const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) orbit.dist = Math.max(0.8, Math.min(20, orbit.dist * pinch / d)); pinch = d; return; } orbit.yaw -= (e.clientX - p[0]) * 0.008; orbit.pitch = Math.max(-0.05, Math.min(1.3, orbit.pitch + (e.clientY - p[1]) * 0.005)); pts.set(e.pointerId, [e.clientX, e.clientY]); });
+['pointerup', 'pointercancel'].forEach(n => $('cv').addEventListener(n, e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = 0; }));
+$('cv').addEventListener('wheel', e => { orbit.dist = Math.max(0.8, Math.min(20, orbit.dist * (e.deltaY > 0 ? 1.08 : 0.93))); }, { passive: true });
+
+/* ---- 主循环 ---- */
+let last = performance.now(), fpsAcc = 0, fpsN = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now; fpsAcc += dt; fpsN++;
+  if (fpsAcc > 0.5) { stats.fps.push(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
+  let focus = new T.Vector3(0, orbit.ty, 0);
+  if (stress) stepStress(dt);
+  else if (cur) { cur.mx.update(dt); applyMorph(dt);
+    if (moving && cur.clip === 'walk') { const sp = STRIDE[cur.kind]; cur.ang = (cur.ang || 0) + sp / 2 * dt; cur.s.position.set(Math.sin(cur.ang) * 2, 0, Math.cos(cur.ang) * 2 - 2); cur.s.rotation.y = cur.ang + Math.PI / 2; focus.set(cur.s.position.x, orbit.ty, cur.s.position.z); } }
+  const dd = orbit.dist * fitK; cam.position.set(focus.x + Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * dd, focus.y + Math.sin(orbit.pitch) * dd, focus.z + Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * dd); cam.lookAt(focus);
+  sun.position.set(focus.x + 4, 8, focus.z + 5); sun.target.position.copy(focus);
+  R.render(scene, cam);
+  const f = stats.fps.length ? stats.fps[stats.fps.length - 1] : 0, i = R.info.render;
+  $('hud').textContent = `帧率 ${f.toFixed(0)} 帧/秒\n绘制 ${i.calls} 次  三角面 ${(i.triangles / 1000).toFixed(1)}k${stress ? `\n压力测试 ${Math.max(0, 11 - stress.t).toFixed(0)} 秒` : ''}`;
+  requestAnimationFrame(frame);
+}
+(async () => { const t0 = performance.now(); try { await show(); } catch (e) { $('load').textContent = '加载失败：' + e.message; return; } stats.loadMs = Math.round(performance.now() - t0); $('load').remove(); requestAnimationFrame(frame); })();
+window.__art = { report, stats, get cur() { return cur; } };
+</script>
+</body>
+</html>

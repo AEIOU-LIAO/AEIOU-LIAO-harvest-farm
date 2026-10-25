@@ -33,7 +33,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
         }
       ]
     },
@@ -60,6 +60,11 @@
     {
       "source": "/admin",
       "destination": "/admin.html",
+      "statusCode": 302
+    },
+    {
+      "source": "/art-preview",
+      "destination": "/art-preview.html",
       "statusCode": 302
     }
   ]

@@ -22,21 +22,21 @@ async function createApp(opts) {
   const core = await createCore(opts), db = core.db;
 
   // ---- 静态页面 ----
-  const pages = { '/': 'index.html', '/index.html': 'index.html', '/admin': 'admin.html', '/admin.html': 'admin.html', '/vendor/three.min.js': 'vendor/three.min.js' }; const pcache = {};
-  const secHeaders = () => ({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" });
+  const pages = { '/': 'index.html', '/index.html': 'index.html', '/admin': 'admin.html', '/admin.html': 'admin.html', '/vendor/three.min.js': 'vendor/three.min.js', '/vendor/three-addons.js': 'vendor/three-addons.js', '/art-preview': 'art-preview.html', '/art-preview.html': 'art-preview.html' }; const pcache = {};
+  const secHeaders = () => ({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" });
   function serveStatic(req, res, p) {
-    const f = path.join(ROOT, pages[p]); let st; try { st = fs.statSync(f); } catch (e) { res.writeHead(404); return res.end('Not found'); }
+    const rel = pages[p] || p.slice(1), f = path.join(ROOT, rel); let st; try { st = fs.statSync(f); } catch (e) { res.writeHead(404); return res.end('Not found'); }
     let c = pcache[f]; if (!c || c.m !== st.mtimeMs) { const raw = fs.readFileSync(f); c = pcache[f] = { m: st.mtimeMs, raw, gz: zlib.gzipSync(raw) }; }
-    const gz = /\bgzip\b/.test(req.headers['accept-encoding'] || ''), js = /\.js$/.test(f);
-    res.writeHead(200, Object.assign(secHeaders(), { 'Content-Type': js ? 'application/javascript; charset=utf-8' : 'text/html; charset=utf-8', 'Cache-Control': js ? 'public, max-age=604800' : 'no-cache' }, gz ? { 'Content-Encoding': 'gzip' } : {}));
-    res.end(req.method === 'HEAD' ? undefined : gz ? c.gz : c.raw);
+    const gz = /\bgzip\b/.test(req.headers['accept-encoding'] || ''), js = /\.js$/.test(f), ext = path.extname(f), bin = { '.glb': 'model/gltf-binary', '.jpg': 'image/jpeg', '.png': 'image/png' }[ext];
+    res.writeHead(200, Object.assign(secHeaders(), { 'Content-Type': bin || (js ? 'application/javascript; charset=utf-8' : 'text/html; charset=utf-8'), 'Cache-Control': js || bin ? 'public, max-age=604800' : 'no-cache' }, gz && !bin ? { 'Content-Encoding': 'gzip' } : {}));
+    res.end(req.method === 'HEAD' ? undefined : gz && !bin ? c.gz : c.raw);
   }
   function readBody(req) { return new Promise((resolve, reject) => { let n = 0; const chunks = []; req.on('data', d => { n += d.length; if (n > 64 * 1024) { reject(new Error('too big')); req.destroy(); } else chunks.push(d); }); req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8'))); req.on('error', reject); }); }
 
   const server = http.createServer(async (req, res) => {
     try {
       const p = new URL(req.url, 'http://x').pathname;
-      if (!p.startsWith('/api/')) { if ((req.method === 'GET' || req.method === 'HEAD') && pages[p]) return serveStatic(req, res, p); res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found'); }
+      if (!p.startsWith('/api/')) { if ((req.method === 'GET' || req.method === 'HEAD') && (pages[p] || /^\/art\/[\w\/-]+\.(glb|jpg|png)$/.test(p) && !p.includes('..'))) return serveStatic(req, res, p); res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found'); }
       let body = ''; if (req.method === 'POST') { try { body = await readBody(req); } catch (e) { res.writeHead(413, { 'Content-Type': 'application/json' }); return res.end('{"ok":false,"error":"请求太大"}'); } }
       const ip = (opts.trustProxy && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress || '?';
       const secure = !!req.socket.encrypted || (opts.trustProxy && /https/.test(String(req.headers['x-forwarded-proto'] || '')));
