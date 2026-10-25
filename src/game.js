@@ -556,7 +556,13 @@ function pickSpecial(i) {
 }
 function petAction() { const k = W3.nearDog; if (k < 0) return null; const d = W3.dogInfo(k); return d ? { k, label: `摸摸${d.name}`, id: d.did, name: d.name } : null; }
 function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } if (!petAction() && W3.nearKennel() && view.key === 'home') { ac(); sfx('open'); openShop('dog'); return; } if (!petAction() && W3.nearZone() && view.key === 'home') { ac(); sfx('open'); openRanch(W3.nearZone()); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || [`${p.name}开心地蹭蹭你`, `${p.name}：汪！`]; toast(L[Math.random() * L.length | 0]); } }
+/* 2026-10-26 世界变大了：漫游走远了（离农场 70 米以上）出现「回农场」按钮 */
+let farBtnT = 0;
+function updateFarBtn() { const now = performance.now(); if (now - farBtnT < 500) return; farBtnT = now; let b = $('gofarm'); const h = W3.heroInfo(), far = W3.mode === 'walk' && !BUILD.on && Math.hypot(h.x, h.z - 4) > 70;
+  if (far && !b) { b = document.createElement('button'); b.id = 'gofarm'; b.className = 'btn primary'; b.innerHTML = ICON('home') + '<span>回农场</span>'; b.onclick = () => { ac(); sfx('open'); W3.resetHero(); toast('回到农场了'); }; document.body.appendChild(b); }
+  if (b) { b.style.display = far ? '' : 'none'; if (far) b.querySelector('span').textContent = `回农场（${Math.round(Math.hypot(h.x, h.z - 4))} 米）`; } }
 function updateWalkUi() {
+  updateFarBtn();
   if (W3.mode !== 'walk') return; const i = W3.near, pa = petAction(), a = actionOf(i) || (pa ? pa.label : '') || (W3.nearKennel() && view.key === 'home' ? (S.me.dogs || []).some(d => d.own) ? '宠物商店' : '领养狗狗' : '') || (view.key === 'home' && W3.nearZone() ? ({ pond: '打开鱼塘', pasture: '打开牧场', orchard: '打开果园' })[W3.nearZone()] : ''), el = $('actbtn'), pr = $('actprompt');
   el.classList.toggle('ready', !!a); el.querySelector('span').textContent = a || '操作';
   pr.style.display = a && !window.matchMedia('(pointer: coarse)').matches ? 'block' : 'none'; if (a) pr.innerHTML = `<kbd>F</kbd> ${esc(a)}`;
@@ -693,7 +699,7 @@ async function boot() {
   bootMark('js');
   /* V0.4：先把配置和存档请求发出去，再生成 3D 场景（网络和计算同时进行，以前是场景生成完才开始请求） */
   const pre = { cfg: NET.get('/api/config'), st: NET.token ? NET.get('/api/state') : null }; pre.cfg.catch(() => { }); if (pre.st) pre.st.catch(() => { });
-  try { W3.init(cv); initWalkUi(); bootMark('w3'); } catch (e) { $('loading').querySelector('p').innerHTML = '你的浏览器不支持 3D 画面（WebGL），请换用最新版 Chrome、Edge 或 Safari'; return; }
+  try { W3.init(cv); initWalkUi(); bootMark('w3'); } catch (e) { console.error('3D 初始化失败', e && (e.stack || e.message)); $('loading').querySelector('p').innerHTML = '你的浏览器不支持 3D 画面（WebGL），请换用最新版 Chrome、Edge 或 Safari'; return; }
   window.addEventListener('resize', () => W3.resize()); requestAnimationFrame(frame);
   try { PREF = Object.assign(PREF, JSON.parse(localStorage.getItem('hf_pref') || '{}')); } catch (e) { }
   NET.onAuthLost(() => { if (started) { started = false; S = null; view = { key: 'home', friend: null, plots: blankPlots(), farm: null }; renderToolbar(); renderFriends(); toast('登录已失效，请重新登录', 'warn'); showLogin(); } });

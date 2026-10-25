@@ -7,6 +7,7 @@ const W3 = (() => {
   const T = THREE, CFG3 = GAMECFG;
   T.ColorManagement.legacyMode = false;
   const PITCH = 2.32, PLOT = 2.02, BED_H = 0.22, COLS3 = 6, ROWS3 = 4;
+  const CROP_SC = 3.4; /* 2026-10-26 甲方：作物放大到原来的 2~3 倍（原来 1.42），高秆作物比人还高，可以在下面歇脚 */
   // 农田一片一片地排：第 0 片在农场中间；之后的田在北边，每排 4 片
   const fieldC = GAMECFG.fieldCenter; /* 菜地位置、建筑位置等家园布局来自 content/home.jsonc（服务器的建造网格也读它） */
   const HOMEL = GAMECFG.HOME, ST = Object.fromEntries(HOMEL.structures.map(o => [o.id, o]));
@@ -301,16 +302,25 @@ const W3 = (() => {
     for (let i = 0; i < 4; i++) { const b = new T.Group(); b.add(mesh(new T.BoxGeometry(0.12, 3.6, 0.08), wood, 0, 1.9, 0)); b.add(mesh(new T.BoxGeometry(0.75, 2.9, 0.03), sail, 0.42, 2.2, 0.02)); for (let j = 0; j < 6; j++) b.add(mesh(new T.BoxGeometry(0.85, 0.04, 0.05), wood, 0.42, 0.9 + j * 0.5, 0.04)); b.rotation.z = i * Math.PI / 2; blades.add(b); }
     const bm = merge(blades); bm.position.copy(blades.position); all.add(bm); anim.windmill = bm; return all;
   }
-  function buildPond(x, z) {
-    const g = new T.Group(), sh = new T.Shape(); for (let i = 0; i <= 40; i++) { const a = i / 40 * Math.PI * 2, r = 3.2 + Math.sin(a * 3) * 0.35 + Math.cos(a * 5) * 0.2; const px = Math.cos(a) * r * 1.25, pz = Math.sin(a) * r; i ? sh.lineTo(px, pz) : sh.moveTo(px, pz); }
-    const bed = mesh(new T.ShapeGeometry(sh, 24), mat('#3a5a48', { p: { roughness: 1 } })); bed.rotation.x = Math.PI / 2; bed.scale.set(1, -1, 1); bed.position.y = -0.18; g.add(bed);
-    const wm = new T.MeshStandardMaterial({ color: new T.Color('#3d8fb0'), roughness: 0.06, metalness: 0.25, normalMap: TX.waterN, transparent: true, opacity: 0.55 }); wm.normalScale.set(0.6, 0.6);
-    const water = new T.Mesh(new T.ShapeGeometry(sh, 24), wm); water.rotation.x = -Math.PI / 2; water.scale.set(1, -1, 1); water.position.y = 0.05; water.receiveShadow = true; g.add(water); anim.water = wm;
-    const sm = mat('#b8b2a4', { p: { roughness: 0.75, map: TX.stone, normalMap: TX.stoneN } }), r = CFG3.rng(99), peb = (() => { const g = new T.SphereGeometry(1, 14, 10); displace(g, 0.12, 1.4, 7); g.computeVertexNormals(); return g; })();
-    for (let i = 0; i < 46; i++) { const a = i / 46 * Math.PI * 2, rr = 3.25 + Math.sin(a * 3) * 0.35 + Math.cos(a * 5) * 0.2; const o = mesh(peb, sm, Math.cos(a) * rr * 1.25, 0.08, Math.sin(a) * rr); o.scale.set(0.3 + r() * 0.2, 0.18 + r() * 0.1, 0.25 + r() * 0.15); o.rotation.set(r(), r() * 6, r()); g.add(o); }
-    const lm = mat('#3f8a3a', { p: { roughness: 0.6 } }); for (let i = 0; i < 6; i++) { const pad = new T.CircleGeometry(0.32, 16, 0.3, Math.PI * 2 - 0.4); const o = mesh(pad, lm, (r() - 0.5) * 4.5, 0.07, (r() - 0.5) * 3.5); o.rotation.set(-Math.PI / 2, 0, r() * 6); g.add(o); if (i % 2 === 0) g.add(blob(mat('#ffb0d0'), o.position.x + 0.1, 0.14, o.position.z, 0.09, 0.06, 0.09, 10)); }
-    const cat = mat('#6a8a3a'), catTop = mat('#6a4020'); for (let i = 0; i < 7; i++) { const a = -0.6 + i * 0.18, rr = 3.5; const px = Math.cos(a) * rr * 1.25, pz = Math.sin(a) * rr; g.add(mesh(new T.CylinderGeometry(0.02, 0.03, 1.4, 5), cat, px, 0.7, pz)); g.add(mesh(new T.CapsuleGeometry(0.05, 0.25, 4, 8), catTop, px, 1.35, pz)); }
-    const keepW = water; keepW.userData.keep = true; const m = merge(g); m.position.set(x, 0, z); return m;
+  /* 鱼塘（2026-10-26 连成一片）：所有已开挖的池塘画成一整片水面 —— 用一张遮罩图把几个椭圆合起来，水面、塘底、岸边沙地各一层；
+     岸边的石头只放在合起来的外边缘（在别的池塘里面的不放） */
+  const PRX = 4.0, PRZ = 3.2, pondWob = (a, i) => 1 + Math.sin(a * 3 + i * 1.7) * 0.1 + Math.cos(a * 5 + i) * 0.06;
+  function inPond(x, z, i, k) { const [px, pz] = PONDS[i], dx = (x - px) / PRX, dz = (z - pz) / PRZ, a = Math.atan2(dz, dx), w = pondWob(a, i) * (k || 1); return dx * dx + dz * dz < w * w; }
+  function buildPonds(n) {
+    const g = new T.Group(), act = PONDS.slice(0, n); let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; act.forEach(([x, z]) => { x0 = Math.min(x0, x - 6); x1 = Math.max(x1, x + 6); z0 = Math.min(z0, z - 5); z1 = Math.max(z1, z + 5); });
+    const W = x1 - x0, D = z1 - z0, PX = 10, mask = k => { const c = document.createElement('canvas'); c.width = Math.ceil(W * PX); c.height = Math.ceil(D * PX); const x = c.getContext('2d'); x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#fff'; x.filter = 'blur(2px)';
+      act.forEach(([px, pz], i) => { x.beginPath(); for (let s2 = 0; s2 <= 48; s2++) { const a = s2 / 48 * Math.PI * 2, w2 = pondWob(a, i) * k, X = (px + Math.cos(a) * PRX * w2 - x0) * PX, Z = (pz + Math.sin(a) * PRZ * w2 - z0) * PX; s2 ? x.lineTo(X, Z) : x.moveTo(X, Z); } x.fill(); }); const t = new T.CanvasTexture(c); t.flipY = false; return t; };
+    const plane = (m, y) => { const pg = new T.PlaneGeometry(W, D); pg.rotateX(-Math.PI / 2); /* 让 uv 和遮罩图的方向一致：u 沿 x，v 沿 z */ const uv = pg.attributes.uv, P = pg.attributes.position; for (let i = 0; i < uv.count; i++) uv.setXY(i, P.getX(i) / W + 0.5, P.getZ(i) / D + 0.5); const o = new T.Mesh(pg, m); o.position.set(x0 + W / 2, y, z0 + D / 2); o.receiveShadow = true; o.userData.keep = true; g.add(o); return o; };
+    plane(new T.MeshStandardMaterial({ color: new T.Color('#b9aa82'), roughness: 1, alphaMap: mask(1.18), transparent: true, depthWrite: false }), 0.012);
+    plane(new T.MeshStandardMaterial({ color: new T.Color('#2e4a40'), roughness: 1, alphaMap: mask(1.0), transparent: true, depthWrite: false }), 0.02);
+    const wm = new T.MeshStandardMaterial({ color: new T.Color('#3d8fb0'), roughness: 0.06, metalness: 0.25, normalMap: TX.waterN, transparent: true, opacity: 0.8, alphaMap: mask(0.97), depthWrite: false }); wm.normalScale.set(0.6, 0.6); wm.normalMap.repeat.set(W / 8, D / 8);
+    plane(wm, 0.05); anim.water = wm;
+    const sm = mat('#b8b2a4', { p: { roughness: 0.75, map: TX.stone, normalMap: TX.stoneN } }), r = CFG3.rng(99 + n), peb = (() => { const g2 = new T.SphereGeometry(1, 14, 10); displace(g2, 0.12, 1.4, 7); g2.computeVertexNormals(); return g2; })();
+    act.forEach(([px, pz], i) => { for (let k = 0; k < 46; k++) { const a = k / 46 * Math.PI * 2, w2 = pondWob(a, i) * 1.02, x = px + Math.cos(a) * PRX * w2, z = pz + Math.sin(a) * PRZ * w2; if (act.some((q, j) => j !== i && inPond(x, z, j, 1.0))) continue; const o = mesh(peb, sm, x, 0.08, z); o.scale.set(0.3 + r() * 0.2, 0.18 + r() * 0.1, 0.25 + r() * 0.15); o.rotation.set(r(), r() * 6, r()); g.add(o); } });
+    const lm = mat('#3f8a3a', { p: { roughness: 0.6 } }), cat = mat('#6a8a3a'), catTop = mat('#6a4020');
+    act.forEach(([px, pz], i) => { for (let k = 0; k < 5; k++) { const x = px + (r() - 0.5) * 4.5, z = pz + (r() - 0.5) * 3.5; const pad = new T.CircleGeometry(0.32, 16, 0.3, Math.PI * 2 - 0.4); const o = mesh(pad, lm, x, 0.07, z); o.rotation.set(-Math.PI / 2, 0, r() * 6); g.add(o); if (k % 2 === 0) g.add(blob(mat('#ffb0d0'), x + 0.1, 0.14, z, 0.09, 0.06, 0.09, 10)); }
+      for (let k = 0; k < 5; k++) { const a = r() * 6.28, x = px + Math.cos(a) * PRX * 1.08, z = pz + Math.sin(a) * PRZ * 1.08; if (act.some((q, j) => j !== i && inPond(x, z, j, 1.0))) continue; g.add(mesh(new T.CylinderGeometry(0.02, 0.03, 1.4, 5), cat, x, 0.7, z)); g.add(mesh(new T.CapsuleGeometry(0.05, 0.25, 4, 8), catTop, x, 1.35, z)); } });
+    const m = merge(g); m.userData.ponds = n; return m;
   }
   function buildScarecrow() { const g = new T.Group(), w = mat('#7a5232', { p: { map: TX.wood } }); g.add(mesh(new T.CylinderGeometry(0.07, 0.08, 2.4, 6), w, 0, 1.2, 0)); g.add(mesh(new T.CylinderGeometry(0.05, 0.05, 1.8, 6), w, 0, 1.75, 0).rotateZ(Math.PI / 2)); g.add(mesh(new T.BoxGeometry(0.75, 0.8, 0.35), mat('#b8503a', { p: { roughness: 0.9 } }), 0, 1.55, 0)); g.add(mesh(new T.BoxGeometry(1.5, 0.22, 0.3), mat('#b8503a'), 0, 1.78, 0)); g.add(blob(mat('#e0c898', { p: { roughness: 1 } }), 0, 2.25, 0, 0.28)); g.add(mesh(new T.CylinderGeometry(0.5, 0.5, 0.04, 20), mat('#c8a050'), 0, 2.48, 0)); g.add(mesh(new T.ConeGeometry(0.28, 0.35, 16), mat('#c8a050'), 0, 2.66, 0)); const m = merge(g); return m; }
   function buildDoghouse() { const g = new T.Group(), w = mat('#9a6a3a', { p: { map: TX.wood } }); g.add(mesh(new T.BoxGeometry(1.3, 1.0, 1.2), w, 0, 0.5, 0)); [-1, 1].forEach(s => { const r = mesh(new T.BoxGeometry(1.5, 0.08, 0.9), mat('#b8473a', { p: { map: TX.tiles } }), 0, 1.15, s * 0.32); r.rotation.x = s * 0.7; g.add(r); }); g.add(mesh(new T.CircleGeometry(0.3, 16), mat('#1a1008', { ds: 1 }), 0, 0.42, 0.61)); g.add(mesh(new T.BoxGeometry(0.66, 0.42, 0.02), mat('#1a1008', { ds: 1 }), 0, 0.22, 0.61)); return merge(g); }
@@ -548,13 +558,65 @@ const W3 = (() => {
     parts.forEach(g => { P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); C.set(g.attributes.color.array, o * 3); o += g.attributes.position.count; });
     const G = new T.BufferGeometry(); G.setAttribute('position', new T.BufferAttribute(P, 3)); G.setAttribute('normal', new T.BufferAttribute(N, 3)); G.setAttribute('color', new T.BufferAttribute(C, 3)); return G; }
   function flowers(n, avoid, cx, cz, w, h) { cx = cx || 0; cz = cz || 0; w = w || 60; h = h || 50; const geo = flowerGeo(); const im = new T.InstancedMesh(geo, mat('#ffffff', { vc: 1, p: { roughness: 0.6 } }), n), d = new T.Object3D(), r = CFG3.rng(15), c = new T.Color(), pal = ['#ff7aa0', '#ffd23a', '#ffffff', '#b98aff', '#ff9a4a', '#7ac8ff']; let k = 0; let tries = 0; while (k < n && tries++ < n * 40) { const x = cx + (r() - 0.5) * w, z = cz + (r() - 0.5) * h; if (avoid(x, z)) continue; d.position.set(x, 0.14 + r() * 0.1, z); d.rotation.set((r() - 0.5) * 0.5, r() * 6.28, (r() - 0.5) * 0.5); d.scale.setScalar(0.9 + r() * 0.7); d.updateMatrix(); im.setMatrixAt(k, d.matrix); im.setColorAt(k, c.set(pal[Math.floor(r() * pal.length)])); k++; } im.count = k; im.userData.flowers = 1; return im; }
-  function hills() { const g = new T.Group(), m = mat('#6a9a4a', { p: { roughness: 1 } }), r = CFG3.rng(77); for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2 + r() * 0.3, d = 180 + r() * 30; const geo = new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2); displace(geo, 0.08, 1.5, i); const o = mesh(geo, m, Math.cos(a) * d, -2, Math.sin(a) * d); o.scale.set(25 + r() * 20, 8 + r() * 10, 18 + r() * 10); o.castShadow = false; g.add(o); } for (let i = 0; i < 40; i++) { const a = r() * Math.PI * 2, d = 140 + r() * 25; const t = blob(mat('#3f7a3a', { p: { roughness: 1 } }), Math.cos(a) * d, 2.5, Math.sin(a) * d, 2 + r() * 1.5, 3 + r() * 2, 2 + r()); t.castShadow = false; g.add(t); } return merge(g); }
+  /* ---------- 2026-10-26 开放世界：家园往外扩大到约 1.6 公里见方 ----------
+     农场（以 (-9, -24) 为中心、半径约 108 米，菜地 / 牧场 / 鱼塘 / 果园都在里面）保持平地；外面是起伏的丘陵、几片湖、成片的森林和草甸，最外面一圈高山。
+     地形高度 terrainH 是一个确定的函数：地面网格、树的位置、人物走路都用它，前后一致 */
+  const WORLD_R = 800, FARM_R = 108, FARM_C = [-9, -24], LAKES = [[230, -160, 46], [-260, 190, 60], [120, 330, 38], [-380, -260, 70], [420, 120, 52]];
+  function terrainH(x, z) {
+    const d = Math.hypot(x - FARM_C[0], z - FARM_C[1]); if (d < FARM_R) return 0;
+    const k = Math.min(1, (d - FARM_R) / 140), k2 = k * k * (3 - 2 * k);
+    let h = (fbm(x * 0.0055 + 3, z * 0.0055 + 7, 21, 4) - 0.42) * 46 * k2 + (fbm(x * 0.02 + 9, z * 0.02 + 1, 23, 3) - 0.5) * 5 * k2;
+    h += Math.max(0, d - WORLD_R + 120) * 0.35; /* 边缘抬高 */
+    for (const [lx, lz, lr] of LAKES) { const q = Math.hypot(x - lx, z - lz) / lr; if (q < 1.7) { const t = Math.max(0, Math.min(1, (q - 0.85) / 0.85)), s = t * t * (3 - 2 * t); h = h * s + (-2.2 + q * 1.2) * (1 - s); } }
+    return Math.max(-2.2, h);
+  }
+  const WILD = { hash: new Map(), chunks: [], cullT: 0 };
+  function wildCull() { if (++WILD.cullT % 10) return; const c = cam.position, far = viewMode === 'walk' ? 330 : 260; WILD.chunks.forEach(ch => { ch.im.visible = Math.hypot(ch.cx - c.x, ch.cz - c.z) < far + 141; }); }
+  function buildWild() {
+    const S = WORLD_R * 2 + 400, seg = 200, gg = new T.PlaneGeometry(S, S, seg, seg); gg.rotateX(-Math.PI / 2);
+    const P = gg.attributes.position; for (let i = 0; i < P.count; i++) { const x = P.getX(i), z = P.getZ(i), d = Math.hypot(x - FARM_C[0], z - FARM_C[1]); P.setY(i, d < FARM_R + 4 ? -0.06 : terrainH(x, z) - 0.03); } gg.computeVertexNormals();
+    const cA = new T.Color('#9cb46e'), cB = new T.Color('#7e9e56'), cC = new T.Color('#b4b878'), cR = new T.Color('#9a9484'), cS = new T.Color('#d8c890'), tc = new T.Color();
+    colorize(gg, (x, y, z) => { const n = fbm(x * 0.02 + 50, z * 0.02 + 50, 7, 4), m2 = fbm(x * 0.008, z * 0.008, 9, 3); tc.copy(cB).lerp(cA, Math.min(1, n * 1.4)).lerp(cC, Math.max(0, m2 - 0.55) * 1.6); if (y > 26) tc.lerp(cR, Math.min(1, (y - 26) / 14)); if (y < -0.6) tc.lerp(cS, Math.min(1, (-0.6 - y) * 0.8)); return [tc.r, tc.g, tc.b]; });
+    const gmap = TX.grass.clone(); gmap.needsUpdate = true; gmap.repeat.set(S / 6.6, S / 6.6); const ground = new T.Mesh(gg, new T.MeshStandardMaterial({ color: new T.Color('#ffffff'), vertexColors: true, map: gmap, roughness: 0.96 })); ground.receiveShadow = true; scene.add(ground); WILD.ground = ground;
+    /* 湖 */
+    const wm = new T.MeshStandardMaterial({ color: new T.Color('#3d86b0'), roughness: 0.08, metalness: 0.2, normalMap: TX.waterN, transparent: true, opacity: 0.85 });
+    LAKES.forEach(([x, z, r]) => { const o = new T.Mesh(new T.CircleGeometry(r * 1.35, 48), wm); o.rotation.x = -Math.PI / 2; o.position.set(x, -0.7, z); scene.add(o); });
+    /* 森林：按噪声成片分布（实例化，同种树一次画完），农场附近不种 */
+    const tk = { pine: [], broad: [], bush: [] }, r = CFG3.rng(20261026);
+    const STEP = quality <= 1 ? 15 : 12; for (let gx = -WORLD_R; gx < WORLD_R; gx += STEP) for (let gz = -WORLD_R; gz < WORLD_R; gz += STEP) {
+      const x = gx + (r() - 0.5) * STEP * 0.85, z = gz + (r() - 0.5) * STEP * 0.85, d = Math.hypot(x - FARM_C[0], z - FARM_C[1]); if (d < FARM_R + 18) continue;
+      if (LAKES.some(([lx, lz, lr]) => Math.hypot(x - lx, z - lz) < lr * 1.5)) continue;
+      const f = fbm(x * 0.008 + 31, z * 0.008 + 17, 41, 3), h = terrainH(x, z), lone = r() < 0.025; if (!(f > 0.56 || lone)) continue; if (r() < 0.35 && !lone) continue;
+      const kind = h > 18 || f > 0.66 ? 'pine' : r() < 0.25 ? 'bush' : 'broad', s = 0.8 + r() * 0.9; tk[kind].push([x, h, z, s, r() * 6.28]);
+      if (kind !== 'bush') { const key = Math.floor(x / 10) + ',' + Math.floor(z / 10); (WILD.hash.get(key) || WILD.hash.set(key, []).get(key)).push([x, z, 0.45 * s]); }
+    }
+    const lum = (g, lo, hi) => { const p = g.attributes.position, n = g.attributes.normal, c = new Float32Array(p.count * 3); g.computeBoundingBox(); const y0 = g.boundingBox.min.y, y1 = g.boundingBox.max.y; for (let i = 0; i < p.count; i++) { const v = lo + (hi - lo) * ((p.getY(i) - y0) / (y1 - y0 || 1)) * 0.6 + Math.max(0, n.getY(i)) * (hi - lo) * 0.4; c[i * 3] = c[i * 3 + 1] = c[i * 3 + 2] = v; } g.setAttribute('color', new T.BufferAttribute(c, 3)); return g; };
+    const M = T.BufferGeometryUtils ? null : null; /* 不依赖扩展：手动拼几何体 */
+    const join = parts => { const gs = parts.map(g => g.index ? g.toNonIndexed() : g); let n = 0; gs.forEach(g => n += g.attributes.position.count); const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3); let o = 0; gs.forEach(g => { pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); col.set(g.attributes.color.array, o * 3); o += g.attributes.position.count; }); const G = new T.BufferGeometry(); G.setAttribute('position', new T.BufferAttribute(pos, 3)); G.setAttribute('normal', new T.BufferAttribute(nor, 3)); G.setAttribute('color', new T.BufferAttribute(col, 3)); return G; };
+    const trunkG = () => { const g = new T.CylinderGeometry(0.22, 0.34, 2.6, 5); g.translate(0, 1.3, 0); return lum(g, 0.55, 0.6); };
+    const GEO = {
+      pine: { trunk: trunkG(), crown: (() => { const a = new T.ConeGeometry(2.4, 4.2, 7); a.translate(0, 3.8, 0); displace(a, 0.12, 0.8, 3); const b = new T.ConeGeometry(1.8, 3.4, 7); b.translate(0, 5.6, 0); displace(b, 0.1, 0.9, 4); const c = new T.ConeGeometry(1.1, 2.4, 8); c.translate(0, 7.2, 0); return join([lum(a, 0.6, 1.0), lum(b, 0.65, 1.05), lum(c, 0.7, 1.1)]); })(), col: '#2f6a32', tcol: '#6a4a2e' },
+      broad: { trunk: trunkG(), crown: (() => { const ps = []; [[0, 4.2, 0, 2.6], [1.3, 4.8, 0.6, 1.7], [-1.2, 4.6, -0.7, 1.8], [0.3, 5.8, -0.4, 1.6]].forEach(([x, y, z, s], i) => { const g = new T.IcosahedronGeometry(s, 1); displace(g, 0.18, 1.4, 11 + i); g.computeVertexNormals(); g.translate(x, y, z); ps.push(lum(g, 0.62, 1.08)); }); return join(ps); })(), col: '#4f9a3a', tcol: '#6a4a2e' },
+      bush: { trunk: null, crown: (() => { const g = new T.IcosahedronGeometry(1.3, 1); displace(g, 0.2, 1.6, 5); g.computeVertexNormals(); g.translate(0, 0.9, 0); g.scale(1, 0.75, 1); return lum(g, 0.65, 1.05); })(), col: '#4a9238', tcol: '' },
+    };
+    /* 分成 320 米一块：每块单独实例化，镜头看不到 / 离得太远的块不画（手机上同屏三角面控制在几十万以内） */
+    const d3 = new T.Object3D(), CH = 200; WILD.chunks = [];
+    Object.entries(tk).forEach(([k, list]) => { if (!list.length) return; const G = GEO[k], by = new Map();
+      list.forEach(t => { const key = Math.floor(t[0] / CH) + ',' + Math.floor(t[2] / CH); (by.get(key) || by.set(key, []).get(key)).push(t); });
+      by.forEach((arr, key) => { const [ci, cj] = key.split(',').map(Number), cx = (ci + 0.5) * CH, cz = (cj + 0.5) * CH;
+        const mk = (geo, col) => { const im = new T.InstancedMesh(geo, mat(col, { vc: 1, p: { roughness: 0.9 } }), arr.length); arr.forEach(([x, y, z, s, ry], i) => { d3.position.set(x, y - 0.1, z); d3.rotation.set(0, ry, 0); d3.scale.setScalar(s); d3.updateMatrix(); im.setMatrixAt(i, d3.matrix); }); im.castShadow = false; im.receiveShadow = false; im.frustumCulled = false; /* r149 的实例化网格按单棵树的包围球裁剪，会错把整块森林裁掉；改成按块的距离裁剪 */ scene.add(im); WILD.chunks.push({ im, cx, cz }); return im; };
+        if (G.trunk) mk(G.trunk, G.tcol); mk(G.crown, G.col); }); });
+    /* 草甸上的石头 */
+    { const rg = new T.DodecahedronGeometry(1, 1); displace(rg, 0.15, 1.2, 9); rg.computeVertexNormals(); const n = 320, im = new T.InstancedMesh(rg, mat('#a8a294', { p: { roughness: 0.95, map: TX.stone } }), n); for (let i = 0; i < n; i++) { const a = r() * 6.28, dd = FARM_R + 25 + r() * (WORLD_R - FARM_R - 40), x = Math.cos(a) * dd, z = Math.sin(a) * dd, s = 0.4 + r() * 1.8; d3.position.set(x, terrainH(x, z) - 0.2 * s, z); d3.rotation.set(r(), r() * 6, r()); d3.scale.set(s, s * 0.6, s); d3.updateMatrix(); im.setMatrixAt(i, d3.matrix); im.frustumCulled = false; if (s > 1) { const key = Math.floor(x / 10) + ',' + Math.floor(z / 10); (WILD.hash.get(key) || WILD.hash.set(key, []).get(key)).push([x, z, s * 0.8]); } } scene.add(im); }
+    WILD.count = tk.pine.length + tk.broad.length + tk.bush.length;
+  }
+  function hills() { const g = new T.Group(), m = new T.MeshStandardMaterial({ color: new T.Color('#8aa4ae'), roughness: 1, fog: false }), r = CFG3.rng(77); /* 远山：雾里的蓝灰色剪影 */ for (let i = 0; i < 22; i++) { const a = i / 22 * Math.PI * 2 + r() * 0.3, d = WORLD_R + 260 + r() * 160; const geo = new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2); displace(geo, 0.08, 1.5, i); const o = mesh(geo, m, Math.cos(a) * d, -2, Math.sin(a) * d); o.scale.set(160 + r() * 140, 60 + r() * 90, 120 + r() * 80); o.castShadow = false; g.add(o); } return merge(g); }
   // 天空
   let sky, skyU;
   function buildSky() {
     skyU = { top: { value: new T.Color('#3b8fe0') }, hor: { value: new T.Color('#cfe8ff') }, sunDir: { value: v3(0, 1, 0) }, sunCol: { value: new T.Color('#fff2d0') }, night: { value: 0 } };
     const m = new T.ShaderMaterial({ uniforms: skyU, side: T.BackSide, depthWrite: false, fog: false, vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }', fragmentShader: ['uniform vec3 top; uniform vec3 hor; uniform vec3 sunDir; uniform vec3 sunCol; uniform float night; varying vec3 vP;', 'float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}', 'void main(){ float y = max(vP.y,0.0); vec3 c = mix(hor, top, pow(y,0.55)); float s = max(dot(vP, normalize(sunDir)),0.0); c += sunCol*(pow(s,800.0)*2.5 + pow(s,12.0)*0.35);', 'if(night>0.01){ vec2 q = floor(vP.xz/(vP.y+0.3)*180.0); float st = step(0.997, h(q)); c += vec3(st)*night*smoothstep(0.1,0.5,y); }', 'gl_FragColor = vec4(c,1.0);', '#include <tonemapping_fragment>', '#include <encodings_fragment>', '}'].join('\n') });
-    sky = new T.Mesh(new T.SphereGeometry(400, 32, 16), m); scene.add(sky);
+    sky = new T.Mesh(new T.SphereGeometry(2600, 32, 16), m); scene.add(sky);
   }
   let hemi, sun, amb, doorLamp;
   const KEY = [ // 小时, 天顶, 地平线, 阳光色, 阳光强度, 半球强度, 曝光, 夜
@@ -566,11 +628,11 @@ const W3 = (() => {
   /* ---------------- 农田 ---------------- */
   const plots = []; let hoverIdx = -1, hoverFrame, BADGE = {}, sparkTex, hitBoxes = [];
   let soilMats;
-  function bedGeo() { const s = new T.Shape(), w = PLOT / 2 - 0.06, r = 0.2; s.moveTo(-w + r, -w); s.lineTo(w - r, -w); s.quadraticCurveTo(w, -w, w, -w + r); s.lineTo(w, w - r); s.quadraticCurveTo(w, w, w - r, w); s.lineTo(-w + r, w); s.quadraticCurveTo(-w, w, -w, w - r); s.lineTo(-w, -w + r); s.quadraticCurveTo(-w, -w, -w + r, -w); const g = new T.ExtrudeGeometry(s, { depth: BED_H - 0.06, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 2, curveSegments: 6 }); g.rotateX(-Math.PI / 2); const p = g.attributes.uv; for (let i = 0; i < p.count; i++) p.setXY(i, p.getX(i) / PLOT + 0.5, p.getY(i) / PLOT + 0.5); return g; }
+  function bedGeo() { const s = new T.Shape(), w = PITCH / 2 - 0.035, r = 0.06; /* 2026-10-26：地块之间不留缝，一片田连成一整块 */ s.moveTo(-w + r, -w); s.lineTo(w - r, -w); s.quadraticCurveTo(w, -w, w, -w + r); s.lineTo(w, w - r); s.quadraticCurveTo(w, w, w - r, w); s.lineTo(-w + r, w); s.quadraticCurveTo(-w, w, -w, w - r); s.lineTo(-w, -w + r); s.quadraticCurveTo(-w, -w, -w + r, -w); const g = new T.ExtrudeGeometry(s, { depth: BED_H - 0.04, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 1, curveSegments: 2 }); g.rotateX(-Math.PI / 2); const p = g.attributes.uv; for (let i = 0; i < p.count; i++) p.setXY(i, p.getX(i) / PLOT + 0.5, p.getY(i) / PLOT + 0.5); return g; }
   let BED_G, RIDGE_G, LOCK_G;
   function soilMat(col) { return new T.MeshStandardMaterial({ color: new T.Color(col), map: TX.soil, normalMap: TX.soilN, roughness: 0.96 }); }
   function buildPlotsBase() {
-    BED_G = bedGeo(); RIDGE_G = new T.CapsuleGeometry(0.075, PLOT - 0.55, 4, 10); RIDGE_G.rotateZ(Math.PI / 2); RIDGE_G.scale(1, 0.55, 1);
+    BED_G = bedGeo(); RIDGE_G = new T.CapsuleGeometry(0.075, PITCH - 0.45, 4, 10); RIDGE_G.rotateZ(Math.PI / 2); RIDGE_G.scale(1, 0.55, 1);
     soilMats = { 0: { n: soilMat('#5c4130'), wet: soilMat('#3a281c'), dry: soilMat('#8c7258') }, 1: { n: soilMat('#86402a'), wet: soilMat('#5a2618'), dry: soilMat('#a8644a') },
       2: { n: soilMat('#2e2622'), wet: soilMat('#1c1714'), dry: soilMat('#4e4238') }, 3: { n: soilMat('#b08a3a'), wet: soilMat('#80622a'), dry: soilMat('#ccab62') } };
     [3].forEach(k => Object.values(soilMats[k]).forEach(m => { m.emissive = new T.Color('#5a4010'); m.emissiveIntensity = 0.35; m.metalness = 0.25; }));
@@ -585,14 +647,13 @@ const W3 = (() => {
   }
   let LOCK_TEX, LOCK_MAT;
   function lockTex() { if (LOCK_TEX) return LOCK_TEX; const c = mkCanvas(128), x = c.getContext('2d'); x.drawImage(TX.wood.image, 0, 0, 128, 128); x.fillStyle = 'rgba(60,36,16,.25)'; x.fillRect(0, 0, 128, 128); x.translate(64, 70); x.strokeStyle = '#3a2410'; x.lineWidth = 9; x.beginPath(); x.arc(0, -14, 16, Math.PI, 0); x.stroke(); x.fillStyle = '#3a2410'; x.fillRect(-24, -14, 48, 36); x.fillStyle = '#d8b050'; x.beginPath(); x.arc(0, 0, 5, 0, 7); x.fill(); x.fillRect(-2, 0, 4, 12); LOCK_TEX = tex(c, 0); return LOCK_TEX; }
-  let PLOT_HB, PLOT_HM; const fieldDeco = [];
+  let PLOT_HB, PLOT_HM, FIELD_SOIL = null; const fieldDeco = [];
   function ensurePlots(n) {
     for (let i = plots.length; i < n; i++) { const [x, z] = plotXZ(i), node = new T.Group(); node.position.set(x, 0, z); scene.add(node); const hit = new T.Mesh(PLOT_HB, PLOT_HM); hit.userData.idx = i; node.add(hit); hitBoxes.push(hit); plots.push({ node, key: '', crop: null, badges: [], sparks: [], bug: null, sway: Math.random() * 6, cropH: 0 });
-      if (i > 0 && i % 24 === 0) { // 新的一片田：铺一块深色草地、四角木桩和田名木牌
-        const f = i / 24, [cx, cz] = fieldC(f), g = new T.Group(), wm = mat('#a8794a', { p: { map: TX.wood, roughness: 0.85 } });
-        const pad = new T.Mesh(new T.PlaneGeometry(15.2, 10.6), mat('#6f9a48', { p: { roughness: 1, map: TX.grass } })); pad.rotation.x = -Math.PI / 2; pad.position.set(cx, 0.008, cz); pad.receiveShadow = true; g.add(pad);
-        [[-7.4, -5.1], [7.4, -5.1], [-7.4, 5.1], [7.4, 5.1]].forEach(([dx, dz]) => fencePost(g, cx + dx, cz + dz, wm));
-        woodSign(g, cx - 7.9, cz + 5.4, Math.PI * 0.75, `第${f + 1}片田`); scene.add(g); fieldDeco.push(g); } }
+      if (i % 24 === 0) { // 新的一片田：铺一整块田间土地（和旁边的田连在一起，中间是走得过去的田埂），田名木牌插在角上
+        const f = i / 24, [cx, cz] = fieldC(f), F = HOMEL.fields, g = new T.Group();
+        const pad = new T.Mesh(new T.PlaneGeometry(F.dx + 0.1, F.dz + 0.1), FIELD_SOIL || (FIELD_SOIL = mat('#7a5a3c', { p: { roughness: 1, map: TX.soil } }))); pad.rotation.x = -Math.PI / 2; pad.position.set(cx, 0.02, cz); pad.receiveShadow = true; g.add(pad);
+        woodSign(g, cx - 7.6, cz + 5.3, Math.PI * 0.75, `第${f + 1}片田`); scene.add(g); fieldDeco.push(g); } }
   }
   function rebuildPlot(i, P, o) {
     const pl = plots[i], node = pl.node; node.children.slice().forEach(ch => { if (!ch.userData.idx && ch.userData.idx !== 0) { node.remove(ch); ch.traverse(o => { if (o.userData.own) { if (o.geometry) o.geometry.dispose(); } if (o.isSprite && o.material && o.material.map === sparkTex) o.material.dispose(); }); } }); /* 释放这块地上一次独有的几何体（荒地合并出来的草），来回串门不会越积越多 */ pl.crop = null; pl.badges = []; pl.sparks = []; pl.bug = null; pl.cropH = 0;
@@ -608,13 +669,13 @@ const W3 = (() => {
     const bed = new T.Mesh(BED_G, sm); bed.receiveShadow = true; node.add(bed);
     if (o.lite) { // 远处的田：只画土和一个简化的作物（颜色 = 作物主色，大小 = 生长阶段）
       if (P.c >= 0 && CFG3.CROPS[P.c]) { const a = CFG3.CROPS[P.c].art || {}, st = CFG3.stageOf(P.p), ripe = st === 4, col = ripe ? (a.fruit || a.head || a.root || (a.petal === 'rainbow' ? '#ff6ad5' : a.petal) || a.ear || '#e8c25a') : '#6cb048', k = [0.25, 0.45, 0.7, 0.85, 1][st] || 0.5;
-        const m = blob(mat(col, { p: { roughness: 0.6 } }), 0, BED_H + 0.25 * k, 0, 0.5 * k, 0.32 * k, 0.5 * k, 10); node.add(m); pl.cropH = 0.5 * k;
+        const m = blob(mat(col, { p: { roughness: 0.6 } }), 0, BED_H + 0.6 * k, 0, 1.1 * k, 0.76 * k, 1.1 * k, 10); node.add(m); pl.cropH = 1.2 * k;
         if (ripe) { const sp = new T.Sprite(new T.SpriteMaterial({ map: sparkTex, transparent: true, depthWrite: false, blending: T.AdditiveBlending })); sp.userData.ph = i * 0.13; sp.userData.r = 0.4; node.add(sp); pl.sparks.push(sp); } }
       return; }
     [-0.6, -0.2, 0.2, 0.6].forEach(z => { const r = new T.Mesh(RIDGE_G, sm); r.position.set(0, BED_H, z); r.receiveShadow = true; r.castShadow = true; node.add(r); });
     if (P.pr && P.pr.w) { const g = new T.Group(), wm = mat('#6a9a2a', { vc: 1, ds: 1 }), r = CFG3.rng(i * 11 + 3); [[-0.7, -0.65], [0.72, 0.5], [-0.55, 0.72], [0.6, -0.6], [0.05, 0.78]].forEach(([x, z]) => { for (let j = 0; j < 5; j++) addLeaf(g, leafGeo(0.28 + r() * 0.15, 0.05, 0.9, 0.1, 'blade'), wm, x, BED_H, z, r() * 6, 0.4 + r() * 0.5); }); const wg = merge(g); wg.traverse(o => { o.userData.own = 1; }); node.add(wg); }
     if (P.c >= 0 && CFG3.CROPS[P.c]) {
-      const st = CFG3.stageOf(P.p), base = cropModel(P.c, st), m = base.clone(), SC = 1.42; m.scale.setScalar(SC); m.position.y = BED_H + 0.02; node.add(m); pl.crop = m; pl.cropH = (base.userData.h || 0.3) * SC;
+      const st = CFG3.stageOf(P.p), base = cropModel(P.c, st), m = base.clone(), SC = CROP_SC; m.scale.setScalar(SC); m.position.y = BED_H + 0.02; node.add(m); pl.crop = m; pl.cropH = (base.userData.h || 0.3) * SC;
       const list = []; if (P.pr) { if (P.pr.d) list.push('d'); if (P.pr.w) list.push('w'); if (P.pr.b) list.push('b'); }
       if (o.mine) list.push('s');
       list.forEach((k, j) => { const s = new T.Sprite(BADGE[k]); s.scale.set(0.62, 0.62, 1); s.renderOrder = 10; s.userData.base = v3((j - (list.length - 1) / 2) * 0.66, BED_H + pl.cropH + 0.55, 0); s.position.copy(s.userData.base); node.add(s); pl.badges.push(s); });
@@ -697,13 +758,15 @@ const W3 = (() => {
   }
   // 鱼塘：每 10 级多挖一个池塘（最多 6 个）
   function setPonds(n) {
-    n = Math.max(1, Math.min(PONDS.length, n)); if (RANCH3.ponds >= n) return;
-    for (let i = RANCH3.ponds; i < n; i++) { const [x, z] = PONDS[i]; scene.add(buildPond(x, z)); const hk = new T.Mesh(new T.BoxGeometry(8.4, 0.5, 6.8), new T.MeshBasicMaterial({ visible: false })); hk.position.set(x, 0.1, z); hk.userData.idx = -30; scene.add(hk); hitBoxes.push(hk); }
-    RANCH3.ponds = n; RANCH3.fkey = '';
+    n = Math.max(1, Math.min(PONDS.length, n)); if (RANCH3.pondG && RANCH3.ponds === n) return;
+    if (RANCH3.pondG) { scene.remove(RANCH3.pondG); freeTree(RANCH3.pondG); RANCH3.pondG.traverse(o => { if (o.material && o.material.alphaMap) { o.material.alphaMap.dispose(); o.material.dispose(); } }); }
+    RANCH3.pondG = buildPonds(n); scene.add(RANCH3.pondG);
+    for (let i = Math.max(1, RANCH3.pondHits || 1); i < n; i++) { const [x, z] = PONDS[i]; const hk = new T.Mesh(new T.BoxGeometry(8.4, 0.5, 6.8), new T.MeshBasicMaterial({ visible: false })); hk.position.set(x, 0.1, z); hk.userData.idx = -30; scene.add(hk); hitBoxes.push(hk); }
+    RANCH3.pondHits = Math.max(RANCH3.pondHits || 1, n); RANCH3.ponds = n; RANCH3.fkey = '';
   }
   function pondHit() { const hk = new T.Mesh(new T.BoxGeometry(8.4, 0.5, 6.8), new T.MeshBasicMaterial({ visible: false })); hk.position.set(POND.x, 0.1, POND.z); hk.userData.idx = -30; hitBoxes.push(hk); return hk; }
-  // 果园：不规则的一大片坡地，篱笆顺着地形绕一圈，中间有弯弯的小路；果树按“自然撒点”种，不排成方阵
-  const ORCH_R = a => 13.2 + Math.sin(a * 3 + 0.7) * 1.3 + Math.cos(a * 5 + 1.9) * 0.8;          // 边界半径随角度起伏
+  // 果园：开放式的一大片果林（2026-10-26 去掉篱笆和单独的草皮，和周围草地连在一起），中间有弯弯的小路；果树按“自然撒点”种，不排成方阵
+  const ORCH_R = a => HOMEL.orchard.r - 1.6 + Math.sin(a * 3 + 0.7) * 1.3 + Math.cos(a * 5 + 1.9) * 0.8;          // 边界半径随角度起伏（2026-10-26 开放式，不再有篱笆）
   const ORCH_PATH = z => ORCH.cx + 6 + Math.sin((z - ORCH.cz) * 0.22) * 3.2;                      // 小路（从东门弯弯曲曲往里走）
   let ORCH_SPOTS = [];
   // 每种果树的长相：树冠形状、叶子颜色、树干、果子形状与大小
@@ -732,12 +795,14 @@ const W3 = (() => {
     const n = ps.reduce((s, g) => s + g.attributes.position.count, 0), P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 3); let o = 0;
     ps.forEach(g => { P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); C.set(g.attributes.color.array, o * 3); o += g.attributes.position.count; });
     const G = new T.BufferGeometry(); G.setAttribute('position', new T.BufferAttribute(P, 3)); G.setAttribute('normal', new T.BufferAttribute(N, 3)); G.setAttribute('color', new T.BufferAttribute(C, 3)); return G; }
+  /* 两头粗细不同的弯管（树干、树枝用） */
+  function taperTube(pts, r0, r1, seg) { const curve = new T.CatmullRomCurve3(pts), g = new T.TubeGeometry(curve, seg || 8, 1, 7, false), p = g.attributes.position; for (let i = 0; i < p.count; i++) { const t = Math.floor(i / 8) / (seg || 8), c = curve.getPoint(Math.min(1, t)), k = r0 + (r1 - r0) * t; p.setXYZ(i, c.x + (p.getX(i) - c.x) * k, c.y + (p.getY(i) - c.y) * k, c.z + (p.getZ(i) - c.z) * k); } g.computeVertexNormals(); g.deleteAttribute('uv'); return g; }
   const blobG = (x, y, z, sx, sy, sz, seed, seg) => { const g = new T.SphereGeometry(1, seg || 14, Math.round((seg || 14) * 0.7)); displace(g, 0.16, 2.2, seed); displace(g, 0.07, 6.5, seed + 50); g.computeVertexNormals(); g.scale(sx, sy, sz); g.translate(x, y, z); return g; };
   // 树冠：几团叶子拼起来，返回几何体和“挂果子的位置”
   const TREE_GEO = {};
   function treeGeo(t) {
     if (TREE_GEO[t]) return TREE_GEO[t]; const S = TREE_STYLE[t] || TREE_STYLE[0], r = CFG3.rng(100 + t), parts = [], spots = [], H = 1.1 * S.th;
-    const add = (x, y, z, sx, sy, sz, c) => { parts.push([blobG(x, y, z, sx, sy, sz, t * 7 + parts.length, 16), c]); for (let i = 0; i < 4; i++) { const a = r() * 6.28, b = (r() - 0.3) * 1.2, k = 0.32 + r() * 0.12; parts.push([blobG(x + Math.cos(a) * Math.cos(b) * sx * 0.82, y + Math.sin(b) * sy * 0.8, z + Math.sin(a) * Math.cos(b) * sz * 0.82, sx * k, sy * k, sz * k, t * 13 + parts.length, 9), i % 2 ? c : (c === L1 ? L2 : L1)]); } /* 一簇簇的叶团 */ for (let i = 0; i < 4; i++) { const a = r() * 6.28, b = (r() - 0.35) * 1.4; spots.push([x + Math.cos(a) * Math.cos(b) * sx * 1.16, y + Math.sin(b) * sy * 1.05, z + Math.sin(a) * Math.cos(b) * sz * 1.16]); } };
+    const CL = []; const add = (x, y, z, sx, sy, sz, c) => { CL.push([x, y, z, Math.max(sx, sz)]); parts.push([blobG(x, y, z, sx, sy, sz, t * 7 + parts.length, 16), c]); for (let i = 0; i < 7; i++) { const a = r() * 6.28, b = (r() - 0.3) * 1.2, k = 0.3 + r() * 0.16; parts.push([blobG(x + Math.cos(a) * Math.cos(b) * sx * 0.82, y + Math.sin(b) * sy * 0.8, z + Math.sin(a) * Math.cos(b) * sz * 0.82, sx * k, sy * k, sz * k, t * 13 + parts.length, 9), i % 2 ? c : (c === L1 ? L2 : L1)]); } /* 一簇簇的叶团 */ for (let i = 0; i < 4; i++) { const a = r() * 6.28, b = (r() - 0.35) * 1.4; spots.push([x + Math.cos(a) * Math.cos(b) * sx * 1.16, y + Math.sin(b) * sy * 1.05, z + Math.sin(a) * Math.cos(b) * sz * 1.16]); } };
     const L1 = S.leaf, L2 = S.leaf2;
     if (S.cr === 'round') { add(0, H + 0.7, 0, 0.85, 0.75, 0.85, L1); add(0.35, H + 0.95, 0.2, 0.5, 0.45, 0.5, L2); add(-0.4, H + 0.85, -0.25, 0.5, 0.45, 0.5, L1); }
     else if (S.cr === 'spread') { add(0, H + 0.55, 0, 1.15, 0.5, 1.05, L1); add(0.55, H + 0.75, 0.3, 0.55, 0.38, 0.55, L2); add(-0.6, H + 0.7, -0.2, 0.6, 0.36, 0.55, L2); add(0.1, H + 0.9, -0.5, 0.45, 0.32, 0.45, L1); }
@@ -751,7 +816,12 @@ const W3 = (() => {
     // 树干：主干 + 两根分枝；灌木型是几根细枝
     const trunk = []; const tc = S.metal ? '#a8743a' : t === 15 ? '#c8c0b8' : '#7a5232';
     if (S.cr === 'bush') for (let i = 0; i < 3; i++) { const g = new T.CylinderGeometry(0.035, 0.06, H + 0.4, 6); g.rotateZ((i - 1) * 0.3); g.translate((i - 1) * 0.12, (H + 0.4) / 2, 0); trunk.push([g, tc]); }
-    else { const g = new T.CylinderGeometry(0.1 * S.th, 0.17 * S.th, H + 0.4, 9); g.translate(0, (H + 0.4) / 2, 0); trunk.push([g, tc]); [-1, 1].forEach(sd => { const b = new T.CylinderGeometry(0.04, 0.07, 0.7, 6); b.translate(0, 0.35, 0); b.rotateZ(sd * 0.7); b.translate(sd * 0.05, H * 0.8, 0); trunk.push([b, tc]); }); }
+    else { /* 2026-10-26 树干更自然：弯一点、下粗上细、根部外扩，再从树干分出几根枝条伸进每一团树冠 */
+      const top = v3((r() - 0.5) * 0.25, H + 0.35, (r() - 0.5) * 0.25), mid = v3((r() - 0.5) * 0.18, H * 0.5, (r() - 0.5) * 0.18);
+      trunk.push([taperTube([v3(0, 0, 0), mid, top], 0.19 * S.th, 0.08 * S.th, 10), tc]);
+      { const fl = new T.ConeGeometry(0.34 * S.th, 0.5, 9, 1, true); fl.translate(0, 0.2, 0); trunk.push([fl, tc]); }
+      CL.slice(0, 6).forEach(([x, y, z, s0], k) => { if (Math.hypot(x, z) < 0.15 && k > 0) return; const from = v3(top.x * 0.6, H * (0.62 + 0.08 * (k % 3)), top.z * 0.6), to = v3(x * 0.8, y - s0 * 0.25, z * 0.8), m2 = from.clone().lerp(to, 0.5); m2.y += 0.15;
+        trunk.push([taperTube([from, m2, to], 0.075 * S.th, 0.03, 6), tc]); }); }
     const crown = mergeGeos(parts), cn = crown.attributes.normal, cc = crown.attributes.color, cp = crown.attributes.position; for (let i = 0; i < cc.count; i++) { const k = 0.66 + 0.42 * Math.max(0, Math.min(1, cn.getY(i) * 0.5 + 0.5)) + (n3(cp.getX(i) * 6, cp.getY(i) * 6, cp.getZ(i) * 6, t) - 0.5) * 0.18; cc.setXYZ(i, cc.getX(i) * k, cc.getY(i) * k, cc.getZ(i) * k); } // 树冠下面暗、上面亮，再加一点斑驳
     TREE_GEO[t] = { crown, trunk: mergeGeos(trunk), spots }; return TREE_GEO[t];
   }
@@ -779,14 +849,10 @@ const W3 = (() => {
   function buildOrchard() {
     const g = new T.Group(), wm = mat('#b88a52', { p: { map: TX.wood, roughness: 0.85 } }), fg = new T.Group(), cx = ORCH.cx, cz = ORCH.cz;
     // 地面：不规则的草地，颜色有深有浅
-    const sh = new T.Shape(), N = 48; for (let i = 0; i <= N; i++) { const a = i / N * Math.PI * 2, rr = ORCH_R(a) + 0.6; sh[i ? 'lineTo' : 'moveTo'](Math.cos(a) * rr, Math.sin(a) * rr); }
-    const ground = new T.Mesh(new T.ShapeGeometry(sh, 24), mat('#7cb04e', { p: { roughness: 1, map: TX.grass } })); ground.rotation.x = -Math.PI / 2; ground.scale.set(1, -1, 1); ground.position.set(cx, 0.011, cz); ground.receiveShadow = true; g.add(ground);
+    const N = 48;
     // 弯弯的小路
-    const pm = mat('#c8a46a', { p: { roughness: 1, map: TX.soil } }); for (let z = cz - 11; z < cz + 11; z += 1.2) { const x = ORCH_PATH(z); if (Math.hypot(x - cx, z - cz) > ORCH_R(Math.atan2(z - cz, x - cx)) - 0.5) continue; const st = new T.Mesh(new T.CircleGeometry(0.75 + Math.sin(z) * 0.1, 12), pm); st.rotation.x = -Math.PI / 2; st.position.set(x, 0.02, z); g.add(st); }
-    // 篱笆顺着边界绕一圈，东边留门
-    const pts = []; for (let i = 0; i <= N; i++) { const a = i / N * Math.PI * 2, rr = ORCH_R(a); pts.push([cx + Math.cos(a) * rr, cz + Math.sin(a) * rr, a]); }
-    for (let i = 0; i < N; i++) { const [x0, z0, a0] = pts[i], [x1, z1] = pts[i + 1]; if (Math.abs(Math.atan2(Math.sin(a0), Math.cos(a0))) < 0.14) continue; fenceLine(fg, x0, z0, x1, z1, wm, 1.3); PFENCE.push([x0, z0, x1, z1]); }
-    g.add(merge(fg));
+    const pm = mat('#c8a46a', { p: { roughness: 1, map: TX.soil } }); for (let z = cz - HOMEL.orchard.r + 2; z < cz + HOMEL.orchard.r - 2; z += 1.2) { const x = ORCH_PATH(z); if (Math.hypot(x - cx, z - cz) > ORCH_R(Math.atan2(z - cz, x - cx)) - 0.5) continue; const st = new T.Mesh(new T.CircleGeometry(0.75 + Math.sin(z) * 0.1, 12), pm); st.rotation.x = -Math.PI / 2; st.position.set(x, 0.02, z); g.add(st); }
+
     woodSign(g, cx + ORCH_R(0) + 0.6, cz - 1.8, Math.PI, '果园');
     // 小木屋、梯子、果篮、蜂箱、水井
     const hut = new T.Group(); hut.position.set(cx - 7, 0, cz - 7.5); hut.rotation.y = 0.6; g.add(hut); hut.add(mesh(new T.BoxGeometry(2.2, 1.4, 1.8), mat('#c8a070', { p: { map: TX.wood, roughness: 0.85 } }), 0, 0.7, 0)); const rf = mesh(new T.ConeGeometry(1.75, 0.9, 4), mat('#8a4a2a', { p: { roughness: 0.8 } }), 0, 1.85, 0); rf.rotation.y = Math.PI / 4; hut.add(rf); hut.add(mesh(new T.BoxGeometry(0.5, 0.8, 0.02), mat('#5a3a22'), 0, 0.4, 0.91)); OBST.push([cx - 7, cz - 7.5, 1.6]);
@@ -794,11 +860,11 @@ const W3 = (() => {
     { const l = new T.Group(); l.position.set(cx + 1, 0, cz + 7); l.rotation.set(0, 0.4, -0.35); g.add(l); [-0.2, 0.2].forEach(x => l.add(mesh(new T.BoxGeometry(0.05, 2.2, 0.05), wm, x, 1.1, 0))); for (let k = 0; k < 6; k++) l.add(mesh(new T.BoxGeometry(0.42, 0.04, 0.04), wm, 0, 0.3 + k * 0.33, 0)); }
     [[cx - 10, cz + 4], [cx - 10.5, cz + 5.4]].forEach(([x, z]) => { const h = new T.Group(); h.position.set(x, 0, z); g.add(h); h.add(mesh(new T.BoxGeometry(0.6, 0.5, 0.5), mat('#f0e0b0', { p: { map: TX.wood } }), 0, 0.45, 0)); h.add(mesh(new T.BoxGeometry(0.7, 0.06, 0.6), mat('#8a6040'), 0, 0.73, 0)); h.add(mesh(new T.BoxGeometry(0.08, 0.2, 0.08), mat('#8a6040'), 0, 0.1, 0)); });
     { const w = new T.Group(); w.position.set(cx - 3, 0, cz + 9); g.add(w); w.add(mesh(new T.CylinderGeometry(0.6, 0.65, 0.6, 16, 1, true), mat('#9a968c', { p: { map: TX.stone, roughness: 0.9, side: T.DoubleSide } }), 0, 0.3, 0)); const wt = mesh(new T.CircleGeometry(0.55, 16), mat('#3a6a8a', { p: { roughness: 0.1 } }), 0, 0.18, 0); wt.rotation.x = -Math.PI / 2; w.add(wt); [-0.5, 0.5].forEach(x => w.add(mesh(new T.BoxGeometry(0.07, 1.1, 0.07), wm, x, 0.85, 0))); const rf2 = mesh(new T.ConeGeometry(0.85, 0.45, 4), mat('#8a4a2a'), 0, 1.55, 0); rf2.rotation.y = Math.PI / 4; w.add(rf2); OBST.push([cx - 3, cz + 9, 0.8]); }
-    const hk = new T.Mesh(new T.CylinderGeometry(13.5, 13.5, 1.6, 24), new T.MeshBasicMaterial({ visible: false })); hk.position.set(cx, 0.8, cz); hk.userData.idx = -32; g.add(hk); hitBoxes.push(hk);
+    const hk = new T.Mesh(new T.CylinderGeometry(HOMEL.orchard.r - 1, HOMEL.orchard.r - 1, 1.6, 24), new T.MeshBasicMaterial({ visible: false })); hk.position.set(cx, 0.8, cz); hk.userData.idx = -32; g.add(hk); hitBoxes.push(hk);
     // 自然撒点：最小间距 2.2，避开小路、小木屋、水井和装饰
     const r = CFG3.rng(424), spots = [], avoid = [[cx - 7, cz - 7.5, 2.4], [cx - 3, cz + 9, 1.6], [cx + 1, cz + 7, 1.2], [cx - 10.2, cz + 4.7, 1.4], [cx + 3, cz + 4, 0.9], [cx - 2, cz - 3, 0.9], [cx + 5, cz - 6, 0.9]];
-    for (let it = 0; it < 4000 && spots.length < 150; it++) { const a = r() * 6.28, rr = Math.sqrt(r()) * (ORCH_R(a) - 1.3), x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
-      if (Math.abs(x - ORCH_PATH(z)) < 1.4) continue; if (avoid.some(([ax, az, ar]) => Math.hypot(x - ax, z - az) < ar)) continue; if (spots.some(([sx, sz]) => Math.hypot(x - sx, z - sz) < 2.2)) continue; spots.push([x, z, r() * 6.28, 0.88 + r() * 0.24]); }
+    for (let it = 0; it < 8000 && spots.length < 220; it++) { const a = r() * 6.28, rr = Math.sqrt(r()) * (ORCH_R(a) - 1.3), x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
+      if (Math.abs(x - ORCH_PATH(z)) < 1.4) continue; if (avoid.some(([ax, az, ar]) => Math.hypot(x - ax, z - az) < ar)) continue; if (spots.some(([sx, sz]) => Math.hypot(x - sx, z - sz) < 2.9)) continue; spots.push([x, z, r() * 6.28, 0.88 + r() * 0.24]); }
     // 离大门近的先种
     const ex = cx + ORCH_R(0), ez = cz; spots.sort((p, q) => Math.hypot(p[0] - ex, p[1] - ez) - Math.hypot(q[0] - ex, q[1] - ez)); ORCH_SPOTS = spots;
     RANCH3.trees = { g, inst: {} }; scene.add(g);
@@ -814,7 +880,7 @@ const W3 = (() => {
         I = { cap, trunk: new T.InstancedMesh(G.trunk, new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }), cap), crown: new T.InstancedMesh(G.crown, lm, cap), fruit: new T.InstancedMesh(fruitGeo(S.fr, def.col), fm, cap * 8), unripe: null };
         [I.trunk, I.crown, I.fruit].forEach(m => { m.castShadow = true; m.frustumCulled = false; TR.g.add(m); }); TR.inst[k] = I; }
       let nf = 0;
-      arr.forEach(([r, i], j) => { const [x, z, rot, vs] = ORCH_SPOTS[i], gk = Math.min(1, r.k), s = (0.3 + 0.7 * gk) * vs * (tt === 17 ? 1.3 : 1), sway = Math.sin(t * 0.8 + i) * 0.025;
+      arr.forEach(([r, i], j) => { const [x, z, rot, vs] = ORCH_SPOTS[i], gk = Math.min(1, r.k), s = (0.3 + 0.7 * gk) * vs * (tt === 17 ? 1.3 : 1) * 1.45, sway = Math.sin(t * 0.8 + i) * 0.025;
         d3.position.set(x, 0, z); d3.rotation.set(sway, rot, sway * 0.7); d3.scale.setScalar(s); d3.updateMatrix(); I.trunk.setMatrixAt(j, d3.matrix); I.crown.setMatrixAt(j, d3.matrix);
         const nfr = gk < 1 ? 0 : r.c >= 1 ? 8 : r.c > 0.5 ? 4 : 0; // 熟了挂满，快熟了挂一半（小一点）
         for (let f = 0; f < nfr && nf < I.cap * 8; f++) { const sp = G.spots[(f * 3 + i) % G.spots.length]; v.set(sp[0], sp[1] - (S.fr === 'mango' || S.fr === 'pear' ? 0.08 : 0), sp[2]).applyMatrix4(d3.matrix); q.setFromEuler(new T.Euler(0, rot + f, 0)); const fsz = s * S.fs * (r.c >= 1 ? 1.15 : 0.75); sc.setScalar(fsz); M.compose(v, q, sc); I.fruit.setMatrixAt(nf++, M); } });
@@ -985,7 +1051,7 @@ const W3 = (() => {
      ===================================================== */
   const OBST = []; // 圆形障碍物 [x, z, 半径]
   const FENCE_X = 8.2, FENCE_Z = 6.0, GATE = 1.6;
-  const FENCE = [[-FENCE_X, -FENCE_Z, FENCE_X, -FENCE_Z], [FENCE_X, -FENCE_Z, FENCE_X, FENCE_Z], [-FENCE_X, -FENCE_Z, -FENCE_X, FENCE_Z], [-FENCE_X, FENCE_Z, -GATE, FENCE_Z], [GATE, FENCE_Z, FENCE_X, FENCE_Z]];
+  const FENCE = []; /* 院子篱笆已去掉（2026-10-26） */
   const HERO = { g: null, p: null, pos: v3(0, 0, 8.6), y: 0, vy: 0, face: Math.PI, phase: 0, spd: 0, ground: true, lookKey: '' };
   let viewMode = 'top', camYaw = 0, camPitch = 0.42, camDistW = 6.4, camDrag = 0, nearIdx = -1, nearDog = -1;
   const camFocus = v3(0, 1, 9.5), input = { x: 0, z: 0, run: false, jump: false };
@@ -1106,13 +1172,14 @@ const W3 = (() => {
     try { return await NC.busy; } finally { NC.busy = null; }
   }
   function resetHero() { HERO.pos.set(0, 0, 8.6); HERO.y = 0; HERO.vy = 0; HERO.face = Math.PI; camYaw = 0; camFocus.set(0, 1, 8.6); }
-  function groundAt(x, z) { const f = fieldAtXZ(x, z); if (f < 0 || f * 24 >= plots.length || !plots[f * 24].node.visible) return 0; for (let i = f * 24; i < f * 24 + 24; i++) { const [px, pz] = plotXZ(i); if (Math.abs(x - px) < PLOT / 2 - 0.04 && Math.abs(z - pz) < PLOT / 2 - 0.04) return BED_H; } return 0; }
+  function groundAt(x, z) { const f = fieldAtXZ(x, z); if (f < 0 || f * 24 >= plots.length || !plots[f * 24].node.visible) return terrainH(x, z); for (let i = f * 24; i < f * 24 + 24; i++) { const [px, pz] = plotXZ(i); if (Math.abs(x - px) < PLOT / 2 - 0.04 && Math.abs(z - pz) < PLOT / 2 - 0.04) return BED_H; } return 0; }
   function collide(p, y) {
     const R0 = 0.32;
     OBST.concat(BOBST).forEach(([ox, oz, r]) => { const dx = p.x - ox, dz = p.z - oz, d = Math.hypot(dx, dz), m = r + R0; if (d < m && d > 1e-4) { p.x = ox + dx / d * m; p.z = oz + dz / d * m; } });
     for (let i = 0; i < RANCH3.ponds; i++) { const [ox, oz] = PONDS[i], dx = (p.x - ox) / 1.25, dz = p.z - oz, d = Math.hypot(dx, dz); if (d < 3.3) { const k = 3.3 / Math.max(d, 1e-4); p.x = ox + dx * k * 1.25; p.z = oz + dz * k; } } // 池塘
     if (y < 0.8) FENCE.concat(PFENCE, BSEG).forEach(([x0, z0, x1, z1]) => { const vx = x1 - x0, vz = z1 - z0, L2 = vx * vx + vz * vz, t = Math.max(0, Math.min(1, ((p.x - x0) * vx + (p.z - z0) * vz) / L2)), cx = x0 + vx * t, cz = z0 + vz * t, dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz); if (d < 0.28) { const nx = d > 1e-4 ? dx / d : -vz / Math.sqrt(L2), nz = d > 1e-4 ? dz / d : vx / Math.sqrt(L2); p.x = cx + nx * 0.28; p.z = cz + nz * 0.28; } });
-    p.x = Math.max(-68, Math.min(98, p.x)); p.z = Math.max(-92, Math.min(96, p.z)); // 世界边界（东南边是大草原）
+    p.x = Math.max(-WORLD_R, Math.min(WORLD_R, p.x)); p.z = Math.max(-WORLD_R, Math.min(WORLD_R, p.z)); // 世界边界（2026-10-26 扩大 10 倍）
+    { const tl = WILD.hash.get(Math.floor(p.x / 10) + ',' + Math.floor(p.z / 10)); if (tl) tl.forEach(([ox, oz, r]) => { const dx = p.x - ox, dz = p.z - oz, d = Math.hypot(dx, dz), m = r + R0; if (d < m && d > 1e-4) { p.x = ox + dx / d * m; p.z = oz + dz / d * m; } }); } /* 野外的树 */
   }
   function updateHero(dt) {
     if (!HERO.g) return; const P = HERO.p;
@@ -1127,7 +1194,7 @@ const W3 = (() => {
     if (mag > 0.05) { const f = Math.atan2(mx, mz); let d = f - HERO.face; d = Math.atan2(Math.sin(d), Math.cos(d)); const mt = dt * 15; HERO.face += Math.max(-mt, Math.min(mt, d * Math.min(1, dt * 14 + 0.25))); const left = Math.abs(Math.atan2(Math.sin(f - HERO.face), Math.cos(f - HERO.face))); turnK = left > 1.4 ? 0.05 : Math.max(0.2, Math.cos(left)); }
     if (mag > 0.05 || HERO.spd > 0.05) { // 分小步移动，低帧率时也不会穿过篱笆
       const fx = Math.sin(HERO.face), fz = Math.cos(HERO.face), dist = HERO.spd * turnK * dt, n = Math.max(1, Math.ceil(dist / 0.12));
-      for (let k = 0; k < n; k++) { HERO.pos.x += fx * dist / n; HERO.pos.z += fz * dist / n; collide(HERO.pos, HERO.y); }
+      for (let k = 0; k < n; k++) { const ox = HERO.pos.x, oz = HERO.pos.z; HERO.pos.x += fx * dist / n; HERO.pos.z += fz * dist / n; collide(HERO.pos, HERO.y); if (terrainH(HERO.pos.x, HERO.pos.z) < -0.55) { HERO.pos.x = ox; HERO.pos.z = oz; } } /* 湖里不能走 */
     } else collide(HERO.pos, HERO.y);
     // 跳跃与重力
     const gY = groundAt(HERO.pos.x, HERO.pos.z);
@@ -1176,8 +1243,8 @@ const W3 = (() => {
     canvasEl = cv;
     R = new T.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
     R.outputEncoding = T.sRGBEncoding; R.toneMapping = T.ACESFilmicToneMapping; R.toneMappingExposure = 1.05; R.shadowMap.enabled = true; R.shadowMap.type = T.PCFSoftShadowMap;
-    scene = new T.Scene(); cam = new T.PerspectiveCamera(30, 1, 1, 900);
-    scene.fog = new T.Fog(new T.Color('#cfe8ff'), 100, 360);
+    scene = new T.Scene(); cam = new T.PerspectiveCamera(30, 1, 1, 3200);
+    scene.fog = new T.Fog(new T.Color('#cfe8ff'), 140, 560); /* 2026-10-26 世界扩大 10 倍，远处的山和森林要看得到 */
     buildTextures();
     FXT = { coin: coinTex(), star: starTex(), drop: dropTex(), leaf: leafSpriteTex('#5cb83c'), soil: leafSpriteTex('#7a5232'), puff: glowTex('rgba(255,255,255,0.85)', 1), heart: heartTex() };
     fxLayer = document.getElementById('fx3d');
@@ -1190,21 +1257,17 @@ const W3 = (() => {
     const gg = new T.PlaneGeometry(400, 400, 140, 140); gg.rotateX(-Math.PI / 2);
     const cA = new T.Color('#9cb46e'), cB = new T.Color('#7e9e56'), cC = new T.Color('#b4b878'), tc = new T.Color();
     colorize(gg, (x, y, z) => { const n = fbm(x * 0.035 + 50, z * 0.035 + 50, 7, 4), m2 = fbm(x * 0.012, z * 0.012, 9, 3); tc.copy(cB).lerp(cA, Math.min(1, n * 1.4)).lerp(cC, Math.max(0, m2 - 0.55) * 1.6); return [tc.r, tc.g, tc.b]; });
-    const ground = new T.Mesh(gg, new T.MeshStandardMaterial({ color: new T.Color('#ffffff'), vertexColors: true, map: TX.grass, roughness: 0.96 })); ground.material.map.repeat.set(60, 60); ground.receiveShadow = true; scene.add(ground); SEA.ground = ground;
+    const ground = new T.Mesh(gg, new T.MeshStandardMaterial({ color: new T.Color('#ffffff'), vertexColors: true, map: TX.grass, roughness: 0.96 })); ground.material.map.repeat.set(60, 60); ground.receiveShadow = true; scene.add(ground); SEA.ground = ground; ground.visible = false; /* 2026-10-26：地面改成 buildWild 里 1.6 公里的大地形（农场部分是平地） */ buildWild(); SEA.ground = WILD.ground;
     // 农场院子（稍深的草皮）与小路
-    const yard = new T.Mesh(new T.PlaneGeometry(16.8, 12.4), new T.MeshStandardMaterial({ color: new T.Color('#8aa060'), map: TX.grass.clone(), roughness: 1 })); yard.material.map.needsUpdate = true; yard.material.map.repeat.set(4, 3); yard.rotation.x = -Math.PI / 2; yard.position.set(0, 0.01, 0); yard.receiveShadow = true; scene.add(yard);
     const pm = new T.MeshStandardMaterial({ color: new T.Color('#c8a878'), map: TX.path, roughness: 1 }); pm.map.repeat.set(1, 6);
     const pathG = new T.Group(); [[-10, -1.2, 5.5, 1.6, 0.35], [-4.5, 7.2, 1.8, 6, -0.25]].forEach(([x, z, l, w, r]) => { const p = new T.Mesh(new T.PlaneGeometry(l, w), pm); p.rotation.set(-Math.PI / 2, 0, r); p.position.set(x, 0.015, z); p.receiveShadow = true; pathG.add(p); }); scene.add(pathG);
     buildPlotsBase();
-    // 篱笆（前方留出入口）
-    const wm = mat('#a8794a', { p: { map: TX.wood, roughness: 0.85 } }), fg = new T.Group(), X = 8.2, Z = 6.0;
-    fenceLine(fg, -X, -Z, X, -Z, wm); fenceLine(fg, X, -Z, X, Z, wm); fenceLine(fg, -X, -Z, -X, Z, wm); fenceLine(fg, -X, Z, -1.6, Z, wm); fenceLine(fg, 1.6, Z, X, Z, wm);
-    scene.add(merge(fg));
+    /* 2026-10-26：去掉了菜地外面的院子篱笆，田和外面的草地、旁边的田连成一片 */
     // 建筑与装饰
     OBST.length = 0; ['house', 'windmill', 'doghouse', 'scarecrow'].forEach(k => OBST.push([ST[k].x, ST[k].z, ST[k].obstacle]));
     const house = buildHouse(); house.position.set(ST.house.x, 0, ST.house.z); house.rotation.y = ST.house.ry; scene.add(house); doorLamp.position.set(ST.house.x + 0.6, 2.8, ST.house.z + 2.6);
     const wmill = buildWindmill(); wmill.position.set(ST.windmill.x, 0, ST.windmill.z); wmill.rotation.y = ST.windmill.ry; scene.add(wmill);
-    scene.add(buildPond(POND.x, POND.z)); scene.add(pondHit()); setPastureLv(1); buildOrchard(); RANCH3.ready = true;
+    scene.add(pondHit()); RANCH3.ponds = 0; setPonds(1); setPastureLv(1); buildOrchard(); RANCH3.ready = true;
     const scare = buildScarecrow(); scare.position.set(ST.scarecrow.x, 0, ST.scarecrow.z); scare.rotation.y = ST.scarecrow.ry; scene.add(scare);
     const dh = buildDoghouse(); dh.position.set(ST.doghouse.x, 0, ST.doghouse.z); dh.rotation.y = ST.doghouse.ry; scene.add(dh);
     { const hk = new T.Mesh(new T.BoxGeometry(1.8, 1.6, 1.8), new T.MeshBasicMaterial({ visible: false })); hk.position.set(ST.doghouse.x, 0.8, ST.doghouse.z); hk.userData.idx = -10; scene.add(hk); hitBoxes.push(hk); } // 点狗窝：领养 / 喂狗
@@ -1274,7 +1337,7 @@ const W3 = (() => {
     paint(SEA.mats.hillTree, id === 'winter' ? '#a8bcb0' : id === 'autumn' ? '#8a7a3a' : ''); paint(SEA.mats.yard, L.groundK > 0.3 ? L.ground : ''); SEA.mats.yard.forEach(({ m, map0 }) => { const want = !map0 ? null : L.groundK > 0.7 ? null : L.groundK > 0.3 ? greyOf(map0) : map0; if (m.map !== want) { m.map = want; m.needsUpdate = true; } });
     if (SEA.ground && SEA.gBase) { const ca = SEA.ground.geometry.attributes.color, a = ca.array, b = SEA.gBase, tc = new T.Color(L.ground), k = L.groundK || 0;
       for (let i = 0; i < a.length; i += 3) { const lum = (b[i] + b[i + 1] + b[i + 2]) / 3 / 0.55; a[i] = b[i] * (1 - k) + tc.r * lum * k; a[i + 1] = b[i + 1] * (1 - k) + tc.g * lum * k; a[i + 2] = b[i + 2] * (1 - k) + tc.b * lum * k; }
-      ca.needsUpdate = true; const gm = SEA.ground.material, want = k > 0.7 ? null : k > 0.3 ? greyOf(TX.grass) : TX.grass; if (gm.map !== want) { gm.map = want; gm.needsUpdate = true; } }
+      ca.needsUpdate = true; const gm = SEA.ground.material; SEA.gMap = SEA.gMap || gm.map; const want = k > 0.7 ? null : k > 0.3 ? greyOf(SEA.gMap) : SEA.gMap; if (gm.map !== want) { gm.map = want; gm.needsUpdate = true; } }
     SEA.flowers.forEach(f => { f.visible = L.flowers !== false; });
     /* 飘落效果 */
     const kind = L.fx === 'firefly' ? '' : L.fx || '';
@@ -1437,7 +1500,7 @@ const W3 = (() => {
   function render(dt) {
     if (!ready) return; dt *= simK;
     if (ZONE) { ZONE.update(dt); R.render(ZONE.scene, ZONE.camera); return; }
-    tNow += dt; const t = tNow; perfTick(dt); seasonTick(dt, t); updateCritters(dt, t);
+    tNow += dt; const t = tNow; perfTick(dt); seasonTick(dt, t); updateCritters(dt, t); wildCull();
     updateHero(dt); if (viewMode === 'walk') updateWalkCam(dt); else if (panGoal.v) { if (!panGoal.s) { panGoal.s = pan.clone(); panGoal.t0 = performance.now(); } const k = Math.min(1, (performance.now() - panGoal.t0) / 450), e = 1 - Math.pow(1 - k, 3); pan.copy(panGoal.s).lerp(panGoal.v, e); if (k >= 1) { panGoal.v = null; panGoal.s = null; } applyCam(); } updateRanch(dt, tNow);
     const E = envAt(envState.hour), rk = envState.rain;
     const grey = new T.Color('#8a96a8');
