@@ -337,3 +337,4 @@ body.walk #canvas,body.walk canvas{cursor:grab}
 .buyrow.boost{background:rgba(255,210,90,.07);border:1px solid rgba(255,210,90,.25);border-radius:12px;padding:8px 10px;margin-bottom:8px}
 .upbox.compact{padding:8px 12px;margin-bottom:8px}
 @media (max-width:620px){.buyrow{grid-template-columns:36px minmax(0,1fr)}.buyrow .ri-ic{width:36px;height:36px}.buyrow .seg{grid-column:1/-1;display:flex;width:100%}.seg .btn.sm{flex:1;justify-content:center;padding:7px 4px}}
+#modal.busy .btn,#modal.busy button,#modal.busy [data-buy]{pointer-events:none;opacity:.6}

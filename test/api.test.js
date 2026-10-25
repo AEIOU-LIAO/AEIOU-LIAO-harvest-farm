@@ -453,6 +453,39 @@ test('v3.0 宏大世界：鱼塘 / 牧场 / 果园扩建、成群买羊、果园
   } finally { await t.close(); }
 });
 
+test('v3.2.2 回归：买羊 / 剪毛不会吃掉其他羊群的牧羊加速；土地直接升到选的等级；训练 ×10 钱不够就练到用完', async () => {
+  const t = await start();
+  try {
+    const a = await t.guest('回归'); await t.app.db.run('UPDATE users SET gold=99999999, lv=200 WHERE id=?', a.id);
+    for (let i = 0; i < 9; i++) assert.ok((await t.call('POST', '/api/ranch/upgrade', { kind: 'pasture' }, a.token)).ok);
+    assert.ok((await t.call('POST', '/api/ranch/sheep/buy', { type: 0, n: 5 }, a.token)).ok);
+    assert.ok((await t.call('POST', '/api/shop/dog', { kind: 'fuwang' }, a.token)).ok); assert.ok((await t.call('POST', '/api/dog/feed', { kind: 'fuwang' }, a.token)).ok);
+    const h = await t.call('POST', '/api/ranch/herd', { kind: 'fuwang' }, a.token); assert.ok(h.ok, h.error); const k = h.result.boost * h.result.share, P0 = CFG.SHEEP[0].period * 1000;
+    await t.clock(1800e3);
+    // 牧羊中买另一种羊：第一群已经攒下的牧羊加速不能丢
+    assert.ok((await t.call('POST', '/api/ranch/sheep/buy', { type: 3, n: 2 }, a.token)).ok);
+    await t.clock(1800e3);
+    let st = await t.call('GET', '/api/state', null, a.token); let g0 = st.me.ranch.sheep.find(s => s.t === 0);
+    assert.ok(Math.abs(g0.cycles - 3600e3 * (1 + k) / P0) < 0.01, `买羊后牧羊加速保留：${g0.cycles} vs ${3600e3 * (1 + k) / P0}`);
+    // 牧羊中剪毛（只有第一群能剪）：第二群（美利奴）还没长好，它的牧羊加速也不能丢
+    await t.clock(2000e3); const g3a = (await t.call('GET', '/api/state', null, a.token)).me.ranch.sheep.find(s => s.t === 3).cycles;
+    assert.ok((await t.call('POST', '/api/ranch/shear', {}, a.token)).ok);
+    await t.clock(600e3); st = await t.call('GET', '/api/state', null, a.token); const g3b = st.me.ranch.sheep.find(s => s.t === 3).cycles;
+    assert.ok(Math.abs(g3b - g3a - 600e3 * (1 + k) / (CFG.SHEEP[3].period * 1000)) < 0.01, `剪毛后其他羊群的加速保留：${g3a} → ${g3b}`);
+    // 土地：普通土地直接选黑土地 → 一次升到黑土地，费用 = 红土地 + 黑土地两级之和
+    const idx0 = CFG.UNLOCK_ORDER[0], g1 = st.me.gold, want = CFG.soilCost(1, 0) + CFG.soilCost(2, 0);
+    const r2 = await t.call('POST', '/api/farm/red', { idx: idx0, to: 2 }, a.token); assert.ok(r2.ok, r2.error); assert.equal(r2.result.soil, 2); assert.equal(r2.result.cost, want); assert.equal(r2.state.me.gold, g1 - want);
+    assert.equal((await t.call('POST', '/api/farm/red', { idx: idx0, to: 2 }, a.token)).code, 'done', '已经是黑土地了');
+    assert.equal((await t.call('POST', '/api/farm/red', { idx: idx0 }, a.token)).result.soil, 3, '不传 to 时照旧升一级');
+    // 训练 ×10：钱只够 3 次时练 3 次，不报错
+    assert.ok((await t.call('POST', '/api/shop/dog', { kind: 'ruibao' }, a.token)).ok);
+    await t.app.db.run('UPDATE users SET gold=? WHERE id=?', 150 * 1 + 150 * 1 + 150 * 2 + 10, a.id); t.app.game.forget(a.id);
+    const tr = await t.call('POST', '/api/dog/train', { kind: 'ruibao', n: 10 }, a.token); assert.ok(tr.ok, tr.error); assert.ok(tr.result.n >= 2 && tr.result.n < 10, '钱不够 10 次就练到用完：' + tr.result.n);
+    await t.app.db.run('UPDATE users SET gold=5 WHERE id=?', a.id); t.app.game.forget(a.id);
+    assert.equal((await t.call('POST', '/api/dog/train', { kind: 'ruibao', n: 10 }, a.token)).code, 'not_enough');
+  } finally { await t.close(); }
+});
+
 test('互助：真实修改好友农田并给奖励', async () => {
   const t = await start();
   try {

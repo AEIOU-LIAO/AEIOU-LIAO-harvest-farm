@@ -364,13 +364,17 @@ class Game {
     await this.addExp(uid, 200 * f, out); return { field: f, cost, plots: NPLOTS };
   }
   // 土地升级：普通 → 红土地 → 黑土地 → 金土地（接口名沿用 red）
-  async red(uid, idx, out) {
+  // 土地升级：to = 目标等级（不传就升一级）。从当前等级一级一级升到目标，每一级的费用、等级要求和原来一样
+  async red(uid, idx, out, to) {
     const [u, plots] = await all([this.user(uid), this.plots(uid)]);
     const P = plots.find(p => p.idx === idx); if (!P) throw bad('土地不存在'); if (!P.u) throw bad('先开垦这块地');
-    const next = (P.soil | 0) + 1, S = CFG.SOILS[next]; if (!S) throw conflict('这块已经是最高级的金土地了', 'done');
-    if (u.lv < S.lv) throw bad(`升级${S.name}需要 Lv.${S.lv}`, 'locked');
-    const cost = CFG.soilCost(next, plots.filter(p => (p.soil | 0) >= next).length);
-    this.addGold(uid, -cost, 'soil' + next); P.soil = next; this.savePlot(uid, P); await this.addExp(uid, 15 * next, out); return { idx, cost, soil: next, name: S.name };
+    const cur = P.soil | 0, target = to === undefined || to === null ? cur + 1 : to; const TS = CFG.SOILS[target];
+    if (!TS || target <= 0) { if (!CFG.SOILS[cur + 1]) throw conflict('这块已经是最高级的金土地了', 'done'); throw bad('没有这种土地'); }
+    if (cur >= target) throw conflict(`这块已经是${CFG.SOILS[cur].name}了`, 'done');
+    if (u.lv < TS.lv) throw bad(`升级${TS.name}需要 Lv.${TS.lv}`, 'locked');
+    let cost = 0; for (let k = cur + 1; k <= target; k++) cost += CFG.soilCost(k, plots.filter(p => (p.soil | 0) >= k).length);
+    this.addGold(uid, -cost, 'soil' + target); P.soil = target; this.savePlot(uid, P); let e = 0; for (let k = cur + 1; k <= target; k++) e += 15 * k; await this.addExp(uid, e, out);
+    return { idx, cost, soil: target, from: cur, name: TS.name };
   }
   // 批量操作：每一项一个保存点，单项失败只回滚该项
   async batch(uid, fn, list) {
@@ -447,14 +451,13 @@ class Game {
     this.addGold(uid, -d.price * n, 'sheep:' + d.id); const now = this.now(); let g = R.sheep.find(s => s.t === d.id);
     if (g) { const c = CFG.sheepCycles(g, now, R.herd), k = Math.floor(c); g.pend = (g.pend || 0) + k * g.n * d.wool; g.acc = (c - k) * g.n / (g.n + n); g.last = now; g.n += n; }
     else R.sheep.push({ t: d.id, n, last: now, acc: 0, pend: 0 });
-    if (R.herd.until > now) R.herd.from = now; this.saveRanch(uid, R); return { type: d.id, n, name: d.name };
+    this.saveRanch(uid, R); return { type: d.id, n, name: d.name }; // 不改 herd.from：其他羊群还没结算的牧羊加速要保留（只结算了这一群，它的 last 已更新）
   }
   async shear(uid, out) {
     const u = await this.user(uid), R = this.ranchOf(u), now = this.now(), got = {}; let exp = 0;
     R.sheep.forEach(s => { const d = CFG.SHEEP[s.t]; if (!d) return; const c = CFG.sheepCycles(s, now, R.herd), k = Math.floor(c), w = k * s.n * d.wool + (s.pend || 0); if (w <= 0) return;
       got[d.id] = (got[d.id] || 0) + w; exp += Math.round(w / d.wool * d.exp); s.acc = c >= CFG.RANCH.woolMax ? 0 : c - k; s.last = now; s.pend = 0; });
     const ids = Object.keys(got); if (!ids.length) throw conflict('羊毛还没长好', 'not_ripe');
-    if (R.herd.until > now) R.herd.from = now;
     ids.forEach(id => { this.addInv(uid, 'wl' + id, got[id]); this.codex(uid, 'wl' + id, got[id]); }); this.saveRanch(uid, R); this.bump(uid, 'shear', 1, 'all');
     const e = await this.addExp(uid, exp, out); return { got, exp: e };
   }
@@ -496,8 +499,9 @@ class Game {
     if (/^p\d+$/.test(kind || '')) { const p = (this.ranchOf(u).pets || []).find(x => x.id === kind); if (!p) throw bad('没有这只狗'); name = p.name; lv = p.lv || 1; }
     else { const d = this.dogDef(kind), c = d.col; if (!u[c + '_own']) throw bad(`还没有领养${d.name}`); name = d.name; lv = u[c + '_lv'] || 1; kind = d.id; }
     if (lv >= CFG.RANCH.dogMaxLv) throw conflict(`${name}已经满级了`, 'max'); let cost = 0, up = 0, g = { lv };
-    for (let i = 0; i < n && g.lv < CFG.RANCH.dogMaxLv; i++) { const c1 = 150 * g.lv; this.addGold(uid, -c1, 'train'); cost += c1; g = await this.dogExp(uid, kind, 5); if (g.lvUp) up = g.lvUp; }
-    return { kind, name, lv: g.lv, lvUp: up, cost, n };
+    let done = 0; for (let i = 0; i < n && g.lv < CFG.RANCH.dogMaxLv; i++) { const c1 = 150 * g.lv; if ((await this.user(uid)).gold < c1) break; this.addGold(uid, -c1, 'train'); cost += c1; done++; g = await this.dogExp(uid, kind, 5); if (g.lvUp) up = g.lvUp; }
+    if (!done) throw conflict(`金币不够，训练一次要 ${150 * lv} 金币`, 'not_enough'); // 训练 ×10：钱不够 10 次就练到钱用完为止
+    return { kind, name, lv: g.lv, lvUp: up, cost, n: done };
   }
   // 一键加速：鱼饲料 / 精饲料 / 果树营养液，用在最快能收的那些上，用完为止
   async ranchBoost(uid, kind) {
@@ -513,7 +517,6 @@ class Game {
     } else if (kind === 'pasture') {
       const list = R.sheep.map(s => ({ s, c: CFG.sheepCycles(s, now, R.herd) })).filter(x => x.c < CFG.RANCH.woolMax).sort((a, b) => b.c - a.c); if (!list.length) throw conflict('羊毛都长满了，先去剪羊毛', 'none');
       for (const { s, c } of list) { if (have <= 0) break; const need = Math.ceil((CFG.RANCH.woolMax - c) / 0.5 * s.n), use = Math.min(have, need); s.acc = Math.min(CFG.RANCH.woolMax, c + use * 0.5 / s.n); s.last = now; have -= use; used += use; if (s.acc >= 1) done += s.n; }
-      if (R.herd.until > now) R.herd.from = now;
     } else {
       const grow = R.trees.filter(r => CFG.treeGrowLeft(r, now) > 0).sort((a, b) => CFG.treeGrowLeft(a, now) - CFG.treeGrowLeft(b, now));
       const ripe = R.trees.filter(r => CFG.treeGrowLeft(r, now) <= 0 && CFG.treeCycles(r, now) < CFG.RANCH.fruitMax).sort((a, b) => CFG.treeCycles(b, now) - CFG.treeCycles(a, now));

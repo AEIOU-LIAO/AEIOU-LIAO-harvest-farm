@@ -23,7 +23,7 @@ let NB = { list: [] };        // 附近的人
 let MSGS = [];
 let PREF = { sound: true, music: true, notify: false, tod: 'auto', tut: 0 };
 let view = { key: 'home', friend: null, plots: [], farm: null };
-let tool = 'auto', hoverIdx = -1, painting = false, lastPaint = -1, mouse = { x: 0, y: 0, in: false };
+let redTo = 0, tool = 'auto', hoverIdx = -1, painting = false, lastPaint = -1, mouse = { x: 0, y: 0, in: false };
 let started = false, dogBarkUntil = 0, sideTab = 'nearby';
 const busy = new Set();
 const blankPlots = () => { const a = []; for (let i = 0; i < CFG.NPLOTS; i++) a.push({ idx: i, u: CFG.UNLOCK_ORDER.indexOf(i) < RULES.startPlots ? 1 : 0, soil: 0, c: -1, p: 0, t: 0, sea: 0, y: 0, pr: { d: 0, w: 0, b: 0 } }); return a; };
@@ -92,8 +92,11 @@ function toast(msg, kind) {
 const FX = W3.fx;
 
 /* ============ 接口调用 ============ */
+let modalBusy = 0;
 async function api(path, body, opt) {
   opt = opt || {};
+  // 弹窗里的按钮：请求进行中锁住整个弹窗，快速连点不会重复购买、重复扣钱
+  const inModal = $('mback').classList.contains('show') && !opt.free; if (inModal) { if (modalBusy) return null; modalBusy++; $('modal').classList.add('busy'); }
   try {
     const r = await NET.post(path, body);
     if (r.state) applyState(r.state);
@@ -106,7 +109,7 @@ async function api(path, body, opt) {
     if (e.code === 'network') return null;
     if (e.status === 409 && !opt.noRefresh) poll(false);
     return null;
-  }
+  } finally { if (inModal) { modalBusy = Math.max(0, modalBusy - 1); $('modal').classList.remove('busy'); } }
 }
 async function refreshState() { try { const r = await NET.get('/api/state'); applyState(r); } catch (e) { } }
 function applyState(st) {
@@ -197,13 +200,16 @@ async function doFert(i) {
   const r = await api('/api/farm/fert', { idx: i }); if (!r) return; FX.stars(i, 12); FX.text(i, '成长加速', '#c8ff8a', 19); sfx('fert');
 }
 async function doRed(i) {
-  const P = view.plots[i], S1 = CFG.SOILS[(P.soil | 0) + 1]; if (!S1) { toast('这块已经是最高级的金土地了', 'warn'); return; }
-  const r = await api('/api/farm/red', { idx: i }); if (!r) return; const S2 = CFG.SOILS[r.result.soil];
+  const P = view.plots[i], cur = P.soil | 0, to = redTo || cur + 1, S1 = CFG.SOILS[to]; if (!CFG.SOILS[cur + 1]) { toast('这块已经是最高级的金土地了', 'warn'); return; }
+  if (!S1 || cur >= to) { toast(`这块已经是${CFG.SOILS[cur].name}了，换一块地吧`, 'warn'); return; }
+  const r = await api('/api/farm/red', { idx: i, to }); if (!r) return; const S2 = CFG.SOILS[r.result.soil];
   FX.stars(i, 14 + 6 * r.result.soil); FX.text(i, `升级为${S2.name}`, ['', '#ffb08a', '#c8c0b0', '#ffd23a'][r.result.soil], 21); sfx('level');
   toast(`${S2.name}：生长速度 +${Math.round((S2.speed - 1) * 100)}%，产量 +${Math.round((S2.yield - 1) * 100)}%`);
 }
 async function doExpand(i) { const r = await api('/api/farm/expand', i >= 0 ? { idx: i } : {}); if (!r) return; FX.puff(r.result.idx); FX.stars(r.result.idx, 14); FX.text(r.result.idx, '开垦成功', '#ffe27a', 22); sfx('level'); }
-function stagger(list, fn, gap) { list.forEach((x, k) => setTimeout(() => fn(x), k * (gap || 70))); }
+// 批量操作的特效：只给当前看着的那片田播放，最多 24 块、总时长不超过 1.6 秒（几百块地一起操作时不卡）
+function stagger(list, fn, gap) { const f = W3.field || 0, vis = list.filter(x => x.idx === undefined || Math.floor(x.idx / CFG.NPLOTS) === f), pick = (vis.length ? vis : list).slice(0, 24), g = Math.min(gap || 70, 1600 / Math.max(1, pick.length));
+  pick.forEach((x, k) => setTimeout(() => fn(x), k * g)); if (list.length > pick.length) setTimeout(() => toast(`共 ${list.length} 块地完成`), 300); }
 async function allHarvest() { if (view.key !== 'home') return; const r = await api('/api/farm/harvest-all', null, { lvDelay: 900 }); if (!r) return; sfx('harvest'); stagger(r.result.filter(x => !x.err), harvestFx); }
 async function allCare() { if (view.key !== 'home') return; const r = await api('/api/farm/care-all'); if (!r) return; stagger(r.result.filter(x => !x.err), x => careFx(x.idx, x.kind, true), 90); }
 async function allFert() {
@@ -243,7 +249,7 @@ async function addFriendNow(u) { const r = await api('/api/friends/add', { id: u
 
 /* ============ 点击土地 ============ */
 async function clickPlot(i, first) {
-  if (i < 0 || !S) return; const P = view.plots[i]; if (busy.has(view.key + i)) return; busy.add(view.key + i);
+  if (i < 0 || !S) return; const P = view.plots[i], bk = view.key + ':' + i; if (!P || busy.has(bk)) return; busy.add(bk); // 记下这次用的键：操作中途切换农场也能正确清除
   try {
     if (view.key !== 'home') {
       if (!P.u || P.c < 0) return;
@@ -262,7 +268,7 @@ async function clickPlot(i, first) {
       case 'red': return await doRed(i);
       default: if (P.c < 0) return await doPlant(i); if (P.p >= 1) return await doHarvest(i); if (P.pr.d || P.pr.w || P.pr.b) return await doCare(i);
     }
-  } finally { busy.delete(view.key + i); }
+  } finally { busy.delete(bk); }
 }
 function askExpand(i) {
   const owned = unlockedCount(), cost = CFG.plotCost(owned), need = CFG.plotNeedLv(owned);
@@ -414,7 +420,7 @@ function actionOf(i) {
   if (i < 0 || !S || !view.plots[i]) return ''; const P = view.plots[i], home = view.key === 'home';
   if (!home) { if (!P.u || P.c < 0) return ''; if (P.p >= 1) return P.mine ? '' : P.left > 0 && NET.now() >= P.protectUntil ? `摘取${CROPS[P.c].name}` : ''; return P.pr.d || P.pr.w || P.pr.b ? '帮忙打理' : ''; }
   if (!P.u) return '开垦';
-  if (tool === 'shovel') return P.c >= 0 && P.p < 1 ? '铲除' : ''; if (tool === 'fert') return P.c >= 0 && P.p < 1 ? '施肥' : ''; if (tool === 'red') return CFG.SOILS[(P.soil | 0) + 1] ? '升级土地' : '';
+  if (tool === 'shovel') return P.c >= 0 && P.p < 1 ? '铲除' : ''; if (tool === 'fert') return P.c >= 0 && P.p < 1 ? '施肥' : ''; if (tool === 'red') { const to = redTo || (P.soil | 0) + 1; return CFG.SOILS[to] && (P.soil | 0) < to ? `升级为${CFG.SOILS[to].name}` : ''; }
   if (P.c < 0) return `种${CROPS[S.me.seed].name}`; if (P.p >= 1) return `收获${CROPS[P.c].name}`; if (P.pr.d) return '浇水'; if (P.pr.w) return '除草'; if (P.pr.b) return '除虫'; return '';
 }
 const DOG_PET_LINES = { fuwang: ['福旺开心地蹭蹭你', '福旺：汪！再摸摸～', '福旺眯起了眼睛'], ruibao: ['睿宝把头埋进你手心', '睿宝：嗷呜～', '睿宝摇成了螺旋桨'] };

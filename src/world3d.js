@@ -77,6 +77,8 @@ const W3 = (() => {
   function colorize(g, fn) { const p = g.attributes.position, c = new Float32Array(p.count * 3); for (let i = 0; i < p.count; i++) { const r = fn(p.getX(i), p.getY(i), p.getZ(i), i); c[i * 3] = r[0]; c[i * 3 + 1] = r[1]; c[i * 3 + 2] = r[2]; } g.setAttribute('color', new T.BufferAttribute(c, 3)); return g; }
   function displace(g, amt, freq, seed) { const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = (fbm(x * freq + 10, (y + z) * freq + 20, seed, 3) - 0.5) * 2 * amt, l = Math.hypot(x, y, z) || 1; p.setXYZ(i, x + x / l * n, y + y / l * n, z + z / l * n); } g.computeVertexNormals(); return g; }
   // 合并：同一材质的网格合并成一个，大幅减少绘制调用
+  /* v3.2.2：从场景里拿掉的东西，场景里再没人用的几何体统一释放（three.js 里释放后还被用到也只是重新上传，不会坏） */
+  function freeTree(...roots) { const used = new Set(); scene.traverse(o => { if (o.geometry) used.add(o.geometry); }); roots.forEach(r => r && r.traverse(o => { if (o.geometry && !used.has(o.geometry)) o.geometry.dispose(); })); }
   function merge(root) {
     root.updateMatrixWorld(true); const inv = new T.Matrix4().copy(root.matrixWorld).invert(), groups = new Map(), keep = [];
     root.traverse(o => { if (!o.isMesh || o.userData.keep) { if (o.isMesh || o.isSprite) keep.push(o); return; } const k = o.material.uuid; if (!groups.has(k)) groups.set(k, { m: o.material, list: [], cast: false }); const gg = groups.get(k); const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()); g.applyMatrix4(new T.Matrix4().multiplyMatrices(inv, o.matrixWorld)); gg.list.push(g); gg.cast = gg.cast || o.castShadow; });
@@ -108,7 +110,7 @@ const W3 = (() => {
   const leafMat = (col) => mat(col, { vc: 1, ds: 1, p: { roughness: 0.62 } });
   function addLeaf(grp, geo, m, x, y, z, yaw, tilt, roll, s) { const o = mesh(geo, m, x, y, z); o.rotation.set(tilt, yaw, roll || 0, 'YXZ'); if (s) o.scale.setScalar(s); grp.add(o); return o; }
   function tube(pts, r0, r1, m, seg) { const curve = new T.CatmullRomCurve3(pts); const g = new T.TubeGeometry(curve, seg || 8, r0, 6, false); if (r1 !== undefined) { const p = g.attributes.position; /* 尖端变细 */ for (let i = 0; i < p.count; i++) { const t = Math.floor(i / 7) / (seg || 8); const c = curve.getPoint(Math.min(1, t)); const k = (r0 + (r1 - r0) * t) / r0; p.setXYZ(i, c.x + (p.getX(i) - c.x) * k, c.y + (p.getY(i) - c.y) * k, c.z + (p.getZ(i) - c.z) * k); } g.computeVertexNormals(); } return mesh(g, m); }
-  const SG = new Map(); const sphereG = (w, h) => { const k = w + ':' + h; if (!SG.has(k)) SG.set(k, new T.SphereGeometry(1, w, h)); return SG.get(k); };
+  const SG = new Map(), SG_SET = new Set(); const sphereG = (w, h) => { const k = w + ':' + h; if (!SG.has(k)) { const g = new T.SphereGeometry(1, w, h); SG.set(k, g); SG_SET.add(g); } return SG.get(k); };
   function blob(m, x, y, z, sx, sy, sz, seg) { const o = mesh(sphereG(seg || 18, Math.round((seg || 18) * 0.7)), m, x, y, z); o.scale.set(sx, sy === undefined ? sx : sy, sz === undefined ? sx : sz); return o; }
   function lathe(profile, seg) { return new T.LatheGeometry(profile.map(p => new T.Vector2(p[0], p[1])), seg || 18); }
   function dotsTex(bg, dot, n, sz) { const c = mkCanvas(128), x = c.getContext('2d'); x.fillStyle = bg; x.fillRect(0, 0, 128, 128); const r = CFG3.rng(n); x.fillStyle = dot; for (let i = 0; i < n; i++) { x.beginPath(); x.ellipse(r() * 128, r() * 128, sz, sz * 1.5, 0, 0, 7); x.fill(); } return tex(c, 0); }
@@ -494,7 +496,7 @@ const W3 = (() => {
     g.scale.setScalar(L.s);
     const tag = nameTag(nm || L.name, L.tag); tag.position.set(0.1, 1.42, 0); g.add(tag);
     const d = { g, torso, head, tail, legs, tongue, tag, kind, did: did || kind, name: nm || L.name, home: null, ang: Math.random() * 6.28, pet: 0, U, wag: 0, mv: 0 }; anim.dogs.push(d);
-    if (!buildDog.preview) { const hb = new T.Mesh(new T.BoxGeometry(1.1, 1.1, 0.7), new T.MeshBasicMaterial({ visible: false })); hb.position.set(0, 0.55, 0); hb.userData.idx = -20 - (anim.dogs.length - 1); hb.userData.dog = d; g.add(hb); hitBoxes.push(hb); } return g;
+    if (!buildDog.preview) { const hb = new T.Mesh(new T.BoxGeometry(1.1, 1.1, 0.7), new T.MeshBasicMaterial({ visible: false })); hb.position.set(0, 0.55, 0); hb.userData.idx = -20 - (anim.dogs.length - 1); hb.userData.dog = d; d.hit = hb; g.add(hb); hitBoxes.push(hb); } return g;
   }
   // 调试：大尺寸渲染某个角度的狗（只在测试中用）
   function dogShot(kind, size, yaw, pitch) {
@@ -589,14 +591,14 @@ const W3 = (() => {
         woodSign(g, cx - 7.9, cz + 5.4, Math.PI * 0.75, `第${f + 1}片田`); scene.add(g); fieldDeco.push(g); } }
   }
   function rebuildPlot(i, P, o) {
-    const pl = plots[i], node = pl.node; node.children.slice().forEach(ch => { if (!ch.userData.idx && ch.userData.idx !== 0) node.remove(ch); }); pl.crop = null; pl.badges = []; pl.sparks = []; pl.bug = null; pl.cropH = 0;
+    const pl = plots[i], node = pl.node; node.children.slice().forEach(ch => { if (!ch.userData.idx && ch.userData.idx !== 0) { node.remove(ch); ch.traverse(o => { if (o.userData.own) { if (o.geometry) o.geometry.dispose(); } if (o.isSprite && o.material && o.material.map === sparkTex) o.material.dispose(); }); } }); /* 释放这块地上一次独有的几何体（荒地合并出来的草），来回串门不会越积越多 */ pl.crop = null; pl.badges = []; pl.sparks = []; pl.bug = null; pl.cropH = 0;
     if (!P.u) {
       const g = new T.Group(); const patch = mesh(BED_G, mat('#7fa856', { p: { roughness: 1, map: TX.grass } })); patch.scale.set(1, 0.22, 1); g.add(patch);
       // 只有下一块可以开垦的荒地插木牌，其他荒地就是草地 + 野花，画面更干净
       if (o.next) { const wm = mat('#8a6040', { p: { map: TX.wood } }); g.add(mesh(LOCK_G.post, wm, 0.42, 0.35, 0.42)); const b = mesh(LOCK_G.board, wm, 0.42, 0.78, 0.42); b.rotation.y = Math.PI / 4; g.add(b); const face = mesh(LOCK_G.face, LOCK_MAT || (LOCK_MAT = new T.MeshStandardMaterial({ map: lockTex(), roughness: 0.85 })), 0.42 + 0.024, 0.78, 0.42 + 0.024); face.rotation.y = Math.PI / 4; g.add(face); }
       else { const fr = CFG3.rng(i * 13 + 5), pal = ['#ffffff', '#ffd23a', '#ff8ab0', '#b98aff']; for (let k = 0; k < 4; k++) g.add(blob(mat(pal[Math.floor(fr() * 4)], { p: { roughness: 0.6 } }), (fr() - 0.5) * 1.4, 0.12, (fr() - 0.5) * 1.4, 0.05, 0.03, 0.05, 8)); }
       const tm = mat('#4f8a34', { vc: 1, ds: 1 }), r = CFG3.rng(i * 7); for (let k = 0; k < 7; k++) { const tx = (r() - 0.5) * 1.5, tz = (r() - 0.5) * 1.5; for (let j = 0; j < 3; j++) addLeaf(g, leafGeo(0.22 + r() * 0.12, 0.035, 0.6, 0, 'blade'), tm, tx, 0.04, tz, r() * 6, 0.3 + r() * 0.4); }
-      node.add(merge(g)); return;
+      const mg = merge(g); mg.traverse(o => { if (o.isMesh) o.userData.own = 1; }); node.add(mg); return;
     }
     const sm = (soilMats[P.soil | 0] || soilMats[0])[P.pr && P.pr.d ? 'dry' : (P.wet ? 'wet' : 'n')];
     const bed = new T.Mesh(BED_G, sm); bed.receiveShadow = true; node.add(bed);
@@ -606,7 +608,7 @@ const W3 = (() => {
         if (ripe) { const sp = new T.Sprite(new T.SpriteMaterial({ map: sparkTex, transparent: true, depthWrite: false, blending: T.AdditiveBlending })); sp.userData.ph = i * 0.13; sp.userData.r = 0.4; node.add(sp); pl.sparks.push(sp); } }
       return; }
     [-0.6, -0.2, 0.2, 0.6].forEach(z => { const r = new T.Mesh(RIDGE_G, sm); r.position.set(0, BED_H, z); r.receiveShadow = true; r.castShadow = true; node.add(r); });
-    if (P.pr && P.pr.w) { const g = new T.Group(), wm = mat('#6a9a2a', { vc: 1, ds: 1 }), r = CFG3.rng(i * 11 + 3); [[-0.7, -0.65], [0.72, 0.5], [-0.55, 0.72], [0.6, -0.6], [0.05, 0.78]].forEach(([x, z]) => { for (let j = 0; j < 5; j++) addLeaf(g, leafGeo(0.28 + r() * 0.15, 0.05, 0.9, 0.1, 'blade'), wm, x, BED_H, z, r() * 6, 0.4 + r() * 0.5); }); node.add(merge(g)); }
+    if (P.pr && P.pr.w) { const g = new T.Group(), wm = mat('#6a9a2a', { vc: 1, ds: 1 }), r = CFG3.rng(i * 11 + 3); [[-0.7, -0.65], [0.72, 0.5], [-0.55, 0.72], [0.6, -0.6], [0.05, 0.78]].forEach(([x, z]) => { for (let j = 0; j < 5; j++) addLeaf(g, leafGeo(0.28 + r() * 0.15, 0.05, 0.9, 0.1, 'blade'), wm, x, BED_H, z, r() * 6, 0.4 + r() * 0.5); }); const wg = merge(g); wg.traverse(o => { o.userData.own = 1; }); node.add(wg); }
     if (P.c >= 0 && CFG3.CROPS[P.c]) {
       const st = CFG3.stageOf(P.p), base = cropModel(P.c, st), m = base.clone(), SC = 1.42; m.scale.setScalar(SC); m.position.y = BED_H + 0.02; node.add(m); pl.crop = m; pl.cropH = (base.userData.h || 0.3) * SC;
       const list = []; if (P.pr) { if (P.pr.d) list.push('d'); if (P.pr.w) list.push('w'); if (P.pr.b) list.push('b'); }
@@ -673,7 +675,7 @@ const W3 = (() => {
   function setPastureLv(l) {
     if (PAST.lv === l) return; PAST.lv = l; const [W, H] = pastSize(l); PAST.x1 = PAST.x0 + W; PAST.z1 = PAST.z0 + H; PAST.cx = (PAST.x0 + PAST.x1) / 2; PAST.cz = (PAST.z0 + PAST.z1) / 2; PAST.gw = Math.min(3.5, 0.9 + W * 0.05);
     MEADOW.set(PAST.cx - 0.4, 0, PAST.z1 + 4.2 + Math.min(4, H * 0.1));
-    if (RANCH3.pastG) { scene.remove(RANCH3.pastG); const i = hitBoxes.indexOf(RANCH3.pastHit); if (i >= 0) hitBoxes.splice(i, 1); }
+    if (RANCH3.pastG) { scene.remove(RANCH3.pastG); const i = hitBoxes.indexOf(RANCH3.pastHit); if (i >= 0) hitBoxes.splice(i, 1); freeTree(RANCH3.pastG); }
     PFENCE.length = 0; PASTOBST.forEach(o => { const i = OBST.indexOf(o); if (i >= 0) OBST.splice(i, 1); }); PASTOBST = [];
     const g = new T.Group(), wm = mat('#c89a62', { p: { map: TX.wood, roughness: 0.85 } }), fg = new T.Group(), { x0, x1, z0, z1 } = PAST, gx = PAST.cx, gw = PAST.gw;
     const meadow = new T.Mesh(new T.PlaneGeometry(x1 - x0, z1 - z0), mat('#8cc860', { p: { roughness: 1, map: TX.grass } })); meadow.rotation.x = -Math.PI / 2; meadow.position.set(PAST.cx, 0.012, PAST.cz); meadow.receiveShadow = true; g.add(meadow);
@@ -820,9 +822,9 @@ const W3 = (() => {
     if (!RANCH3.ready || !R) return;
     if (R.lv) { setPastureLv(R.lv.pasture || 1); setPonds(R.lv.ponds || 1); }
     const fk = R.fish.map(f => f.t).join(',') + '|' + RANCH3.ponds, sk = R.sheep.map(s => s.t).join(',') + '|' + PAST.lv;
-    if (fk !== RANCH3.fkey) { RANCH3.fkey = fk; RANCH3.fish.forEach(f => scene.remove(f.g)); RANCH3.fish = R.fish.map((f, i) => { const g = buildFish(f.t); scene.add(g); return { g, t: f.t, pond: i % RANCH3.ponds, ph: i * 1.7 + Math.random(), r: 0.45 + ((i * 0.37) % 0.5), sp: 0.25 + Math.random() * 0.2, jump: 2 + Math.random() * 5, jy: -1 }; }); }
+    if (fk !== RANCH3.fkey) { RANCH3.fkey = fk; RANCH3.fish.forEach(f => scene.remove(f.g)); freeTree(...RANCH3.fish.map(f => f.g)); RANCH3.fish = R.fish.map((f, i) => { const g = buildFish(f.t); scene.add(g); return { g, t: f.t, pond: i % RANCH3.ponds, ph: i * 1.7 + Math.random(), r: 0.45 + ((i * 0.37) % 0.5), sp: 0.25 + Math.random() * 0.2, jump: 2 + Math.random() * 5, jy: -1 }; }); }
     R.fish.forEach((f, i) => { const o = RANCH3.fish[i]; if (o) { o.k = f.k; o.ripe = f.ripe; } });
-    if (sk !== RANCH3.skey) { RANCH3.skey = sk; RANCH3.sheep.forEach(s => s.m && scene.remove(s.m.g)); Object.values(RANCH3.inst).forEach(o => { scene.remove(o.body); scene.remove(o.head); if (o.legs) scene.remove(o.legs); }); RANCH3.inst = {};
+    if (sk !== RANCH3.skey) { RANCH3.skey = sk; RANCH3.sheep.forEach(s => s.m && scene.remove(s.m.g)); const gone = RANCH3.sheep.filter(s => s.m).map(s => s.m.g); Object.values(RANCH3.inst).forEach(o => { scene.remove(o.body); scene.remove(o.head); if (o.legs) scene.remove(o.legs); gone.push(o.body, o.head, o.legs); }); freeTree(...gone); RANCH3.inst = {};
       const rr = CFG3.rng(sk.length + 7), cnt = {};
       RANCH3.sheep = R.sheep.map((s, i) => { const p = v3(PAST.x0 + 0.8 + rr() * (PAST.x1 - PAST.x0 - 1.6), 0, PAST.z0 + 1.8 + rr() * (PAST.z1 - PAST.z0 - 2.6)); const o = { t: s.t, p, ry: rr() * 6.28, tgt: p.clone(), wait: rr() * 3, graze: 0, ph: rr() * 6, zone: 'in' };
         if (i < DET) { o.m = buildSheep(s.t); o.m.g.position.copy(p); o.m.g.rotation.y = o.ry; scene.add(o.m.g); } else { o.ii = cnt[s.t] = (cnt[s.t] || 0) + 1; o.ii--; } return o; });
@@ -1186,20 +1188,23 @@ const W3 = (() => {
 
   /* ---------------- 每帧更新 ---------------- */
   let curView = { plots: [], home: true }, envState = { hour: 12, rain: 0 }, dogMode = {};
-  function setPlots(list, home) { curView = { plots: list, home }; ensurePlots(list.length); plots.forEach((pl, i) => { pl.node.visible = i < list.length; }); fieldDeco.forEach((g, k) => { g.visible = (k + 1) * 24 < list.length; }); const nx = home ? CFG3.UNLOCK_ORDER.find(u => list[u] && !list[u].u) : -1; list.forEach((P, i) => { const f = Math.floor(i / 24), o = { mine: !home && P.mine, next: i === nx, lite: f !== 0 && f !== ACTF }; const k = plotKey(P, o); if (plots[i].key !== k) { plots[i].key = k; rebuildPlot(i, P, o); } }); }
+  function setPlots(list, home) { curView = { plots: list, home }; ensurePlots(list.length); plots.forEach((pl, i) => { pl.node.visible = i < list.length; if (i >= list.length && pl.key) { pl.key = ''; rebuildPlot(i, { u: 1, c: -1, soil: 0, pr: {} }, { lite: true }); } }); /* 用不到的地（别人的农场比自己的小）清空内容，省内存 */ fieldDeco.forEach((g, k) => { g.visible = (k + 1) * 24 < list.length; }); const nx = home ? CFG3.UNLOCK_ORDER.find(u => list[u] && !list[u].u) : -1; list.forEach((P, i) => { const f = Math.floor(i / 24), o = { mine: !home && P.mine, next: i === nx, lite: f !== 0 && f !== ACTF }; const k = plotKey(P, o); if (plots[i].key !== k) { plots[i].key = k; rebuildPlot(i, P, o); } }); }
   function setHover(i) { hoverIdx = i; }
   function setDog(mode) { if (Array.isArray(mode)) { const o = {}; CFG3.DOGS.forEach((d, i) => o[d.id] = mode[i] || 'none'); dogMode = o; } else if (typeof mode === 'string') dogMode = { fuwang: mode }; else dogMode = mode || {}; }
   // 领养的边牧：按 id 建 / 删模型，住在狗窝附近
   const PETS3 = {};
+  // 移除一只领养的狗：模型、动画列表、点击区域都要清掉，否则会留下看不见的点击热区
+  function dropDog(dg) { scene.remove(dg.g); const i = anim.dogs.indexOf(dg); if (i >= 0) anim.dogs.splice(i, 1); if (dg.hit) { const j = hitBoxes.indexOf(dg.hit); if (j >= 0) hitBoxes.splice(j, 1); }
+    const keep = new Set(Object.values(DOG_GEO[dg.kind] || {})); dg.g.traverse(o => { if (o.geometry && !keep.has(o.geometry) && !SG_SET.has(o.geometry)) o.geometry.dispose(); if (o.isSprite && o.material.map) { o.material.map.dispose(); o.material.dispose(); } }); } // 释放这只狗独有的几何体和名牌贴图
   function setPets(list) {
     if (!RANCH3.ready) return; const want = {}; (list || []).forEach((p, i) => { want[p.id] = p; const k = p.id + '|' + p.coat + '|' + p.name, cur = PETS3[p.id];
-      if (cur && cur.key === k) return; if (cur) { scene.remove(cur.dg.g); anim.dogs.splice(anim.dogs.indexOf(cur.dg), 1); }
+      if (cur && cur.key === k) return; if (cur) dropDog(cur.dg);
       const g = buildDog(DOG_LOOK[p.coat] ? p.coat : 'black', p.name, p.id), dg = anim.dogs[anim.dogs.length - 1]; g.position.set(9.6 + (i % 4) * 0.9, 0, 3.2 + Math.floor(i / 4) * 1.0); g.visible = false; scene.add(g); PETS3[p.id] = { key: k, dg }; });
-    Object.keys(PETS3).forEach(id => { if (!want[id]) { const cur = PETS3[id]; scene.remove(cur.dg.g); anim.dogs.splice(anim.dogs.indexOf(cur.dg), 1); delete PETS3[id]; } });
+    Object.keys(PETS3).forEach(id => { if (!want[id]) { dropDog(PETS3[id].dg); delete PETS3[id]; } });
   }
   function setEnv(h, rain) { envState.hour = h; envState.rain = rain; }
   const ray = new T.Raycaster(), ndc = new T.Vector2();
-  function pick(cx, cy) { if (!ready) return -1; const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); const h = ray.intersectObjects(hitBoxes, false).filter(x => (!x.object.userData.dog || x.object.userData.dog.g.visible) && (!x.object.parent || x.object.parent.visible !== false)); return h.length ? (h[0].object.userData.dog ? -20 - anim.dogs.indexOf(h[0].object.userData.dog) : h[0].object.userData.idx) : -1; }
+  function pick(cx, cy) { if (!ready) return -1; const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); const h = ray.intersectObjects(hitBoxes, false).filter(x => (!x.object.userData.dog || (x.object.userData.dog.g.visible && anim.dogs.includes(x.object.userData.dog))) && (!x.object.parent || x.object.parent.visible !== false)); return h.length ? (h[0].object.userData.dog ? -20 - anim.dogs.indexOf(h[0].object.userData.dog) : h[0].object.userData.idx) : -1; }
   function nearKennel() { return viewMode === 'walk' && Math.hypot(HERO.pos.x - 11.2, HERO.pos.z + 3.8) < 2.4; }
   function screenOf(i, y) { const v = P0(i, y || 0.6).project(cam); return { x: (v.x * 0.5 + 0.5) * W, y: (-v.y * 0.5 + 0.5) * H }; }
   let simK = 1; const GAITS_REF = {}; // 调试用：加快动画时间
@@ -1343,5 +1348,5 @@ const W3 = (() => {
     return ICONS[key];
   }
   function zoomBy(f) { if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * f)); return; } zoom = Math.max(0.6, Math.min(1.3, zoom * f)); applyCam(); }
-  return { zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, setPets, dogInfo: k => { const d = anim.dogs[k]; return d ? { did: d.did, name: d.name, kind: d.kind } : null; }, pondSplash, setField: f => { ACTF = Math.max(0, f | 0); if (viewMode !== 'walk') fit(); }, get field() { return ACTF; }, fieldCenter: fieldC, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ leg: RANCH3.leg, follow: RANCH3.follow, A: RANCH3.A && RANCH3.A.toArray().map(v => +v.toFixed(1)), phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, heroModelRot: () => HERO.g ? HERO.g.rotation.y : NaN, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
+  return { get __scene() { return scene; }, zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, hits: hitBoxes.length, dogs: anim.dogs.length, objs: (() => { let n = 0, v = 0; scene.traverse(o => { if (o.isMesh || o.isSprite) { n++; let vis = true, q = o; while (q) { if (!q.visible) { vis = false; break; } q = q.parent; } if (vis) v++; } }); return n + '/' + v; })(), parts: parts.length, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, setPets, dogInfo: k => { const d = anim.dogs[k]; return d ? { did: d.did, name: d.name, kind: d.kind } : null; }, pondSplash, setField: f => { ACTF = Math.max(0, f | 0); if (viewMode !== 'walk') fit(); }, get field() { return ACTF; }, fieldCenter: fieldC, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ leg: RANCH3.leg, follow: RANCH3.follow, A: RANCH3.A && RANCH3.A.toArray().map(v => +v.toFixed(1)), phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, heroModelRot: () => HERO.g ? HERO.g.rotation.y : NaN, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
 })();
