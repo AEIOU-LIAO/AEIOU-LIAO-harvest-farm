@@ -21,7 +21,7 @@ let S = null;                 // 服务器快照：me / plots / inv / badges / r
 let FR = { list: [], requests: [], sent: [], visitors: [] }; // 好友
 let NB = { list: [] };        // 附近的人
 let MSGS = [];
-let PREF = { sound: true, music: true, notify: false, tod: 'auto', tut: 0 };
+let PREF = { sound: true, music: true, notify: false, tod: 'auto', tut: 0, mvol: 70, svol: 80, pan: 0 };
 let view = { key: 'home', friend: null, plots: [], farm: null };
 let redTo = 0, tool = 'auto', hoverIdx = -1, painting = false, lastPaint = -1, mouse = { x: 0, y: 0, in: false };
 let started = false, dogBarkUntil = 0, sideTab = 'nearby';
@@ -36,21 +36,43 @@ const themeOf = id => (CFG.THEMES.find(t => t.id === id) || CFG.THEMES[0]).th;
 const unlockedCount = () => S ? S.plots.filter(p => p.u && p.idx < CFG.NPLOTS).length : RULES.startPlots;
 const isFriend = id => FR.list.some(f => f.id === id);
 
-/* ============ 音效 ============ */
-let AC = null, master = null, musicTimer = null;
-function ac() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.8; master.connect(AC.destination); } catch (e) { } } if (AC && AC.state === 'suspended') AC.resume(); return AC; }
+/* ============ 声音（v3.3）============
+   - 背景音乐和操作音效是两个独立开关，各有音量（PREF.music / PREF.sound，PREF.mvol / PREF.svol 0~100）
+   - 背景音乐是原创的乡村小调，用 Web Audio 现场合成：低音“嘣-恰”、拨弦和弦、口哨主旋律、沙锤，还有小鸟叫。不用外部音频文件，没有版权问题
+   - iPhone：静音拨片打开时网页声音会被系统静掉，所以在第一次点击时把音频会话切到「播放」类型，并在后台循环一段无声音频；微信内置浏览器同样处理 */
+let AC = null, master = null, sfxBus = null, musBus = null, musicTimer = null;
+const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const vol01 = v => Math.max(0, Math.min(100, v === undefined ? 75 : +v)) / 100;
+function applyVol() { if (!AC) return; const t = AC.currentTime; sfxBus.gain.setTargetAtTime(PREF.sound ? 0.9 * vol01(PREF.svol) : 0, t, 0.03); musBus.gain.setTargetAtTime(PREF.music ? 0.75 * vol01(PREF.mvol) : 0, t, 0.25); }
+function ac() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); const comp = AC.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; master = AC.createGain(); master.gain.value = 0.9; master.connect(comp); comp.connect(AC.destination); sfxBus = AC.createGain(); musBus = AC.createGain(); sfxBus.connect(master); musBus.connect(master); sfxBus.gain.value = 0; musBus.gain.value = 0; applyVol(); } catch (e) { AC = null; } }
+  if (AC && AC.state !== 'running') { try { AC.resume(); } catch (e) { } } return AC;
+}
+let silentEl = null;
+function unlockAudio() {
+  const a = ac(); if (!a) return;
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
+  try { const b = a.createBuffer(1, 1, 22050), s = a.createBufferSource(); s.buffer = b; s.connect(a.destination); s.start(0); } catch (e) { }
+  if (IOS && !silentEl && (PREF.sound || PREF.music)) { try { const n = 4000, buf = new ArrayBuffer(44 + n), v = new DataView(buf), w = (o, t) => { for (let k = 0; k < t.length; k++) v.setUint8(o + k, t.charCodeAt(k)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true); for (let k = 0; k < n; k++) v.setUint8(44 + k, 128);
+    silentEl = document.createElement('audio'); silentEl.setAttribute('playsinline', ''); silentEl.setAttribute('x-webkit-airplay', 'deny'); silentEl.loop = true; silentEl.preload = 'auto'; silentEl.src = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })); silentEl.play().catch(() => { silentEl = null; }); } catch (e) { silentEl = null; } }
+  startMusic();
+}
+['pointerup', 'touchend', 'click', 'keydown'].forEach(n => document.addEventListener(n, () => { if (!AC || AC.state !== 'running' || (IOS && !silentEl && (PREF.sound || PREF.music))) unlockAudio(); }, { passive: true, capture: true }));
+document.addEventListener('WeixinJSBridgeReady', () => { try { ac(); } catch (e) { } }, false);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && AC && AC.state !== 'running') { try { AC.resume(); } catch (e) { } } });
 function tone(f, d, type, vol, delay, slide) {
   if (!PREF.sound) return; const a = ac(); if (!a) return;
   const t0 = a.currentTime + (delay || 0), o = a.createOscillator(), g = a.createGain();
   o.type = type || 'sine'; o.frequency.setValueAtTime(f, t0); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t0 + d);
   g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol || 0.1, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
-  o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + d + 0.05);
+  o.connect(g); g.connect(sfxBus); o.start(t0); o.stop(t0 + d + 0.05);
 }
 function noise(d, vol, f0, f1) {
   if (!PREF.sound) return; const a = ac(); if (!a) return; const n = Math.floor(a.sampleRate * d), buf = a.createBuffer(1, n, a.sampleRate), ch = buf.getChannelData(0);
   for (let i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n);
   const s = a.createBufferSource(); s.buffer = buf; const fl = a.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.setValueAtTime(f0, a.currentTime); fl.frequency.exponentialRampToValueAtTime(f1, a.currentTime + d);
-  const g = a.createGain(); g.gain.value = vol; s.connect(fl); fl.connect(g); g.connect(master); s.start();
+  const g = a.createGain(); g.gain.value = vol; s.connect(fl); fl.connect(g); g.connect(sfxBus); s.start();
 }
 const SFX = {
   click: () => tone(660, 0.06, 'triangle', 0.06),
@@ -68,26 +90,89 @@ const SFX = {
   rain: () => { noise(1.4, 0.12, 5000, 2500); },
   open: () => { tone(520, 0.08, 'triangle', 0.05); tone(780, 0.1, 'triangle', 0.05, 0.05); },
   golden: () => { [784, 988, 1175, 1568, 1976].forEach((f, i) => tone(f, 0.25, 'triangle', 0.07, i * 0.07)); },
+  on: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.2, 'triangle', 0.09, i * 0.08)); },
 };
 function sfx(n) { try { SFX[n] && SFX[n](); } catch (e) { } }
+
+/* ---- 背景音乐：《丰收小调》（原创），C 大调，116 拍/分，32 小节循环（A A' B A），约 66 秒 ---- */
+const MUS = (() => {
+  const CH = { C: [60, 64, 67], F: [60, 65, 69], G: [59, 62, 67], Am: [60, 64, 69] }, ROOT = { C: 48, F: 41, G: 43, Am: 45 };
+  const A = ['C', 'F', 'G', 'C', 'Am', 'F', 'G', 'C'], B = ['F', 'C', 'G', 'Am', 'F', 'C', 'G', 'C'];
+  const mA = [[76, 2], [79, 1], [76, 1], [72, 2], [74, 1], [76, 1], [77, 2], [81, 1], [77, 1], [72, 2], [0, 1], [72, 1], [74, 1], [76, 1], [77, 1], [79, 1], [81, 1], [79, 1], [77, 1], [74, 1], [76, 3], [72, 1], [67, 4],
+    [69, 1], [72, 1], [76, 2], [81, 2], [79, 1], [76, 1], [77, 2], [76, 1], [74, 1], [72, 2], [69, 2], [71, 1], [74, 1], [79, 2], [77, 1], [74, 1], [71, 2], [72, 4], [0, 2], [67, 1], [71, 1]];
+  const mB = [[84, 2], [81, 2], [77, 2], [81, 2], [79, 2], [76, 1], [79, 1], [84, 4], [83, 1], [81, 1], [79, 2], [74, 2], [79, 2], [81, 3], [79, 1], [76, 4],
+    [77, 1], [79, 1], [81, 2], [84, 2], [81, 2], [79, 2], [76, 2], [72, 2], [76, 2], [74, 1], [76, 1], [77, 1], [74, 1], [71, 2], [74, 2], [72, 6], [0, 2]];
+  const sec = [[A, mA, 'whistle'], [A, mA, 'marimba'], [B, mB, 'whistle'], [A, mA, 'whistle']], chords = [], mel = [];
+  sec.forEach(([cs, m, v], si) => { const b0 = si * 64; cs.forEach((c, k) => chords[si * 8 + k] = c); let p = 0; m.forEach(([n, d]) => { if (n) mel.push({ at: b0 + p, n, d, v }); p += d; }); });
+  return { chords, mel, len: 256, step: 60 / 116 / 2 };
+})();
+const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
+let musPos = 0, musNext = 0, musEcho = null, noiseBuf = null;
+function musVoice(a, f, t, d, kind, vol) {
+  const o = a.createOscillator(), g = a.createGain(); let out = g;
+  if (kind === 'whistle') { o.type = 'sine'; const lfo = a.createOscillator(), lg = a.createGain(); lfo.frequency.value = 5.6; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * 0.012, t + 0.25); lfo.connect(lg); lg.connect(o.frequency); lfo.start(t); lfo.stop(t + d + 0.3);
+    o.frequency.setValueAtTime(f * 0.985, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.05); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.03); g.gain.setValueAtTime(vol, t + Math.max(0.04, d - 0.08)); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.12); }
+  else if (kind === 'marimba') { o.type = 'sine'; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol * 1.3, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55); const o2 = a.createOscillator(), g2 = a.createGain(); o2.frequency.value = f * 4; g2.gain.setValueAtTime(vol * 0.35, t); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.08); o2.connect(g2); g2.connect(musBus); o2.start(t); o2.stop(t + 0.1); d = 0.5; }
+  else if (kind === 'pluck') { o.type = 'triangle'; const fl = a.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(2600, t); fl.frequency.exponentialRampToValueAtTime(700, t + 0.25); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32); o.connect(fl); fl.connect(g); g.connect(musBus); o.frequency.value = f; o.start(t); o.stop(t + 0.36); return; }
+  else { o.type = 'triangle'; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d); }
+  if (kind !== 'whistle') o.frequency.value = f;
+  o.connect(g); g.connect(musBus); if ((kind === 'whistle' || kind === 'marimba') && musEcho) g.connect(musEcho); o.start(t); o.stop(t + d + 0.2);
+}
+function musPerc(a, t, kind) {
+  if (!noiseBuf) { const n = a.sampleRate * 0.2; noiseBuf = a.createBuffer(1, n, a.sampleRate); const ch = noiseBuf.getChannelData(0); for (let i = 0; i < n; i++) ch[i] = Math.random() * 2 - 1; }
+  if (kind === 'kick') { const o = a.createOscillator(), g = a.createGain(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.12); g.gain.setValueAtTime(0.32, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16); o.connect(g); g.connect(musBus); o.start(t); o.stop(t + 0.18); return; }
+  const s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain(); s.buffer = noiseBuf; fl.type = 'highpass'; fl.frequency.value = kind === 'clap' ? 1500 : 6500; const v = kind === 'clap' ? 0.06 : kind === 'shk2' ? 0.035 : 0.018, d = kind === 'clap' ? 0.09 : 0.05;
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); s.connect(fl); fl.connect(g); g.connect(musBus); s.start(t); s.stop(t + d + 0.01);
+}
+function musBird(a, t) { [0, 0.13].forEach(k => { const o = a.createOscillator(), g = a.createGain(); o.frequency.setValueAtTime(2900, t + k); o.frequency.exponentialRampToValueAtTime(4200, t + k + 0.07); g.gain.setValueAtTime(0.0001, t + k); g.gain.exponentialRampToValueAtTime(0.03, t + k + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + k + 0.09); o.connect(g); g.connect(musBus); o.start(t + k); o.stop(t + k + 0.1); }); }
+function musStep(a, i, t) {
+  const bar = i >> 3, e = i & 7, c = MUS.chords[bar], ch = MUS.step;
+  if (e === 0 || e === 4) { musVoice(a, mtof(MUS_ROOT(c) + (e === 4 ? 7 : 0)), t, ch * 1.7, 'bass', 0.2); musPerc(a, t, 'kick'); }
+  if (e === 2 || e === 6) { CH_OF(c).forEach((n, k) => musVoice(a, mtof(n), t + k * 0.012, 0, 'pluck', 0.05)); musPerc(a, t, 'clap'); }
+  if (e === 3 || e === 7) CH_OF(c).forEach((n, k) => musVoice(a, mtof(n + 12), t + k * 0.01, 0, 'pluck', 0.025));
+  musPerc(a, t, e % 2 ? 'shk2' : 'shk');
+  MUS.mel.forEach(m => { if (m.at === i) musVoice(a, mtof(m.n), t, m.d * ch * 0.92, m.v, m.v === 'whistle' ? 0.075 : 0.09); });
+  if ((i % 64 === 60 || i % 64 === 30) && Math.random() < 0.7) musBird(a, t + ch * 0.5);
+}
+const CH_OF = c => ({ C: [60, 64, 67], F: [60, 65, 69], G: [59, 62, 67], Am: [60, 64, 69] })[c], MUS_ROOT = c => ({ C: 48, F: 41, G: 43, Am: 45 })[c];
 function startMusic() {
-  if (musicTimer || !PREF.music) return; const notes = [262, 294, 330, 392, 440, 523, 587, 659]; let i = 0, last = 3;
-  musicTimer = setInterval(() => {
-    if (!PREF.music || !PREF.sound || document.hidden) return; const a = ac(); if (!a) return;
-    last = clamp(last + pick([-2, -1, -1, 0, 1, 1, 2]), 0, notes.length - 1); const f = notes[last], t0 = a.currentTime;
-    const o = a.createOscillator(), g = a.createGain(), fl = a.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 1600;
-    o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.024, t0 + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.8);
-    o.connect(fl); fl.connect(g); g.connect(master); o.start(t0); o.stop(t0 + 1.9);
-    if (i % 4 === 0) { const o2 = a.createOscillator(), g2 = a.createGain(); o2.type = 'triangle'; o2.frequency.value = f / 2; g2.gain.setValueAtTime(0.0001, t0); g2.gain.exponentialRampToValueAtTime(0.02, t0 + 0.08); g2.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.4); o2.connect(g2); g2.connect(master); o2.start(t0); o2.stop(t0 + 2.5); }
-    i++;
-  }, 900);
+  if (musicTimer || !PREF.music) return; const a = ac(); if (!a) return; applyVol();
+  if (!musEcho) { const dl = a.createDelay(1), fb = a.createGain(), wet = a.createGain(); dl.delayTime.value = MUS.step * 3; fb.gain.value = 0.22; wet.gain.value = 0.16; dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(musBus); musEcho = dl; }
+  musNext = a.currentTime + 0.15;
+  musicTimer = setInterval(() => { if (!PREF.music) { stopMusic(); return; } if (document.hidden || a.state !== 'running') { musNext = a.currentTime + 0.15; return; }
+    if (musNext < a.currentTime - 0.3) musNext = a.currentTime + 0.05; while (musNext < a.currentTime + 0.25) { musStep(a, musPos, musNext); musPos = (musPos + 1) % MUS.len; musNext += MUS.step; } }, 60);
+}
+function stopMusic() { clearInterval(musicTimer); musicTimer = null; applyVol(); }
+/* 声音状态改变：立刻听到 / 看到反馈 */
+function setSound(patch, quiet) {
+  const was = { m: PREF.music, s: PREF.sound }; savePref(patch); ac(); applyVol(); renderHud(); renderSndPop();
+  if (patch.music !== undefined && patch.music !== was.m) { if (PREF.music) { startMusic(); if (!quiet) toast('背景音乐已开启'); } else { stopMusic(); if (!quiet) toast('背景音乐已关闭'); } }
+  if (patch.sound !== undefined && patch.sound !== was.s) { if (PREF.sound) { sfx('on'); if (!quiet) toast('操作音效已开启'); } else if (!quiet) toast('操作音效已关闭'); }
+}
+function sndState() { return PREF.music && PREF.sound ? 'on' : PREF.music || PREF.sound ? 'half' : 'off'; }
+function renderSndPop() {
+  const el = $('sndpop'); if (!el || !el.classList.contains('show')) return;
+  const sw = (id, on) => `<button class="sw${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on}"><i></i><span>${on ? '开' : '关'}</span></button>`;
+  el.innerHTML = `<div class="sp-h">${ICON(sndState() === 'off' ? 'mute' : 'sound')}<b>${({ on: '声音已开启', half: PREF.music ? '只开了背景音乐' : '只开了操作音效', off: '声音已关闭' })[sndState()]}</b></div>
+    <div class="sp-r"><span>${ICON('music')}背景音乐</span>${sw('sp-m', PREF.music)}</div><input type="range" min="0" max="100" step="5" id="sp-mv" value="${PREF.mvol === undefined ? 70 : PREF.mvol}" ${PREF.music ? '' : 'disabled'} aria-label="背景音乐音量">
+    <div class="sp-r"><span>${ICON('sound')}操作音效</span>${sw('sp-s', PREF.sound)}</div><input type="range" min="0" max="100" step="5" id="sp-sv" value="${PREF.svol === undefined ? 80 : PREF.svol}" ${PREF.sound ? '' : 'disabled'} aria-label="操作音效音量">
+    <div class="sp-b"><button class="btn sm" id="sp-all">${sndState() === 'off' ? '全部打开' : '全部静音'}</button></div>`;
+  $('sp-m').onclick = () => setSound({ music: !PREF.music }); $('sp-s').onclick = () => setSound({ sound: !PREF.sound });
+  $('sp-all').onclick = () => { const on = sndState() === 'off'; setSound({ music: on, sound: on }, true); toast(on ? '声音已开启' : '声音已关闭'); };
+  let vt = 0; const vol = (id, k) => { const r = $(id); r.oninput = () => { PREF[k] = Math.round(+r.value); applyVol(); }; r.onchange = () => { clearTimeout(vt); vt = setTimeout(() => savePref({ [k]: PREF[k] }), 300); if (k === 'svol') sfx('click'); }; }; vol('sp-mv', 'mvol'); vol('sp-sv', 'svol');
+}
+function toggleSndPop(force) {
+  let el = $('sndpop'); if (!el) { el = document.createElement('div'); el.id = 'sndpop'; document.body.appendChild(el); document.addEventListener('pointerdown', e => { if (el.classList.contains('show') && !el.contains(e.target) && !$('btn-snd').contains(e.target)) el.classList.remove('show'); }); }
+  const show = force === undefined ? !el.classList.contains('show') : force; el.classList.toggle('show', show); if (show) { const r = $('btn-snd').getBoundingClientRect(); el.style.top = Math.round(r.bottom + 8) + 'px'; el.style.right = Math.max(8, Math.round(window.innerWidth - r.right - 8)) + 'px'; renderSndPop(); }
 }
 
 /* ============ 提示 ============ */
-function toast(msg, kind) {
-  const d = document.createElement('div'); d.className = 'toast' + (kind ? ' ' + kind : ''); d.textContent = msg; $('toasts').appendChild(d);
+/* act = { label, fn }：提示条上带一个按钮（比如「去看看」），停留更久，玩家自己决定点不点 */
+function toast(msg, kind, act) {
+  const d = document.createElement('div'); d.className = 'toast' + (kind ? ' ' + kind : '') + (act ? ' act' : ''); d.textContent = msg; $('toasts').appendChild(d);
+  if (act) { const b = document.createElement('button'); b.textContent = act.label; b.onclick = e => { e.stopPropagation(); d.remove(); act.fn(); }; d.appendChild(b); }
   while ($('toasts').children.length > 4) $('toasts').firstChild.remove();
-  setTimeout(() => d.remove(), 2800);
+  setTimeout(() => d.remove(), act ? 5600 : 2800);
 }
 const FX = W3.fx;
 
@@ -115,7 +200,7 @@ async function refreshState() { try { const r = await NET.get('/api/state'); app
 function applyState(st) {
   if (st && st.me && W3.ready) W3.setHero((() => { const a = st.me.avatar || {}, A = CFG.AVATAR_OPTS; return { skin: A.skin[a.skin | 0], hair: A.hair[a.hair | 0], shirt: A.shirt[a.shirt | 0], band: A.band[a.band | 0], hat: a.hat ? 1 : 0 }; })());
   const prevUnread = S ? S.badges.unread : 0;
-  S = st; PREF = Object.assign({ sound: true, music: true, notify: false, tod: 'auto', tut: 0 }, S.me.settings || {});
+  S = st; PREF = Object.assign({ sound: true, music: true, notify: false, tod: 'auto', tut: 0, mvol: 70, svol: 80, pan: 0 }, S.me.settings || {}); applyVol(); if (!PREF.music) stopMusic();
   if (view.key === 'home') view.plots = S.plots;
   renderHud(); renderToolbar(); renderTitle(); renderSide();
   if (S.badges.unread > prevUnread) { loadMessages(true); loadFriends(); }
@@ -284,7 +369,7 @@ function renderHud() {
   const pct = me.lv >= RULES.maxLv ? 100 : me.exp / me.expNeed * 100; $('expfill').style.width = pct + '%'; $('exptext').textContent = me.lv >= RULES.maxLv ? '满级' : `${Math.floor(me.exp)} / ${me.expNeed}`;
   const g = $('goldnum'); if (g.textContent !== fmt(me.gold)) { g.textContent = fmt(me.gold); $('gold').classList.remove('bump'); void $('gold').offsetWidth; $('gold').classList.add('bump'); }
   drawAvatar($('avatar'), avStyle(me.avatar)); const fc = frameColor(me.frame); $('avatar').style.boxShadow = fc ? `0 0 0 2px ${fc}, 0 0 10px ${fc}` : '';
-  $('btn-snd').innerHTML = ICON(PREF.sound ? 'sound' : 'mute');
+  { const st = sndState(), b = $('btn-snd'); b.innerHTML = ICON(st === 'off' ? 'mute' : 'sound') + `<em class="sndst ${st}">${st === 'off' ? '关' : '开'}</em>`; b.className = 'snd-' + st; b.title = ({ on: '声音已开启（点击调节）', half: '部分声音已开启（点击调节）', off: '声音已关闭（点击打开）' })[st]; b.setAttribute('aria-label', b.title); }
 }
 // 切换到某片田：俯视时镜头移过去；漫游时人物走过去太远，直接传送到那片田边
 function setField(f) { const nf = Math.ceil((view.plots || []).length / CFG.NPLOTS); f = Math.max(0, Math.min(nf - 1, f | 0)); W3.setField(f); if (W3.mode === 'walk') { const [x, z] = W3.fieldCenter(f); W3.teleport(x, z + 6.2, 0); } renderTitle(); }
@@ -353,15 +438,37 @@ function renderFriends() {
 
 /* ============ 弹窗基础 ============ */
 let modalStack = null;
-function openModal(html, opt) {
-  opt = opt || {}; const m = $('modal'); m.className = opt.small ? 'small' : opt.wide ? 'wide' : ''; m.innerHTML = (opt.noclose ? '' : `<button class="x" onclick="closeModal()">${ICON('close')}</button>`) + html; $('mback').classList.add('show'); $('mback').dataset.noclose = opt.noclose ? '1' : ''; sfx('open'); if (opt.mount) opt.mount(); modalStack = opt.onclose || null;
+/* v3.3：同一个弹窗（同标题、同标签页）刷新时保留滚动位置、输入的文字和焦点，买东西不会跳回顶部 */
+const modalKey = root => { const h = root.querySelector('h2'), t = root.querySelector('.tabs .on'); return h ? h.textContent + '|' + (t ? t.textContent.replace(/\d+$/, '') : '') : ''; };
+function modalSnap(m) {
+  const sc = [], inp = {}; [m, ...m.querySelectorAll('*')].forEach((el, i) => { if (el.scrollTop > 0 || el.scrollLeft > 0) sc.push([el === m ? '' : el.className + '#' + (el.id || ''), el.scrollTop, el.scrollLeft]); });
+  m.querySelectorAll('input[id],textarea[id],select[id]').forEach(el => { if (el.type !== 'checkbox' && el.type !== 'radio') inp[el.id] = el.value; else inp[el.id] = el.checked; });
+  const f = document.activeElement && m.contains(document.activeElement) && document.activeElement.id ? document.activeElement.id : null;
+  return { key: modalKey(m), sc, inp, f };
 }
-function closeModal(force) { if ($('mback').dataset.noclose === '1' && !force) return; $('mback').classList.remove('show'); $('mback').dataset.noclose = ''; const f = modalStack; modalStack = null; if (f) f(); }
+function modalRestore(m, st) {
+  Object.keys(st.inp).forEach(id => { const el = document.getElementById(id); if (!el || !m.contains(el) || el.disabled) return; if (el.type === 'checkbox' || el.type === 'radio') el.checked = st.inp[id]; else if (el.type !== 'range') el.value = st.inp[id]; });
+  const seen = {}; st.sc.forEach(([k, t, l]) => { let el; if (k === '') el = m; else { const [cls, id] = k.split('#'); if (id) el = document.getElementById(id); else { seen[cls] = (seen[cls] || 0); el = [...m.querySelectorAll('*')].filter(x => x.className === cls)[seen[cls]++]; } } if (el) { el.scrollTop = t; el.scrollLeft = l; } });
+  if (st.f) { const el = document.getElementById(st.f); if (el && !el.disabled) try { el.focus({ preventScroll: true }); } catch (e) { /* 旧浏览器 */ } }
+}
+function openModal(html, opt) {
+  opt = opt || {}; const m = $('modal'), shown = $('mback').classList.contains('show'), st = shown ? modalSnap(m) : null;
+  m.className = opt.small ? 'small' : opt.wide ? 'wide' : ''; m.innerHTML = (opt.noclose ? '' : `<button class="x" onclick="closeModal()">${ICON('close')}</button>`) + html; if (m.querySelector(':scope > .list')) m.classList.add('haslist'); $('mback').classList.add('show'); document.body.classList.add('mopen'); $('mback').dataset.noclose = opt.noclose ? '1' : '';
+  const same = st && st.key && st.key === modalKey(m); if (!same) sfx('open');
+  if (opt.mount) opt.mount(); if (same) modalRestore(m, st); else m.scrollTop = 0; modalStack = opt.onclose || null;
+}
+function closeModal(force) { if ($('mback').dataset.noclose === '1' && !force) return; $('mback').classList.remove('show'); document.body.classList.remove('mopen'); $('mback').dataset.noclose = ''; const f = modalStack; modalStack = null; if (f) f(); }
 const iconImg = id => `<img class="cimg" src="${cropIcon(id)}">`;
 const itemIcon = item => { const ri = CFG.ranchItem(item); if (ri) { const d = ri.kind === 'fish' ? CFG.FISH[ri.id] : ri.kind === 'wool' ? CFG.SHEEP[ri.id] : CFG.TREES[ri.id]; return `<span class="ii emo" style="color:${ri.kind === 'wool' ? (d.body === '#fbf8f0' ? '#e8e0d0' : d.body) : d.col}">${ICON(ri.kind === 'fish' ? 'fish' : ri.kind === 'wool' ? 'sheep' : 'leaf')}</span>`; } if (['ffeed', 'sfeed', 'tfert'].includes(item)) return `<span class="ii emo">${ICON(item === 'ffeed' ? 'fish' : item === 'sfeed' ? 'sheep' : 'drop')}</span>`; const c = cropOf(item); if (c) return `<span class="ii${c.golden ? ' gold' : ''}"><img class="cimg" src="${cropIcon(c.id, c.golden)}"></span>`; return `<span class="ii emo">${ICON(item === 'fert' ? 'flask' : item === 'dogfood' ? 'paw' : 'box')}</span>`; };
 const avHtml = (av, frame, size) => { const fc = frameColor(frame); return `<img class="av" src="${avURL(av)}" style="width:${size || 40}px;height:${size || 40}px;${fc ? `box-shadow:0 0 0 2px ${fc}` : ''}">`; };
 function levelUp(lv) {
   sfx('level'); const unlocked = CROPS.filter(c => c.lv === lv);
+  /* 正在买东西时升级：不要盖掉当前弹窗，用提示条告诉玩家，可以点「看看」再打开升级详情 */
+  if ($('mback').classList.contains('show') && !$('modal').querySelector('.lvup')) { toast(`升到 Lv.${lv} 了！获得 ${lv * 120} 金币${unlocked.length ? `，解锁 ${unlocked.map(c => c.name).join('、')}` : ''}`, 'lv', { label: '看看', fn: () => { closeModal(); levelUpPop(lv); } }); return; }
+  levelUpPop(lv);
+}
+function levelUpPop(lv) {
+  const unlocked = CROPS.filter(c => c.lv === lv);
   openModal(`<div class="lvup"><div class="lvring"><span>Lv.${lv}</span></div><h2>等级提升</h2>
     <p>获得 <b class="gold">${lv * 120}</b> 金币 和 <b>化肥 ×1</b></p>
     ${CFG.DOGS.filter(d => d.lv === lv).map(d => `<div class="unl">可以领养 <b>${d.name}</b> 了！点农场右边的狗窝，或者 商店 → 宠物</div>`).join('')}
@@ -401,6 +508,7 @@ function frame(now) {
   rainK += ((raining ? 1 : 0) - rainK) * Math.min(1, dt * 1.2);
   const home = view.key === 'home';
   W3.setTheme(themeOf(home ? (S ? S.me.theme : 'classic') : view.friend.theme)); W3.setDog(dogMode()); W3.setRanch(ranch3d()); W3.setPets(view.key === 'home' ? (S && S.me.pets || []) : ((view.friend && view.friend.pets) || [])); W3.setEnv(curHour(), rainK);
+  { const pn = W3.mode !== 'walk' && W3.panned; if (pn !== document.body.classList.contains('panned')) document.body.classList.toggle('panned', pn); }
   W3.setPlots(view.plots, home); W3.setHover(mouse.in || painting ? hoverIdx : -1); W3.render(dt);
   updateTip(); updateWalkUi(); requestAnimationFrame(frame);
 }
@@ -461,19 +569,43 @@ function paintAt(ev, first) {
   if (first) { paintQ.push({ i, first: true }); runPaint(); } else if (view.key === 'home' && view.plots[i].u && !paintQ.some(q => q.i === i)) { paintQ.push({ i, first: false }); runPaint(); }
 }
 let tipTimer = 0;
-const touches = new Map(); let pinch0 = 0;
+const touches = new Map(); let pinch0 = 0, pinchM = null;
 cv.addEventListener('pointerdown', ev => { if (ev.pointerType === 'touch') { touches.set(ev.pointerId, ev); if (touches.size === 2) { painting = false; paintQ.length = 0; const [a, b] = [...touches.values()]; pinch0 = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); return; } } });
-cv.addEventListener('pointermove', ev => { if (ev.pointerType === 'touch' && touches.has(ev.pointerId)) { touches.set(ev.pointerId, ev); if (touches.size === 2 && pinch0) { const [a, b] = [...touches.values()], d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); W3.zoomBy(pinch0 / d); pinch0 = d; } } });
-['pointerup', 'pointercancel'].forEach(n => cv.addEventListener(n, ev => { touches.delete(ev.pointerId); if (touches.size < 2) pinch0 = 0; }));
+cv.addEventListener('pointermove', ev => { if (ev.pointerType === 'touch' && touches.has(ev.pointerId)) { touches.set(ev.pointerId, ev); if (touches.size === 2 && pinch0) { const [a, b] = [...touches.values()], d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), mx = (a.clientX + b.clientX) / 2, my = (a.clientY + b.clientY) / 2; W3.zoomBy(pinch0 / d); pinch0 = d; if (W3.mode !== 'walk' && pinchM) W3.panBy(mx - pinchM[0], my - pinchM[1]); pinchM = [mx, my]; } } });
+['pointerup', 'pointercancel'].forEach(n => cv.addEventListener(n, ev => { touches.delete(ev.pointerId); if (touches.size < 2) { pinch0 = 0; pinchM = null; } }));
 // 漫游模式：拖动转镜头，轻点地块直接操作
 const drag = { on: false, x: 0, y: 0, moved: 0, id: -1 };
 cv.addEventListener('pointerdown', ev => { if (W3.mode !== 'walk') return; if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) { drag.on = false; return; } drag.on = true; drag.x = ev.clientX; drag.y = ev.clientY; drag.moved = 0; drag.id = ev.pointerId; ac(); startMusic(); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
 cv.addEventListener('pointermove', ev => { if (W3.mode !== 'walk') return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); if (!drag.on || ev.pointerId !== drag.id || touches.size > 1) return; const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y; drag.moved += Math.abs(dx) + Math.abs(dy); drag.x = ev.clientX; drag.y = ev.clientY; W3.orbit(dx * 0.0065, dy * 0.0045); });
 cv.addEventListener('pointerup', ev => { if (W3.mode !== 'walk') return; if (drag.on && ev.pointerId === drag.id && drag.moved < 8 && touches.size < 2) { const i = W3.pick(ev.clientX, ev.clientY); if (i >= 0) clickPlot(i, true); else if (i <= -10) pickSpecial(i); } drag.on = false; if (ev.pointerType !== 'mouse') { mouse.in = false; hoverIdx = -1; } });
-cv.addEventListener('pointerdown', ev => { if (W3.mode === 'walk') return; if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) return; painting = true; lastPaint = -1; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, true); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
-cv.addEventListener('pointermove', ev => { if (W3.mode === 'walk') return; if (touches.size > 1) return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); if (painting) paintAt(ev, false); updateCursor(); });
-cv.addEventListener('pointerup', ev => { painting = false; lastPaint = -1; if (ev.pointerType !== 'mouse') { clearTimeout(tipTimer); tipTimer = setTimeout(() => { mouse.in = false; hoverIdx = -1; updateCursor(); }, 1600); } });
-cv.addEventListener('pointercancel', () => { painting = false; });
+/* 俯视模式（v3.3）：
+   - 按住拖动 = 平移地图（鼠标左键 / 单指），不会碰到任何地块
+   - 轻点（移动不到 8 像素就松开）= 操作那块地
+   - 按住不动 0.4 秒后再拖 = 连续操作（以前的「刷地」玩法），会有震动 / 光圈提示
+   - 双指 = 缩放 + 平移；鼠标滚轮缩放 */
+const tdrag = { on: false, id: -1, x: 0, y: 0, sx: 0, sy: 0, moved: 0, t: 0, hold: 0, paint: false, pan: false };
+/* 用事件自带的时间戳判断「按住多久才开始移动」，就算手机一时卡顿、事件排队，也不会把拖地图误判成连续操作 */
+const HOLD_MS = 420;
+cv.addEventListener('pointerdown', ev => { if (W3.mode === 'walk') return; if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) { tdrag.on = false; clearTimeout(tdrag.hold); return; }
+  Object.assign(tdrag, { on: true, id: ev.pointerId, x: ev.clientX, y: ev.clientY, sx: ev.clientX, sy: ev.clientY, moved: 0, t: ev.timeStamp, paint: false, pan: false }); ac(); startMusic();
+  mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY);
+  clearTimeout(tdrag.hold); tdrag.hold = setTimeout(() => { if (!tdrag.on || tdrag.pan || tdrag.moved >= 8 || touches.size > 1) return; const i = W3.pick(tdrag.sx, tdrag.sy); if (i < 0 || view.key !== 'home') return; cv.classList.add('painting'); try { navigator.vibrate && navigator.vibrate(18); } catch (e) { } }, HOLD_MS);
+  try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
+cv.addEventListener('pointermove', ev => { if (W3.mode === 'walk') return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true;
+  if (touches.size > 1) { tdrag.on = false; clearTimeout(tdrag.hold); return; }
+  if (tdrag.on && ev.pointerId === tdrag.id) { const dx = ev.clientX - tdrag.x, dy = ev.clientY - tdrag.y; tdrag.x = ev.clientX; tdrag.y = ev.clientY; tdrag.moved = Math.max(tdrag.moved, Math.hypot(ev.clientX - tdrag.sx, ev.clientY - tdrag.sy));
+    if (!tdrag.paint && !tdrag.pan && tdrag.moved >= 8) { clearTimeout(tdrag.hold); const i0 = W3.pick(tdrag.sx, tdrag.sy);
+      if (ev.timeStamp - tdrag.t >= HOLD_MS && i0 >= 0 && view.key === 'home') { tdrag.paint = true; painting = true; lastPaint = -1; cv.classList.add('painting'); paintAt({ clientX: tdrag.sx, clientY: tdrag.sy }, true); }
+      else { tdrag.pan = true; cv.classList.remove('painting'); cv.classList.add('panning'); } }
+    if (tdrag.paint) { hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, false); }
+    else if (tdrag.pan) { hoverIdx = -1; W3.panBy(dx, dy); }
+  } else hoverIdx = W3.pick(ev.clientX, ev.clientY);
+  updateCursor(); });
+cv.addEventListener('pointerup', ev => { if (W3.mode === 'walk') return; clearTimeout(tdrag.hold); cv.classList.remove('panning', 'painting');
+  if (tdrag.on && ev.pointerId === tdrag.id && !tdrag.paint && !tdrag.pan && tdrag.moved < 8 && touches.size < 2) { hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, true); }
+  tdrag.on = false; tdrag.paint = false; tdrag.pan = false; painting = false; lastPaint = -1;
+  if (ev.pointerType !== 'mouse') { clearTimeout(tipTimer); tipTimer = setTimeout(() => { mouse.in = false; hoverIdx = -1; updateCursor(); }, 1600); } });
+cv.addEventListener('pointercancel', () => { painting = false; tdrag.on = false; tdrag.paint = false; clearTimeout(tdrag.hold); cv.classList.remove('panning', 'painting'); });
 cv.addEventListener('pointerleave', () => { if (painting) return; mouse.in = false; hoverIdx = -1; updateCursor(); });
 cv.addEventListener('contextmenu', e => { e.preventDefault(); tool = 'auto'; renderToolbar(); updateCursor(); });
 function updateCursor() {
@@ -516,6 +648,7 @@ async function enterGame(state, fresh) {
   checkMigrate(fresh);
   try { NET.post('/api/telemetry', { loadMs: Math.round(performance.now()) }).catch(() => { }); } catch (e) { }
   if (window.innerWidth < 600 && window.innerHeight > window.innerWidth) setTimeout(() => toast('横屏体验更好'), 1500);
+  if (!PREF.pan) setTimeout(() => { if (W3.mode === 'walk') return; toast('新功能：按住拖动可以查看整个农场，轻点地块才会操作；双指或滚轮缩放'); savePref({ pan: 1 }); }, 3500);
 }
 function checkMigrate(fresh) {
   let old = null; try { old = JSON.parse(localStorage.getItem('harvest_farm_save_v1') || 'null'); } catch (e) { }
@@ -544,7 +677,8 @@ function bindGlobal() {
   $('mback').addEventListener('pointerdown', e => { if (e.target === $('mback')) closeModal(); });
   $('btn-help').innerHTML = ICON('help'); $('btn-menu').innerHTML = ICON('gear'); $('btn-snd').innerHTML = ICON('sound'); $('todbtn').innerHTML = ICON('cloudsun'); $('coinico').innerHTML = ICON('coin');
   $('btn-help').onclick = () => { ac(); openHelp(); }; $('btn-menu').onclick = () => { ac(); openMenu(); };
-  $('btn-snd').onclick = () => { ac(); savePref({ sound: !PREF.sound }); renderHud(); if (PREF.sound) { startMusic(); sfx('click'); } };
+  $('btn-snd').onclick = () => { ac(); toggleSndPop(); };
+  $('recenter').innerHTML = ICON('target') + '<span>回到农场中心</span>'; $('recenter').onclick = () => { sfx('click'); W3.resetView(); };
   $('todbtn').onclick = () => { const o = ['auto', 'day', 'dusk', 'night']; savePref({ tod: o[(o.indexOf(PREF.tod) + 1) % 4] }); renderTitle(); sfx('click'); toast(({ auto: '跟随真实时间', day: '白天', dusk: '黄昏', night: '夜晚' })[PREF.tod]); };
   $('card').onclick = () => { if (S) openProfile(); };
   $('log').onclick = () => openMessages();

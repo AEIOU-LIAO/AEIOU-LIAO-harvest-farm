@@ -146,7 +146,7 @@ function openShop(tab) {
       qsa('[data-pet]').forEach(b => b.onclick = async () => { const nm = ($('pc_' + b.dataset.pet).value || '').trim(); if (!nm) { toast('先给它起个名字', 'warn'); $('pc_' + b.dataset.pet).focus(); return; } b.disabled = true; const r = await api('/api/pet/buy', { coat: b.dataset.pet, name: nm }); if (r) { sfx('bark'); toast(`${r.result.name}来到你的农场啦！`); } openShop('dog'); });
       qsa('[data-ren]').forEach(b => b.onclick = async () => { const nm = ($('pn_' + b.dataset.ren).value || '').trim(); if (!nm) return; b.disabled = true; const r = await api('/api/pet/rename', { id: b.dataset.ren, name: nm }); if (r) toast(`改名为 ${r.result.name}`); openShop('dog'); });
       qsa('[data-buy]').forEach(b => b.onclick = async () => { const r = await api('/api/shop/buy', { item: b.dataset.buy, n: +b.dataset.n }); if (r) { sfx('coin'); toast(`购买成功 ×${b.dataset.n}`); openShop('item'); } });
-      const bf = $('buyfield'); if (bf) bf.onclick = async () => { bf.disabled = true; const r = await api('/api/farm/field'); if (r) { sfx('level'); toast(`开辟了第 ${r.result.field + 1} 片农田，多了 24 块地！`); closeModal(true); setField(r.result.field); } else openShop('land'); };
+      const bf = $('buyfield'); if (bf) bf.onclick = async () => { bf.disabled = true; const r = await api('/api/farm/field'); if (r) { const f = r.result.field; sfx('level'); toast(`开辟了第 ${f + 1} 片农田，多了 24 块地！`, 'lv', { label: '查看新农田', fn: () => { closeModal(true); if (view.key !== 'home') goHome(); setField(f); } }); } openShop('land'); };
       const bl = $('buyland'); if (bl) bl.onclick = async () => { if (view.key !== 'home') goHome(); await doExpand(-1); openShop('land'); };
       qsa('[data-soil]').forEach(b => b.onclick = () => { const T = CFG.SOILS[+b.dataset.soil]; closeModal(); if (view.key !== 'home') goHome(); tool = 'red'; redTo = T.id; renderToolbar(); updateCursor(); toast(`点击要升级的地，直接升为${T.name}（低于${CFG.SOILS[T.id - 1].name}的地会一级一级补齐，按每级价格收费；右键或点「自动」取消）`); });
       qsa('[data-dog]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/shop/dog', { kind: b.dataset.dog }); if (r) { sfx('bark'); toast(`${r.result.name}来到你的农场了，送你一份狗粮，记得去仓库喂它`); } openShop('dog'); });
@@ -365,8 +365,9 @@ function openMenu() {
   if (!S) return;
   const row = (t, s, btn) => `<div class="row-item"><div class="ri-main"><b>${t}</b>${s ? `<small>${s}</small>` : ''}</div>${btn}</div>`;
   openModal(`${H2('gear', '设置')}<div class="list">
-    ${row('游戏音效', '', `<button class="btn sm ${PREF.sound ? 'primary' : ''}" id="tsound">${PREF.sound ? '开启' : '关闭'}</button>`)}
-    ${row('背景音乐', '', `<button class="btn sm ${PREF.music ? 'primary' : ''}" id="tmusic">${PREF.music ? '开启' : '关闭'}</button>`)}
+    ${row('操作音效', PREF.sound ? '已开启' : '已关闭', `<button class="sw${PREF.sound ? ' on' : ''}" id="tsound" role="switch" aria-checked="${PREF.sound}"><i></i><span>${PREF.sound ? '开' : '关'}</span></button>`)}
+    ${row('背景音乐', PREF.music ? '已开启' : '已关闭', `<button class="sw${PREF.music ? ' on' : ''}" id="tmusic" role="switch" aria-checked="${PREF.music}"><i></i><span>${PREF.music ? '开' : '关'}</span></button>`)}
+    ${row('音量', '分别调节音乐和音效', `<button class="btn sm" id="tvol">调节</button>`)}
     ${row('昼夜', '', `<button class="btn sm" id="ttod">${({ auto: '跟随时间', day: '白天', dusk: '黄昏', night: '夜晚' })[PREF.tod] || '跟随时间'}</button>`)}
     ${row('成熟 / 被偷提醒', '页面在后台时，用浏览器通知提醒你（默认关闭）', `<button class="btn sm ${PREF.notify ? 'primary' : ''}" id="tnotify">${PREF.notify ? '开启' : '关闭'}</button>`)}
     ${row('账号与数据', S.me.guest ? '游客账号只能在这个浏览器登录，建议绑定' : '已绑定账号：' + esc(S.me.username), '<button class="btn sm" id="tacc">管理</button>')}
@@ -376,7 +377,7 @@ function openMenu() {
     ${row('退出登录', '退出并从本机移除这个账号', '<button class="btn sm danger" id="tlogout">退出</button>')}
     ${row('当前版本', '构建时间 ' + (typeof HF_BUILT !== 'undefined' ? HF_BUILT : '未知') + '（北京时间）', `<b class="ver">v${CFG.VERSION}</b>`)}</div>`, {
     small: true, mount: () => {
-      $('tsound').onclick = () => { savePref({ sound: !PREF.sound }); renderHud(); openMenu(); }; $('tmusic').onclick = () => { savePref({ music: !PREF.music }); if (PREF.music) startMusic(); openMenu(); };
+      $('tsound').onclick = () => { setSound({ sound: !PREF.sound }); openMenu(); }; $('tmusic').onclick = () => { setSound({ music: !PREF.music }); openMenu(); }; $('tvol').onclick = () => { closeModal(); toggleSndPop(true); };
       $('ttod').onclick = () => { const o = ['auto', 'day', 'dusk', 'night']; savePref({ tod: o[(o.indexOf(PREF.tod) + 1) % 4] }); renderTitle(); openMenu(); };
       $('tnotify').onclick = async () => { if (!PREF.notify && 'Notification' in window) { const p = await Notification.requestPermission(); if (p !== 'granted') { toast('浏览器没有允许通知', 'warn'); return; } } else if (!('Notification' in window)) { toast('这个浏览器不支持通知', 'warn'); return; } savePref({ notify: !PREF.notify }); openMenu(); };
       $('tacc').onclick = openAccount; $('thelp').onclick = openHelp; $('tlogout').onclick = logout; $('tswitch').onclick = () => showLogin('quick', null, true);
@@ -465,7 +466,7 @@ function openRanch(tab) {
       const rc = $('rcol'); if (rc) rc.onclick = () => { rc.disabled = true; act('/api/ranch/fish/collect', {}, x => { sfx('coin'); toast(`收获 ${Object.entries(x.got).map(([id, n]) => `${CFG.FISH[id].name}×${fmt(n)}`).join('、')}${x.exp ? `，+${fmt(x.exp)} 经验` : ''}`); W3.pondSplash && W3.pondSplash(); }); };
       const rs = $('rshear'); if (rs) rs.onclick = () => { rs.disabled = true; act('/api/ranch/shear', {}, x => { sfx('coin'); toast(`剪下 ${Object.entries(x.got).map(([id, n]) => `${CFG.SHEEP[id].woolName}×${fmt(n)}`).join('、')}${x.exp ? `，+${fmt(x.exp)} 经验` : ''}`); }); };
       const rf = $('rfruit'); if (rf) rf.onclick = () => { rf.disabled = true; act('/api/ranch/fruit', {}, x => { sfx('harvest'); toast(`摘了 ${Object.entries(x.got).map(([id, n]) => `${CFG.TREES[id].fruit}×${fmt(n)}`).join('、')}${x.exp ? `，+${fmt(x.exp)} 经验` : ''}`); }); };
-      qsa('[data-herd]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/ranch/herd', { kind: b.dataset.herd }); if (r) { sfx('bark'); toast(`${r.result.name}冲出去放羊啦！${r.result.share < 1 ? `（羊太多了，它只能照看 ${fmt(r.result.cap)} 只，多训练它吧）` : ''}`); closeModal(true); } else openRanch('pasture'); });
+      qsa('[data-herd]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/ranch/herd', { kind: b.dataset.herd }); if (r) { sfx('bark'); toast(`${r.result.name}冲出去放羊啦！${r.result.share < 1 ? `（羊太多了，它只能照看 ${fmt(r.result.cap)} 只，多训练它吧）` : ''}`, '', { label: '去看看', fn: () => { closeModal(true); W3.lookAt('pasture'); } }); } openRanch('pasture'); });
     }
   });
 }

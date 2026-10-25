@@ -609,3 +609,15 @@ test('限流：短时间大量注册/登录会被拒绝', async () => {
     assert.ok(rs.some(r => r.status === 429), '出现 429');
   } finally { await t.close(); }
 });
+
+test('v3.3：声音设置分开保存（音乐 / 音效开关 + 音量），老存档没有音量时用默认值', async () => {
+  const t = await start();
+  try {
+    const a = await t.guest('声音');
+    let r = await t.call('POST', '/api/me/profile', { settings: { sound: true, music: false, mvol: 35, svol: 90, tut: 1 } }, a.token); assert.ok(r.ok, r.error);
+    let s = (await t.call('GET', '/api/state', null, a.token)).me.settings; assert.equal(s.music, false); assert.equal(s.sound, true); assert.equal(s.mvol, 35); assert.equal(s.svol, 90);
+    r = await t.call('POST', '/api/me/profile', { settings: { sound: false, music: true, tut: 1 } }, a.token); assert.ok(r.ok, r.error);
+    s = (await t.call('GET', '/api/state', null, a.token)).me.settings; assert.equal(s.mvol, 70); assert.equal(s.svol, 80); assert.equal(s.sound, false);
+    r = await t.call('POST', '/api/me/profile', { settings: { sound: true, music: true, mvol: 300 } }, a.token); assert.equal(r.ok, false);
+  } finally { await t.close(); }
+});

@@ -89,7 +89,7 @@ b{font-weight:700}
 .fr:hover{background:rgba(255,230,170,.08)}
 .fr.on{background:rgba(230,196,122,.16);border-color:var(--line)}
 .fr .on{position:absolute;left:12px;top:6px;width:10px;height:10px;border-radius:50%;background:#5fd04a;border:2px solid #1d1710;box-shadow:0 0 6px #5fd04a}
-.fr .bd{top:0;right:4px}.fr .bd.hp{top:24px;background:linear-gradient(#6fc85a,#3f8a3a)}
+.fr .bd{top:0;right:4px}.fr .bd.hp{top:0;left:4px;right:auto;background:linear-gradient(#6fc85a,#3f8a3a)}
 .fr.me{border-bottom:1px solid var(--line2);border-radius:10px 10px 4px 4px;margin-bottom:2px}
 .fr.add .plus{width:42px;height:42px;border-radius:50%;border:1.5px dashed var(--gold2);display:flex;align-items:center;justify-content:center;color:var(--gold)}
 .fempty{font-size:11px;color:var(--mut);text-align:center;padding:10px 2px;line-height:1.5}
@@ -125,6 +125,7 @@ b{font-weight:700}
 
 /* ---------- toast / 网络 / 加载 ---------- */
 #toasts{position:fixed;left:50%;top:74px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:50}
+.toast.act{pointer-events:auto;display:flex;align-items:center;gap:10px;animation:tin .3s ease-out,tout .4s 5.2s forwards}.toast.act button{flex:none;padding:4px 12px;border-radius:8px;border:1px solid var(--gold);background:rgba(255,210,110,.18);color:#ffe9b0;font-weight:700;font-size:12.5px;cursor:pointer}.toast.lv{border-color:var(--gold);color:#fff1cc}
 .toast{padding:8px 18px;border-radius:10px;font-size:13.5px;font-weight:600;color:var(--ink);animation:tin .3s ease-out,tout .4s 2.4s forwards;white-space:nowrap}
 .toast.warn{border-color:rgba(255,140,110,.6);color:#ffd8cc}
 @keyframes tin{from{transform:translateY(-10px);opacity:0}}@keyframes tout{to{opacity:0;transform:translateY(-6px)}}
@@ -348,6 +349,40 @@ body.walk #canvas,body.walk canvas{cursor:grab}
 .upbox.compact{padding:8px 12px;margin-bottom:8px}
 @media (max-width:620px){.buyrow{grid-template-columns:36px minmax(0,1fr)}.buyrow .ri-ic{width:36px;height:36px}.buyrow .seg{grid-column:1/-1;display:flex;width:100%}.seg .btn.sm{flex:1;justify-content:center;padding:7px 4px}}
 #modal.busy .btn,#modal.busy button,#modal.busy [data-buy]{pointer-events:none;opacity:.6}
+/* v3.3 声音按钮：一眼看出开 / 关 */
+#rightbtns #btn-snd{position:relative}
+#btn-snd.snd-off{color:#9a9080;border-color:rgba(255,120,100,.55)}
+#btn-snd .sndst{position:absolute;right:-4px;bottom:-4px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;font:700 10px/16px system-ui,sans-serif;font-style:normal;color:#fff;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.4);pointer-events:none}
+#btn-snd .sndst.on{background:#3fae5a}#btn-snd .sndst.half{background:#d69a2a}#btn-snd .sndst.off{background:#d0503c}
+#sndpop{position:fixed;z-index:60;width:244px;padding:12px 14px;border-radius:14px;background:linear-gradient(170deg,rgba(46,38,27,.98),rgba(24,20,14,.98));border:1px solid var(--line);box-shadow:0 10px 30px rgba(0,0,0,.45);color:var(--ink);display:none;font-size:13.5px}
+#sndpop.show{display:block;animation:tin .18s ease-out}
+#sndpop .sp-h{display:flex;align-items:center;gap:8px;margin-bottom:10px;color:#fff1cc}#sndpop .sp-h .ico{width:18px;height:18px;color:var(--gold)}
+#sndpop .sp-r{display:flex;align-items:center;justify-content:space-between;margin:8px 0 4px}#sndpop .sp-r span{display:flex;align-items:center;gap:6px}#sndpop .sp-r .ico{width:15px;height:15px;color:var(--gold)}
+#sndpop input[type=range]{width:100%;accent-color:#e8b84a;height:26px;margin:0}#sndpop input[type=range]:disabled{opacity:.35}
+#sndpop .sp-b{display:flex;justify-content:flex-end;margin-top:8px}
+.sw{position:relative;display:inline-flex;align-items:center;width:62px;height:30px;padding:0;border-radius:15px;border:1px solid rgba(255,255,255,.18);background:#4a4238;cursor:pointer;flex:none;transition:background .2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.sw i{position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#e9e1d0;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:left .2s}
+.sw span{position:absolute;right:9px;font:700 12px/1 system-ui,sans-serif;color:#d8cdb8}
+.sw.on{background:#3fae5a;border-color:#58c873}.sw.on i{left:35px;background:#fff}.sw.on span{right:auto;left:10px;color:#fff}
+/* v3.3 俯视拖动地图 */
+#recenter{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);z-index:6;display:none;align-items:center;gap:6px;padding:8px 16px;border-radius:20px;background:var(--panel);border:1px solid var(--gold);color:#ffe9b0;font-weight:700;font-size:13px;box-shadow:var(--sh);cursor:pointer;touch-action:manipulation}
+#recenter .ico{width:16px;height:16px;color:var(--gold)}
+body.panned:not(.walk) #recenter{display:flex}
+canvas.panning{cursor:grabbing!important}canvas.painting{cursor:crosshair!important}
+@media (max-width:820px){#recenter{bottom:150px;font-size:12.5px;padding:7px 14px}}
+/* v3.3 长列表弹窗：列表占满剩下的高度（横屏手机也能看到更多商品），提示条在弹窗打开时移到底部，不挡标签页 */
+#modal.haslist{display:flex;flex-direction:column}
+#modal.haslist>*{flex:none}
+#modal.haslist>.list{flex:1 1 auto;min-height:140px;max-height:none}
+body.mopen #toasts{top:auto;bottom:16px}
+@media (max-height:520px){
+  #modal{max-height:96vh;padding:10px 16px 12px}
+  #modal h2{margin:0 0 6px;font-size:16px;letter-spacing:2px}#modal h2 .ico{width:18px;height:18px}
+  #modal .sub{display:none}
+  #modal .x{top:6px;right:8px;width:28px;height:28px}
+  #modal .mygold{margin:2px 0 4px}
+  #modal .tabs{margin-bottom:6px}#modal .tabs button{padding-top:5px;padding-bottom:5px}
+}
 
 </style>
 </head>
@@ -381,6 +416,7 @@ body.walk #canvas,body.walk canvas{cursor:grab}
 <div id="tip"></div>
 <div id="curtool"></div>
 <div id="toasts"></div>
+<button id="recenter" title="回到农场中心"></button>
 <div id="joy"><i></i></div>
 <button id="jumpbtn" title="跳跃"></button>
 <button id="actbtn" title="操作"></button>
@@ -390,7 +426,7 @@ body.walk #canvas,body.walk canvas{cursor:grab}
 <div id="mback"><div id="modal"></div></div>
 <script src="vendor/three.min.js"></script>
 <script>
-var HF_BUILT = '2026-10-25 08:48';
+var HF_BUILT = '2026-10-25 12:03';
 /* =====================================================
    丰收农场 · 前后端共用配置与规则
    服务端是权威；客户端只用它来显示与插值。
@@ -774,7 +810,7 @@ var HF_BUILT = '2026-10-25 08:48';
   const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
   // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
   function ranchItem(item) { const m = /^(fs|wl|fr)(\d+)$/.exec(item || ''); if (!m) return null; const d = ({ fs: FISH, wl: SHEEP, fr: TREES })[m[1]][+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : m[1] === 'wl' ? { kind: 'wool', id: d.id, name: d.woolName, price: d.sell } : { kind: 'fruit', id: d.id, name: d.fruit, price: d.sell }; }
-  const VERSION = '3.2.2'; // 每次发布改这里；设置页和 /api/health 会显示
+  const VERSION = '3.3.0'; // 每次发布改这里；设置页和 /api/health 会显示
   const CFG = { COLLIES, PETS_MAX, VERSION, COLS, ROWS, NPLOTS, FIELDS_MAX, MAX_PLOTS, fieldNeedLv, fieldCost, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
     FISH, SHEEP, TREES, RANCH, pondCap, pastureCap, pondCapOf, pastureCapOf, orchardCapOf, ranchUpCost, ranchNeedLv, herdOf, sheepCycles, treeCycles, treeGrowLeft, fishLeft, ranchItem,
@@ -895,6 +931,8 @@ const ICON_PATHS = {
   cloudsun: 'M12 2v2M4.93 4.93l1.41 1.41M20 12h2M19.07 4.93l-1.41 1.41M15.95 12.65a4 4 0 0 0-5.93-4.61M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6z',
   sound: 'M11 5 6 9H2v6h4l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14',
   mute: 'M11 5 6 9H2v6h4l5 4V5zM22 9l-6 6M16 9l6 6',
+  music: 'M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
+  target: 'M12 2v4M12 18v4M2 12h4M18 12h4', targetC: '<circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>',
   help: 'M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01',
   helpC: '<circle cx="12" cy="12" r="10"/>',
   gear: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z',
@@ -2183,6 +2221,7 @@ const W3 = (() => {
   const fieldC = f => f === 0 ? [0, 0] : [(((f - 1) % 4) - 1.5) * 17, -32 - Math.floor((f - 1) / 4) * 13];
   const plotXZ = i => { const f = Math.floor(i / 24), j = i % 24, [cx, cz] = fieldC(f); return [cx + ((j % COLS3) - 2.5) * PITCH, cz + (Math.floor(j / COLS3) - 1.5) * PITCH]; };
   const fieldAtXZ = (x, z) => { for (let f = 0; f < 20; f++) { const [cx, cz] = fieldC(f); if (Math.abs(x - cx) < 8 && Math.abs(z - cz) < 5.6) return f; } return -1; };
+  let DETF = -1; /* 俯视拖到哪片田，哪片田也用精细模型 */
   let ACTF = 0; // 当前关注的那片田：这片和第 0 片用精细模型，其他田用简化模型
   let R, scene, cam, canvasEl, W = 1, H = 1, ready = false, tNow = 0;
   const safe = { l: 80, r: 100, t: 86, b: 120 };
@@ -2657,7 +2696,7 @@ const W3 = (() => {
     const hm = new T.Mesh(G.head, dogFurMat(U, 'head')); hm.castShadow = true; head.add(hm);
     const eyeM = new T.MeshPhysicalMaterial({ color: new T.Color(L.eye), roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.05 });
     const glint = new T.MeshBasicMaterial({ color: 0xffffff });
-    [-1, 1].forEach(sd => { const e = new T.Mesh(new T.SphereGeometry(0.029, 18, 14), eyeM); e.position.set(0.094, 0.036, sd * 0.06); e.scale.set(0.78, 1, 1); head.add(e); const s1 = new T.Mesh(new T.SphereGeometry(0.0095, 10, 8), glint); s1.position.set(0.114, 0.049, sd * 0.067); head.add(s1); const s2 = new T.Mesh(new T.SphereGeometry(0.0048, 8, 6), glint); s2.position.set(0.116, 0.026, sd * 0.056); head.add(s2); });
+    [-1, 1].forEach(sd => { const e = new T.Mesh(new T.SphereGeometry(0.029, 18, 14), eyeM); e.position.set(0.094, 0.036, sd * 0.06); e.scale.set(0.78, 1, 1); head.add(e); const s1 = new T.Mesh(new T.SphereGeometry(0.0095, 10, 8), glint); s1.position.set(0.114, 0.049, sd * 0.067); head.add(s1); const s2 = new T.Mesh(new T.SphereGeometry(0.0048, 8, 6), glint); s2.position.set(0.116, 0.026, sd * 0.056); head.add(s2); (head.userData.eyes = head.userData.eyes || []).push([e, s1, s2]); });
     const nose = new T.Mesh(new T.SphereGeometry(1, 16, 12), new T.MeshPhysicalMaterial({ color: new T.Color('#141010'), roughness: 0.25, clearcoat: 0.8 })); nose.position.set(0.198, -0.043, 0); nose.scale.set(0.026, 0.021, 0.031); head.add(nose);
     const tongue = new T.Mesh(new T.SphereGeometry(1, 14, 10), new T.MeshPhysicalMaterial({ color: new T.Color('#e8707c'), roughness: 0.35, clearcoat: 0.6 })); tongue.position.set(0.14, -0.105, 0); tongue.scale.set(0.028, 0.048, 0.023); tongue.rotation.z = 0.35; head.add(tongue);
     // 腿
@@ -3116,7 +3155,19 @@ const W3 = (() => {
     for (let it = 0; it < 26; it++) { const mid = (lo + hi) / 2; cam.position.copy(target).addScaledVector(CAM_DIR, mid); cam.lookAt(target); cam.updateMatrixWorld(); cam.updateProjectionMatrix(); const ok = pts.every(p => { const q = p.clone().project(cam), x = (q.x * 0.5 + 0.5) * W, y = (-q.y * 0.5 + 0.5) * H; return x >= sl && x <= sr && y >= st && y <= sb; }); if (ok) hi = mid; else lo = mid; }
     camDist = hi; applyCam();
   }
-  function applyCam() { cam.position.copy(target).addScaledVector(CAM_DIR, camDist * zoom); cam.lookAt(target); cam.updateProjectionMatrix(); if (sun) { sun.target.position.copy(target); } }
+  /* v3.3 俯视拖动地图：在当前田的中心上加一个平移量 pan，限制在整个农场（菜地、鱼塘、牧场、果园）范围内 */
+  const pan = v3(0, 0, 0), panGoal = { v: null }, eff = v3(0, 0, 0); let PLOTN = 24;
+  function worldBox() { const nf = Math.max(1, Math.ceil(PLOTN / CFG3.NPLOTS)); let x0 = Math.min(ORCH.x0, -12), x1 = Math.max(PAST.x1, 12) + 3, z0 = -10, z1 = Math.max(PAST.z1, 20) + 3;
+    for (let f = 1; f < nf; f++) { const [x, z] = fieldC(f); x0 = Math.min(x0, x - 9); x1 = Math.max(x1, x + 9); z0 = Math.min(z0, z - 8); }
+    for (let i = 0; i < (RANCH3.ponds || 1); i++) { const [x, z] = PONDS[i]; x0 = Math.min(x0, x - 6); z1 = Math.max(z1, z + 6); } return { x0, x1, z0, z1 }; }
+  function clampPan() { const b = worldBox(); pan.x = Math.max(b.x0, Math.min(b.x1, target.x + pan.x)) - target.x; pan.z = Math.max(b.z0, Math.min(b.z1, target.z + pan.z)) - target.z; pan.y = 0; }
+  function applyCam() { clampPan(); eff.copy(target).add(pan); { const hf = fieldAtXZ(eff.x, eff.z); if (hf >= 0 && hf * 24 < PLOTN) DETF = hf; } cam.position.copy(eff).addScaledVector(CAM_DIR, camDist * zoom); cam.lookAt(eff); cam.updateProjectionMatrix(); if (sun) { sun.target.position.copy(eff); } }
+  function panBy(dx, dy) { if (viewMode === 'walk') return; panGoal.v = null; panGoal.s = null; const wpp = 2 * Math.tan(cam.fov * Math.PI / 360) * camDist * zoom / H, rx = CAM_DIR.z, rz = -CAM_DIR.x, rl = Math.hypot(rx, rz) || 1, fl = Math.hypot(CAM_DIR.x, CAM_DIR.z) || 1, el = Math.max(0.35, CAM_DIR.y);
+    pan.x -= rx / rl * dx * wpp; pan.z -= rz / rl * dx * wpp; pan.x -= CAM_DIR.x / fl * dy * wpp / el; pan.z -= CAM_DIR.z / fl * dy * wpp / el; applyCam(); }
+  function panTo(x, z) { if (viewMode === 'walk') { teleportNear(x, z); return; } panGoal.v = v3(x - target.x, 0, z - target.z); panGoal.s = null; }
+  function teleportNear(x, z) { HERO.pos.set(x, 0, z + 4); camFocus.set(x, 1, z + 4); camYaw = 0; }
+  function resetView() { panGoal.v = v3(0, 0, 0); panGoal.s = null; zoom = 1; }
+  const SPOT = { pond: () => PONDS[0], pasture: () => [PAST.cx, PAST.cz], orchard: () => [ORCH.cx, ORCH.cz], kennel: () => [9.5, 2] };
   // 画质：3 高（默认）2 中 1 低；帧率持续偏低时自动降档
   let quality = /[?&]q=low/.test(location.search) ? 1 : /[?&]q=mid/.test(location.search) ? 2 : 3, grassMesh = null, perf = { t: 0, n: 0, acc: 0 };
   function applyQuality() {
@@ -3353,14 +3404,14 @@ const W3 = (() => {
     const smokeM = () => new T.SpriteMaterial({ map: FXT.puff, transparent: true, depthWrite: false, opacity: 0.5 }); for (let i = 0; i < 8; i++) { const s = new T.Sprite(smokeM()); s.userData.ph = i / 8; scene.add(s); anim.smoke.push(s); }
     { const n = 60, g = new T.BufferGeometry(), p = new Float32Array(n * 3), r = CFG3.rng(3); for (let i = 0; i < n; i++) { p[i * 3] = (r() - 0.5) * 34; p[i * 3 + 1] = 0.5 + r() * 2.5; p[i * 3 + 2] = (r() - 0.5) * 28; } g.setAttribute('position', new T.BufferAttribute(p, 3)); anim.fireflies = new T.Points(g, new T.PointsMaterial({ size: 0.35, map: glowTex('rgba(220,255,140,1)'), transparent: true, depthWrite: false, blending: T.AdditiveBlending, color: 0xd8ff8a })); anim.fireflies.visible = false; scene.add(anim.fireflies); }
     { const n = 1600, g = new T.BufferGeometry(), p = new Float32Array(n * 6); for (let i = 0; i < n; i++) { const x = (Math.random() - 0.5) * 50, y = Math.random() * 30, z = (Math.random() - 0.5) * 50; p.set([x, y, z, x - 0.05, y - 0.6, z - 0.05], i * 6); } g.setAttribute('position', new T.BufferAttribute(p, 3)); anim.rain = new T.LineSegments(g, new T.LineBasicMaterial({ color: 0xc8dcff, transparent: true, opacity: 0.45 })); anim.rain.visible = false; scene.add(anim.rain); }
-    window.addEventListener('wheel', e => { if (e.target !== canvasEl) return; if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * (e.deltaY > 0 ? 1.08 : 0.93))); return; } zoom = Math.max(0.7, Math.min(1.25, zoom * (e.deltaY > 0 ? 1.06 : 0.94))); applyCam(); }, { passive: true });
+    window.addEventListener('wheel', e => { if (e.target !== canvasEl) return; if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * (e.deltaY > 0 ? 1.08 : 0.93))); return; } zoom = Math.max(0.6, Math.min(2.6, zoom * (e.deltaY > 0 ? 1.06 : 0.94))); applyCam(); }, { passive: true });
     setHero(null);
     resize(); ready = true;
   }
 
   /* ---------------- 每帧更新 ---------------- */
   let curView = { plots: [], home: true }, envState = { hour: 12, rain: 0 }, dogMode = {};
-  function setPlots(list, home) { curView = { plots: list, home }; ensurePlots(list.length); plots.forEach((pl, i) => { pl.node.visible = i < list.length; if (i >= list.length && pl.key) { pl.key = ''; rebuildPlot(i, { u: 1, c: -1, soil: 0, pr: {} }, { lite: true }); } }); /* 用不到的地（别人的农场比自己的小）清空内容，省内存 */ fieldDeco.forEach((g, k) => { g.visible = (k + 1) * 24 < list.length; }); const nx = home ? CFG3.UNLOCK_ORDER.find(u => list[u] && !list[u].u) : -1; list.forEach((P, i) => { const f = Math.floor(i / 24), o = { mine: !home && P.mine, next: i === nx, lite: f !== 0 && f !== ACTF }; const k = plotKey(P, o); if (plots[i].key !== k) { plots[i].key = k; rebuildPlot(i, P, o); } }); }
+  function setPlots(list, home) { curView = { plots: list, home }; ensurePlots(list.length); plots.forEach((pl, i) => { pl.node.visible = i < list.length; if (i >= list.length && pl.key) { pl.key = ''; rebuildPlot(i, { u: 1, c: -1, soil: 0, pr: {} }, { lite: true }); } }); /* 用不到的地（别人的农场比自己的小）清空内容，省内存 */ PLOTN = list.length; fieldDeco.forEach((g, k) => { g.visible = (k + 1) * 24 < list.length; }); const nx = home ? CFG3.UNLOCK_ORDER.find(u => list[u] && !list[u].u) : -1; list.forEach((P, i) => { const f = Math.floor(i / 24), o = { mine: !home && P.mine, next: i === nx, lite: f !== 0 && f !== ACTF && f !== DETF }; const k = plotKey(P, o); if (plots[i].key !== k) { plots[i].key = k; rebuildPlot(i, P, o); } }); }
   function setHover(i) { hoverIdx = i; }
   function setDog(mode) { if (Array.isArray(mode)) { const o = {}; CFG3.DOGS.forEach((d, i) => o[d.id] = mode[i] || 'none'); dogMode = o; } else if (typeof mode === 'string') dogMode = { fuwang: mode }; else dogMode = mode || {}; }
   // 领养的边牧：按 id 建 / 删模型，住在狗窝附近
@@ -3382,7 +3433,7 @@ const W3 = (() => {
   let simK = 1; const GAITS_REF = {}; // 调试用：加快动画时间
   function render(dt) {
     if (!ready) return; dt *= simK; tNow += dt; const t = tNow; perfTick(dt);
-    updateHero(dt); if (viewMode === 'walk') updateWalkCam(dt); updateRanch(dt, tNow);
+    updateHero(dt); if (viewMode === 'walk') updateWalkCam(dt); else if (panGoal.v) { if (!panGoal.s) { panGoal.s = pan.clone(); panGoal.t0 = performance.now(); } const k = Math.min(1, (performance.now() - panGoal.t0) / 450), e = 1 - Math.pow(1 - k, 3); pan.copy(panGoal.s).lerp(panGoal.v, e); if (k >= 1) { panGoal.v = null; panGoal.s = null; } applyCam(); } updateRanch(dt, tNow);
     const E = envAt(envState.hour), rk = envState.rain;
     const grey = new T.Color('#8a96a8');
     skyU.top.value.copy(E.top).lerp(grey.clone().multiplyScalar(0.7), rk * 0.7); skyU.hor.value.copy(E.hor).lerp(grey, rk * 0.6); skyU.night.value = E.night * (1 - rk);
@@ -3462,19 +3513,33 @@ const W3 = (() => {
     // 步态与姿态：腿的摆动按真实走过的距离推进（脚落地时不打滑），按速度切换 走 / 小跑 / 奔跑
     const GAITS = GAITS_REF.g = { walk: { off: [0.25, 0.75, 0, 0.5], st: 0.64, A: 0.3 }, trot: { off: [0, 0.5, 0.5, 0], st: 0.5, A: 0.42 }, gallop: { off: [0, 0.12, 0.52, 0.64], st: 0.4, A: 0.62 } };
     const smooth = x => x * x * (3 - 2 * x);
+    /* 身体在倾斜 a 时、躯干局部坐标里最低点的 y（按顶点算，结果按 狗种类 + 角度 缓存） */
+    const LOWC = {}; const bodyLow = (dg, a) => { const key = dg.kind + ':' + a.toFixed(2); if (LOWC[key] !== undefined) return LOWC[key]; const g = DOG_GEO[dg.kind] && DOG_GEO[dg.kind].torso; if (!g) return 0.4; const p = g.attributes.position, c = Math.cos(a), s2 = Math.sin(a); let lo = 9; for (let i = 0; i < p.count; i += 3) { const y = p.getX(i) * s2 + p.getY(i) * c; if (y < lo) lo = y; } return (LOWC[key] = lo); };
     const dogLive = (dg, k, m) => {
       const v = dg.vel || 0, gk = v < 1.5 ? 'walk' : v < 4.2 ? 'trot' : 'gallop', G = GAITS[gk], hip = 0.355 * (dg.g.scale.x || 1);
       if (!dg.off) dg.off = G.off.slice(); dg.off = dg.off.map((o, j) => { let d = G.off[j] - o; d -= Math.round(d); return o + d * Math.min(1, dt * 4); });
       dg.st = dg.st === undefined ? G.st : dg.st + (G.st - dg.st) * Math.min(1, dt * 4); dg.A = dg.A === undefined ? G.A : dg.A + (G.A - dg.A) * Math.min(1, dt * 4);
       const mk = Math.min(1, v / 0.25), cyc = Math.max(0.05, 2 * hip * Math.sin(dg.A * mk) / dg.st); dg.phi = ((dg.phi || 0) + v * dt / cyc) % 1; const phi = dg.phi;
-      const pose = dg.pose, tor = dg.torso; let bob = 0, pitch = 0, roll = 0;
-      if (pose === 'sleep' || pose === 'lie') { dg.legs.forEach(l => { l.visible = false; }); tor.position.y = DOG_BASE_Y - 0.24; tor.rotation.set(0, 0, 0); tor.scale.y = 1 + Math.sin(t * 1.8 + k) * 0.02;
-        dg.head.position.y = pose === 'sleep' ? 0.86 : 0.9; dg.head.rotation.set(0, pose === 'sleep' ? 0.3 : Math.sin(t * 0.4 + k) * 0.4, pose === 'sleep' ? -0.35 : -0.05); dg.tongue.visible = pose !== 'sleep'; }
-      else if (pose === 'sit') { tor.rotation.set(0, 0, 0.42); tor.position.y = DOG_BASE_Y - 0.03; dg.legs.forEach((l, j) => { if (j < 2) { l.rotation.z = -0.42; l.scale.y = 0.92 * 1.28; } else { l.rotation.z = 0.9; l.scale.y = 0.5; } }); dg.head.rotation.set(0, 0, -0.3); }
+      const pose = dg.force || dg.pose, tor = dg.torso; let bob = 0, pitch = 0, roll = 0; if (dg.force) dg.vel = 0;
+      /* v3.3 静态姿势贴地：按身体实际最低点放到地面上（不陷地），每条腿的长度按髋部高度算到脚掌刚好着地（不悬空、不消失） */
+      if (pose === 'sleep' || pose === 'lie' || pose === 'sit') {
+        const a = pose === 'sit' ? 0.42 : 0, ca = Math.cos(a), sa = Math.sin(a), PR = 0.03;
+        tor.rotation.set(0, 0, a); const ty = (pose === 'sit' ? 0.012 : 0.03) - bodyLow(dg, a); tor.position.y = ty + (pose === 'sit' ? 0 : Math.sin(t * 1.8 + k) * 0.004);
+        tor.scale.y = pose === 'sit' ? 1 : 1 + Math.sin(t * 1.8 + k) * 0.02;
+        dg.legs.forEach((l, j) => { l.visible = true; const hx = l.position.x, hy = l.position.y, side = l.position.z > 0 ? 1 : -1, hipY = hx * sa + hy * ca + ty;
+          let rz, rx = 0, len;
+          if (pose === 'sit') { rz = j < 2 ? -a - 0.05 : 0.62; rx = j < 2 ? 0 : side * 0.16; }
+          else { rz = j < 2 ? 1.32 : 1.56; rx = j < 2 ? side * 0.06 : side * 0.16; }
+          const cy = Math.cos(rz) * Math.cos(rx) * ca - Math.sin(rz) * sa; /* 腿方向向下的分量（躯干倾斜 a，腿先绕 z 再绕 x 转） */
+          len = cy > 0.18 ? (hipY - PR) / cy : (j < 2 ? 0.3 : 0.31); len = Math.max(0.16, Math.min(0.46, len));
+          l.rotation.set(rx, 0, rz); l.scale.y = len / 0.355; });
+        if (pose === 'sit') dg.head.rotation.set(0, 0, -0.3);
+        else { dg.head.position.y = pose === 'sleep' ? 0.8 : 0.9; dg.head.rotation.set(pose === 'sleep' ? 0.12 : 0, pose === 'sleep' ? 0.25 : Math.sin(t * 0.4 + k) * 0.4, pose === 'sleep' ? -0.42 : -0.05); dg.tongue.visible = pose !== 'sleep'; }
+      }
       else {
         dg.legs.forEach((l, j) => { const u = ((phi + dg.off[j]) % 1 + 1) % 1; let a, lift = 0; const sA = Math.sin(dg.A * mk); if (u < dg.st) a = Math.asin(sA - 2 * sA * (u / dg.st)); else { const w = (u - dg.st) / (1 - dg.st); a = Math.asin(-sA + 2 * sA * smooth(w)); lift = Math.sin(Math.PI * w); }
           // 着地时脚在地面上匀速向后（与身体前进速度一致），并补偿腿斜着时的高度，脚掌贴地不滑
-          l.rotation.z = a; l.scale.y = 0.92 * (u < dg.st ? 1 / Math.cos(a) : 1 - lift * 0.28 * mk); });
+          l.rotation.x = 0; l.rotation.z = a; l.scale.y = 0.92 * (u < dg.st ? 1 / Math.cos(a) : 1 - lift * 0.28 * mk); });
         if (gk === 'gallop') { bob = Math.sin(phi * Math.PI * 2) * 0.05 * mk + 0.02; pitch = Math.sin(phi * Math.PI * 2 + 1.2) * 0.09 * mk; }
         else { bob = Math.abs(Math.cos(phi * Math.PI * 2)) * (gk === 'trot' ? 0.028 : 0.014) * mk; pitch = -0.03 * mk; roll = Math.sin(phi * Math.PI * 2) * (gk === 'walk' ? 0.035 : 0.02) * mk; }
         if (pose === 'stalk') { bob -= 0.06; pitch -= 0.06; }
@@ -3485,6 +3550,8 @@ const W3 = (() => {
         const nod = dg.sniff ? Math.sin(t * 9) * 0.08 : dg.lap ? Math.sin(t * 11) * 0.09 : 0; dg.head.rotation.set(dg.excite ? Math.sin(t * 5) * 0.12 * dg.excite : 0, dg.hy, -pitch * 0.9 - (dg.headDown || 0) * 0.6 + nod + (m === 'bark' ? Math.sin(t * 20) * 0.15 : 0.04));
         dg.head.position.y = 0.94 - (dg.headDown || 0) * 0.1 - bob * 0.3; }
       dg.sniff = false;
+      /* 眼睛：睡觉闭眼，醒着时偶尔眨眼 */
+      { const E = dg.head.userData.eyes; if (E) { dg.bk = (dg.bk === undefined ? 1 + Math.random() * 3 : dg.bk) - dt; if (dg.bk < 0) dg.bk = 2.5 + Math.random() * 4; const shut = pose === 'sleep' ? 0.12 : dg.bk < 0.11 ? 0.15 : 1; E.forEach(([e, s1, s2]) => { e.scale.y = shut; s1.visible = s2.visible = shut === 1; }); } }
       dg.tongue.scale.y = 0.048 * (1 + (v > 2 ? 0.35 : 0) + Math.sin(t * (v > 2 ? 12 : 6)) * 0.15);
       // 尾巴：越兴奋摇得越快越开；跑起来抬高；趴着、睡觉时轻摆
       const ex = dg.excite || 0, freq = pose === 'sleep' ? 1.2 : 4.5 + ex * 13 + Math.min(4, v), amp = pose === 'sleep' ? 0.08 : pose === 'stalk' ? 0.12 : 0.3 + ex * 0.7 + Math.min(0.25, v * 0.05) + Math.max(0, Math.sin(t * 0.37 + k)) * 0.15;
@@ -3519,8 +3586,9 @@ const W3 = (() => {
     } catch (e) { ICONS[key] = ''; }
     return ICONS[key];
   }
-  function zoomBy(f) { if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * f)); return; } zoom = Math.max(0.6, Math.min(1.3, zoom * f)); applyCam(); }
-  return { get __scene() { return scene; }, zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, hits: hitBoxes.length, dogs: anim.dogs.length, objs: (() => { let n = 0, v = 0; scene.traverse(o => { if (o.isMesh || o.isSprite) { n++; let vis = true, q = o; while (q) { if (!q.visible) { vis = false; break; } q = q.parent; } if (vis) v++; } }); return n + '/' + v; })(), parts: parts.length, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, setPets, dogInfo: k => { const d = anim.dogs[k]; return d ? { did: d.did, name: d.name, kind: d.kind } : null; }, pondSplash, setField: f => { ACTF = Math.max(0, f | 0); if (viewMode !== 'walk') fit(); }, get field() { return ACTF; }, fieldCenter: fieldC, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ leg: RANCH3.leg, follow: RANCH3.follow, A: RANCH3.A && RANCH3.A.toArray().map(v => +v.toFixed(1)), phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, heroModelRot: () => HERO.g ? HERO.g.rotation.y : NaN, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
+  function zoomBy(f) { if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * f)); return; } zoom = Math.max(0.6, Math.min(2.6, zoom * f)); applyCam(); }
+  return { get __scene() { return scene; }, zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, hits: hitBoxes.length, dogs: anim.dogs.length, objs: (() => { let n = 0, v = 0; scene.traverse(o => { if (o.isMesh || o.isSprite) { n++; let vis = true, q = o; while (q) { if (!q.visible) { vis = false; break; } q = q.parent; } if (vis) v++; } }); return n + '/' + v; })(), parts: parts.length, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, setPets, dogInfo: k => { const d = anim.dogs[k]; return d ? { did: d.did, name: d.name, kind: d.kind } : null; }, pondSplash, setField: f => { ACTF = Math.max(0, f | 0); pan.set(0, 0, 0); panGoal.v = null; if (viewMode !== 'walk') fit(); }, panBy, panTo, resetView, lookAt: k => { const p = SPOT[k] && SPOT[k](); if (p) panTo(p[0], p[1]); }, get panned() { return pan.length() > 1 || zoom > 1.35; }, worldBox, get pan() { return pan.toArray().map(v => +v.toFixed(2)); }, get zoom() { return zoom; }, get field() { return ACTF; }, fieldCenter: fieldC, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ leg: RANCH3.leg, follow: RANCH3.follow, A: RANCH3.A && RANCH3.A.toArray().map(v => +v.toFixed(1)), phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, dbgDogCam: (k, yaw, pitch, dist) => { const dg = anim.dogs[k]; if (!dg) return null; const c = dg.g.position, cam2 = new T.PerspectiveCamera(32, W / H, 0.05, 80), d = dist || 2.2, a = dg.g.rotation.y + (yaw || 0); cam2.position.set(c.x + Math.cos(a) * d * Math.cos(pitch || 0.2), 0.35 + Math.sin(pitch || 0.2) * d, c.z - Math.sin(a) * d * Math.cos(pitch || 0.2)); cam2.lookAt(c.x, 0.3, c.z); R.render(scene, cam2); return R.domElement.toDataURL('image/png'); }, dbgPose: (k, p) => { const d = anim.dogs[k]; if (d) d.force = p || null; }, dogGround: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const v = new T.Vector3(); let lo = 9; const body = dg.torso.children[0], P = body.geometry.attributes.position; for (let i = 0; i < P.count; i += 2) { v.fromBufferAttribute(P, i).applyMatrix4(body.matrixWorld); if (v.y < lo) lo = v.y; }
+    const feet = dg.legs.map(l => { let m = 9; l.children.forEach(c => { const Q = c.geometry.attributes.position; for (let i = 0; i < Q.count; i++) { v.fromBufferAttribute(Q, i).applyMatrix4(c.matrixWorld); if (v.y < m) m = v.y; } }); return +m.toFixed(3); }); return { body: +lo.toFixed(3), feet, vis: dg.legs.map(l => l.visible), x: dg.g.position.x, z: dg.g.position.z, ry: dg.g.rotation.y }; }, heroModelRot: () => HERO.g ? HERO.g.rotation.y : NaN, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
 })();
 
 'use strict';
@@ -3546,7 +3614,7 @@ let S = null;                 // 服务器快照：me / plots / inv / badges / r
 let FR = { list: [], requests: [], sent: [], visitors: [] }; // 好友
 let NB = { list: [] };        // 附近的人
 let MSGS = [];
-let PREF = { sound: true, music: true, notify: false, tod: 'auto', tut: 0 };
+let PREF = { sound: true, music: true, notify: false, tod: 'auto', tut: 0, mvol: 70, svol: 80, pan: 0 };
 let view = { key: 'home', friend: null, plots: [], farm: null };
 let redTo = 0, tool = 'auto', hoverIdx = -1, painting = false, lastPaint = -1, mouse = { x: 0, y: 0, in: false };
 let started = false, dogBarkUntil = 0, sideTab = 'nearby';
@@ -3561,21 +3629,43 @@ const themeOf = id => (CFG.THEMES.find(t => t.id === id) || CFG.THEMES[0]).th;
 const unlockedCount = () => S ? S.plots.filter(p => p.u && p.idx < CFG.NPLOTS).length : RULES.startPlots;
 const isFriend = id => FR.list.some(f => f.id === id);
 
-/* ============ 音效 ============ */
-let AC = null, master = null, musicTimer = null;
-function ac() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.8; master.connect(AC.destination); } catch (e) { } } if (AC && AC.state === 'suspended') AC.resume(); return AC; }
+/* ============ 声音（v3.3）============
+   - 背景音乐和操作音效是两个独立开关，各有音量（PREF.music / PREF.sound，PREF.mvol / PREF.svol 0~100）
+   - 背景音乐是原创的乡村小调，用 Web Audio 现场合成：低音“嘣-恰”、拨弦和弦、口哨主旋律、沙锤，还有小鸟叫。不用外部音频文件，没有版权问题
+   - iPhone：静音拨片打开时网页声音会被系统静掉，所以在第一次点击时把音频会话切到「播放」类型，并在后台循环一段无声音频；微信内置浏览器同样处理 */
+let AC = null, master = null, sfxBus = null, musBus = null, musicTimer = null;
+const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const vol01 = v => Math.max(0, Math.min(100, v === undefined ? 75 : +v)) / 100;
+function applyVol() { if (!AC) return; const t = AC.currentTime; sfxBus.gain.setTargetAtTime(PREF.sound ? 0.9 * vol01(PREF.svol) : 0, t, 0.03); musBus.gain.setTargetAtTime(PREF.music ? 0.75 * vol01(PREF.mvol) : 0, t, 0.25); }
+function ac() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); const comp = AC.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; master = AC.createGain(); master.gain.value = 0.9; master.connect(comp); comp.connect(AC.destination); sfxBus = AC.createGain(); musBus = AC.createGain(); sfxBus.connect(master); musBus.connect(master); sfxBus.gain.value = 0; musBus.gain.value = 0; applyVol(); } catch (e) { AC = null; } }
+  if (AC && AC.state !== 'running') { try { AC.resume(); } catch (e) { } } return AC;
+}
+let silentEl = null;
+function unlockAudio() {
+  const a = ac(); if (!a) return;
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
+  try { const b = a.createBuffer(1, 1, 22050), s = a.createBufferSource(); s.buffer = b; s.connect(a.destination); s.start(0); } catch (e) { }
+  if (IOS && !silentEl && (PREF.sound || PREF.music)) { try { const n = 4000, buf = new ArrayBuffer(44 + n), v = new DataView(buf), w = (o, t) => { for (let k = 0; k < t.length; k++) v.setUint8(o + k, t.charCodeAt(k)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true); for (let k = 0; k < n; k++) v.setUint8(44 + k, 128);
+    silentEl = document.createElement('audio'); silentEl.setAttribute('playsinline', ''); silentEl.setAttribute('x-webkit-airplay', 'deny'); silentEl.loop = true; silentEl.preload = 'auto'; silentEl.src = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })); silentEl.play().catch(() => { silentEl = null; }); } catch (e) { silentEl = null; } }
+  startMusic();
+}
+['pointerup', 'touchend', 'click', 'keydown'].forEach(n => document.addEventListener(n, () => { if (!AC || AC.state !== 'running' || (IOS && !silentEl && (PREF.sound || PREF.music))) unlockAudio(); }, { passive: true, capture: true }));
+document.addEventListener('WeixinJSBridgeReady', () => { try { ac(); } catch (e) { } }, false);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && AC && AC.state !== 'running') { try { AC.resume(); } catch (e) { } } });
 function tone(f, d, type, vol, delay, slide) {
   if (!PREF.sound) return; const a = ac(); if (!a) return;
   const t0 = a.currentTime + (delay || 0), o = a.createOscillator(), g = a.createGain();
   o.type = type || 'sine'; o.frequency.setValueAtTime(f, t0); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t0 + d);
   g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol || 0.1, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
-  o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + d + 0.05);
+  o.connect(g); g.connect(sfxBus); o.start(t0); o.stop(t0 + d + 0.05);
 }
 function noise(d, vol, f0, f1) {
   if (!PREF.sound) return; const a = ac(); if (!a) return; const n = Math.floor(a.sampleRate * d), buf = a.createBuffer(1, n, a.sampleRate), ch = buf.getChannelData(0);
   for (let i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n);
   const s = a.createBufferSource(); s.buffer = buf; const fl = a.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.setValueAtTime(f0, a.currentTime); fl.frequency.exponentialRampToValueAtTime(f1, a.currentTime + d);
-  const g = a.createGain(); g.gain.value = vol; s.connect(fl); fl.connect(g); g.connect(master); s.start();
+  const g = a.createGain(); g.gain.value = vol; s.connect(fl); fl.connect(g); g.connect(sfxBus); s.start();
 }
 const SFX = {
   click: () => tone(660, 0.06, 'triangle', 0.06),
@@ -3593,26 +3683,89 @@ const SFX = {
   rain: () => { noise(1.4, 0.12, 5000, 2500); },
   open: () => { tone(520, 0.08, 'triangle', 0.05); tone(780, 0.1, 'triangle', 0.05, 0.05); },
   golden: () => { [784, 988, 1175, 1568, 1976].forEach((f, i) => tone(f, 0.25, 'triangle', 0.07, i * 0.07)); },
+  on: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.2, 'triangle', 0.09, i * 0.08)); },
 };
 function sfx(n) { try { SFX[n] && SFX[n](); } catch (e) { } }
+
+/* ---- 背景音乐：《丰收小调》（原创），C 大调，116 拍/分，32 小节循环（A A' B A），约 66 秒 ---- */
+const MUS = (() => {
+  const CH = { C: [60, 64, 67], F: [60, 65, 69], G: [59, 62, 67], Am: [60, 64, 69] }, ROOT = { C: 48, F: 41, G: 43, Am: 45 };
+  const A = ['C', 'F', 'G', 'C', 'Am', 'F', 'G', 'C'], B = ['F', 'C', 'G', 'Am', 'F', 'C', 'G', 'C'];
+  const mA = [[76, 2], [79, 1], [76, 1], [72, 2], [74, 1], [76, 1], [77, 2], [81, 1], [77, 1], [72, 2], [0, 1], [72, 1], [74, 1], [76, 1], [77, 1], [79, 1], [81, 1], [79, 1], [77, 1], [74, 1], [76, 3], [72, 1], [67, 4],
+    [69, 1], [72, 1], [76, 2], [81, 2], [79, 1], [76, 1], [77, 2], [76, 1], [74, 1], [72, 2], [69, 2], [71, 1], [74, 1], [79, 2], [77, 1], [74, 1], [71, 2], [72, 4], [0, 2], [67, 1], [71, 1]];
+  const mB = [[84, 2], [81, 2], [77, 2], [81, 2], [79, 2], [76, 1], [79, 1], [84, 4], [83, 1], [81, 1], [79, 2], [74, 2], [79, 2], [81, 3], [79, 1], [76, 4],
+    [77, 1], [79, 1], [81, 2], [84, 2], [81, 2], [79, 2], [76, 2], [72, 2], [76, 2], [74, 1], [76, 1], [77, 1], [74, 1], [71, 2], [74, 2], [72, 6], [0, 2]];
+  const sec = [[A, mA, 'whistle'], [A, mA, 'marimba'], [B, mB, 'whistle'], [A, mA, 'whistle']], chords = [], mel = [];
+  sec.forEach(([cs, m, v], si) => { const b0 = si * 64; cs.forEach((c, k) => chords[si * 8 + k] = c); let p = 0; m.forEach(([n, d]) => { if (n) mel.push({ at: b0 + p, n, d, v }); p += d; }); });
+  return { chords, mel, len: 256, step: 60 / 116 / 2 };
+})();
+const mtof = n => 440 * Math.pow(2, (n - 69) / 12);
+let musPos = 0, musNext = 0, musEcho = null, noiseBuf = null;
+function musVoice(a, f, t, d, kind, vol) {
+  const o = a.createOscillator(), g = a.createGain(); let out = g;
+  if (kind === 'whistle') { o.type = 'sine'; const lfo = a.createOscillator(), lg = a.createGain(); lfo.frequency.value = 5.6; lg.gain.setValueAtTime(0, t); lg.gain.linearRampToValueAtTime(f * 0.012, t + 0.25); lfo.connect(lg); lg.connect(o.frequency); lfo.start(t); lfo.stop(t + d + 0.3);
+    o.frequency.setValueAtTime(f * 0.985, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.05); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.03); g.gain.setValueAtTime(vol, t + Math.max(0.04, d - 0.08)); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.12); }
+  else if (kind === 'marimba') { o.type = 'sine'; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol * 1.3, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55); const o2 = a.createOscillator(), g2 = a.createGain(); o2.frequency.value = f * 4; g2.gain.setValueAtTime(vol * 0.35, t); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.08); o2.connect(g2); g2.connect(musBus); o2.start(t); o2.stop(t + 0.1); d = 0.5; }
+  else if (kind === 'pluck') { o.type = 'triangle'; const fl = a.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.setValueAtTime(2600, t); fl.frequency.exponentialRampToValueAtTime(700, t + 0.25); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32); o.connect(fl); fl.connect(g); g.connect(musBus); o.frequency.value = f; o.start(t); o.stop(t + 0.36); return; }
+  else { o.type = 'triangle'; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d); }
+  if (kind !== 'whistle') o.frequency.value = f;
+  o.connect(g); g.connect(musBus); if ((kind === 'whistle' || kind === 'marimba') && musEcho) g.connect(musEcho); o.start(t); o.stop(t + d + 0.2);
+}
+function musPerc(a, t, kind) {
+  if (!noiseBuf) { const n = a.sampleRate * 0.2; noiseBuf = a.createBuffer(1, n, a.sampleRate); const ch = noiseBuf.getChannelData(0); for (let i = 0; i < n; i++) ch[i] = Math.random() * 2 - 1; }
+  if (kind === 'kick') { const o = a.createOscillator(), g = a.createGain(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.12); g.gain.setValueAtTime(0.32, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16); o.connect(g); g.connect(musBus); o.start(t); o.stop(t + 0.18); return; }
+  const s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain(); s.buffer = noiseBuf; fl.type = 'highpass'; fl.frequency.value = kind === 'clap' ? 1500 : 6500; const v = kind === 'clap' ? 0.06 : kind === 'shk2' ? 0.035 : 0.018, d = kind === 'clap' ? 0.09 : 0.05;
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); s.connect(fl); fl.connect(g); g.connect(musBus); s.start(t); s.stop(t + d + 0.01);
+}
+function musBird(a, t) { [0, 0.13].forEach(k => { const o = a.createOscillator(), g = a.createGain(); o.frequency.setValueAtTime(2900, t + k); o.frequency.exponentialRampToValueAtTime(4200, t + k + 0.07); g.gain.setValueAtTime(0.0001, t + k); g.gain.exponentialRampToValueAtTime(0.03, t + k + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + k + 0.09); o.connect(g); g.connect(musBus); o.start(t + k); o.stop(t + k + 0.1); }); }
+function musStep(a, i, t) {
+  const bar = i >> 3, e = i & 7, c = MUS.chords[bar], ch = MUS.step;
+  if (e === 0 || e === 4) { musVoice(a, mtof(MUS_ROOT(c) + (e === 4 ? 7 : 0)), t, ch * 1.7, 'bass', 0.2); musPerc(a, t, 'kick'); }
+  if (e === 2 || e === 6) { CH_OF(c).forEach((n, k) => musVoice(a, mtof(n), t + k * 0.012, 0, 'pluck', 0.05)); musPerc(a, t, 'clap'); }
+  if (e === 3 || e === 7) CH_OF(c).forEach((n, k) => musVoice(a, mtof(n + 12), t + k * 0.01, 0, 'pluck', 0.025));
+  musPerc(a, t, e % 2 ? 'shk2' : 'shk');
+  MUS.mel.forEach(m => { if (m.at === i) musVoice(a, mtof(m.n), t, m.d * ch * 0.92, m.v, m.v === 'whistle' ? 0.075 : 0.09); });
+  if ((i % 64 === 60 || i % 64 === 30) && Math.random() < 0.7) musBird(a, t + ch * 0.5);
+}
+const CH_OF = c => ({ C: [60, 64, 67], F: [60, 65, 69], G: [59, 62, 67], Am: [60, 64, 69] })[c], MUS_ROOT = c => ({ C: 48, F: 41, G: 43, Am: 45 })[c];
 function startMusic() {
-  if (musicTimer || !PREF.music) return; const notes = [262, 294, 330, 392, 440, 523, 587, 659]; let i = 0, last = 3;
-  musicTimer = setInterval(() => {
-    if (!PREF.music || !PREF.sound || document.hidden) return; const a = ac(); if (!a) return;
-    last = clamp(last + pick([-2, -1, -1, 0, 1, 1, 2]), 0, notes.length - 1); const f = notes[last], t0 = a.currentTime;
-    const o = a.createOscillator(), g = a.createGain(), fl = a.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 1600;
-    o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.024, t0 + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.8);
-    o.connect(fl); fl.connect(g); g.connect(master); o.start(t0); o.stop(t0 + 1.9);
-    if (i % 4 === 0) { const o2 = a.createOscillator(), g2 = a.createGain(); o2.type = 'triangle'; o2.frequency.value = f / 2; g2.gain.setValueAtTime(0.0001, t0); g2.gain.exponentialRampToValueAtTime(0.02, t0 + 0.08); g2.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.4); o2.connect(g2); g2.connect(master); o2.start(t0); o2.stop(t0 + 2.5); }
-    i++;
-  }, 900);
+  if (musicTimer || !PREF.music) return; const a = ac(); if (!a) return; applyVol();
+  if (!musEcho) { const dl = a.createDelay(1), fb = a.createGain(), wet = a.createGain(); dl.delayTime.value = MUS.step * 3; fb.gain.value = 0.22; wet.gain.value = 0.16; dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(musBus); musEcho = dl; }
+  musNext = a.currentTime + 0.15;
+  musicTimer = setInterval(() => { if (!PREF.music) { stopMusic(); return; } if (document.hidden || a.state !== 'running') { musNext = a.currentTime + 0.15; return; }
+    if (musNext < a.currentTime - 0.3) musNext = a.currentTime + 0.05; while (musNext < a.currentTime + 0.25) { musStep(a, musPos, musNext); musPos = (musPos + 1) % MUS.len; musNext += MUS.step; } }, 60);
+}
+function stopMusic() { clearInterval(musicTimer); musicTimer = null; applyVol(); }
+/* 声音状态改变：立刻听到 / 看到反馈 */
+function setSound(patch, quiet) {
+  const was = { m: PREF.music, s: PREF.sound }; savePref(patch); ac(); applyVol(); renderHud(); renderSndPop();
+  if (patch.music !== undefined && patch.music !== was.m) { if (PREF.music) { startMusic(); if (!quiet) toast('背景音乐已开启'); } else { stopMusic(); if (!quiet) toast('背景音乐已关闭'); } }
+  if (patch.sound !== undefined && patch.sound !== was.s) { if (PREF.sound) { sfx('on'); if (!quiet) toast('操作音效已开启'); } else if (!quiet) toast('操作音效已关闭'); }
+}
+function sndState() { return PREF.music && PREF.sound ? 'on' : PREF.music || PREF.sound ? 'half' : 'off'; }
+function renderSndPop() {
+  const el = $('sndpop'); if (!el || !el.classList.contains('show')) return;
+  const sw = (id, on) => `<button class="sw${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on}"><i></i><span>${on ? '开' : '关'}</span></button>`;
+  el.innerHTML = `<div class="sp-h">${ICON(sndState() === 'off' ? 'mute' : 'sound')}<b>${({ on: '声音已开启', half: PREF.music ? '只开了背景音乐' : '只开了操作音效', off: '声音已关闭' })[sndState()]}</b></div>
+    <div class="sp-r"><span>${ICON('music')}背景音乐</span>${sw('sp-m', PREF.music)}</div><input type="range" min="0" max="100" step="5" id="sp-mv" value="${PREF.mvol === undefined ? 70 : PREF.mvol}" ${PREF.music ? '' : 'disabled'} aria-label="背景音乐音量">
+    <div class="sp-r"><span>${ICON('sound')}操作音效</span>${sw('sp-s', PREF.sound)}</div><input type="range" min="0" max="100" step="5" id="sp-sv" value="${PREF.svol === undefined ? 80 : PREF.svol}" ${PREF.sound ? '' : 'disabled'} aria-label="操作音效音量">
+    <div class="sp-b"><button class="btn sm" id="sp-all">${sndState() === 'off' ? '全部打开' : '全部静音'}</button></div>`;
+  $('sp-m').onclick = () => setSound({ music: !PREF.music }); $('sp-s').onclick = () => setSound({ sound: !PREF.sound });
+  $('sp-all').onclick = () => { const on = sndState() === 'off'; setSound({ music: on, sound: on }, true); toast(on ? '声音已开启' : '声音已关闭'); };
+  let vt = 0; const vol = (id, k) => { const r = $(id); r.oninput = () => { PREF[k] = Math.round(+r.value); applyVol(); }; r.onchange = () => { clearTimeout(vt); vt = setTimeout(() => savePref({ [k]: PREF[k] }), 300); if (k === 'svol') sfx('click'); }; }; vol('sp-mv', 'mvol'); vol('sp-sv', 'svol');
+}
+function toggleSndPop(force) {
+  let el = $('sndpop'); if (!el) { el = document.createElement('div'); el.id = 'sndpop'; document.body.appendChild(el); document.addEventListener('pointerdown', e => { if (el.classList.contains('show') && !el.contains(e.target) && !$('btn-snd').contains(e.target)) el.classList.remove('show'); }); }
+  const show = force === undefined ? !el.classList.contains('show') : force; el.classList.toggle('show', show); if (show) { const r = $('btn-snd').getBoundingClientRect(); el.style.top = Math.round(r.bottom + 8) + 'px'; el.style.right = Math.max(8, Math.round(window.innerWidth - r.right - 8)) + 'px'; renderSndPop(); }
 }
 
 /* ============ 提示 ============ */
-function toast(msg, kind) {
-  const d = document.createElement('div'); d.className = 'toast' + (kind ? ' ' + kind : ''); d.textContent = msg; $('toasts').appendChild(d);
+/* act = { label, fn }：提示条上带一个按钮（比如「去看看」），停留更久，玩家自己决定点不点 */
+function toast(msg, kind, act) {
+  const d = document.createElement('div'); d.className = 'toast' + (kind ? ' ' + kind : '') + (act ? ' act' : ''); d.textContent = msg; $('toasts').appendChild(d);
+  if (act) { const b = document.createElement('button'); b.textContent = act.label; b.onclick = e => { e.stopPropagation(); d.remove(); act.fn(); }; d.appendChild(b); }
   while ($('toasts').children.length > 4) $('toasts').firstChild.remove();
-  setTimeout(() => d.remove(), 2800);
+  setTimeout(() => d.remove(), act ? 5600 : 2800);
 }
 const FX = W3.fx;
 
@@ -3640,7 +3793,7 @@ async function refreshState() { try { const r = await NET.get('/api/state'); app
 function applyState(st) {
   if (st && st.me && W3.ready) W3.setHero((() => { const a = st.me.avatar || {}, A = CFG.AVATAR_OPTS; return { skin: A.skin[a.skin | 0], hair: A.hair[a.hair | 0], shirt: A.shirt[a.shirt | 0], band: A.band[a.band | 0], hat: a.hat ? 1 : 0 }; })());
   const prevUnread = S ? S.badges.unread : 0;
-  S = st; PREF = Object.assign({ sound: true, music: true, notify: false, tod: 'auto', tut: 0 }, S.me.settings || {});
+  S = st; PREF = Object.assign({ sound: true, music: true, notify: false, tod: 'auto', tut: 0, mvol: 70, svol: 80, pan: 0 }, S.me.settings || {}); applyVol(); if (!PREF.music) stopMusic();
   if (view.key === 'home') view.plots = S.plots;
   renderHud(); renderToolbar(); renderTitle(); renderSide();
   if (S.badges.unread > prevUnread) { loadMessages(true); loadFriends(); }
@@ -3809,7 +3962,7 @@ function renderHud() {
   const pct = me.lv >= RULES.maxLv ? 100 : me.exp / me.expNeed * 100; $('expfill').style.width = pct + '%'; $('exptext').textContent = me.lv >= RULES.maxLv ? '满级' : `${Math.floor(me.exp)} / ${me.expNeed}`;
   const g = $('goldnum'); if (g.textContent !== fmt(me.gold)) { g.textContent = fmt(me.gold); $('gold').classList.remove('bump'); void $('gold').offsetWidth; $('gold').classList.add('bump'); }
   drawAvatar($('avatar'), avStyle(me.avatar)); const fc = frameColor(me.frame); $('avatar').style.boxShadow = fc ? `0 0 0 2px ${fc}, 0 0 10px ${fc}` : '';
-  $('btn-snd').innerHTML = ICON(PREF.sound ? 'sound' : 'mute');
+  { const st = sndState(), b = $('btn-snd'); b.innerHTML = ICON(st === 'off' ? 'mute' : 'sound') + `<em class="sndst ${st}">${st === 'off' ? '关' : '开'}</em>`; b.className = 'snd-' + st; b.title = ({ on: '声音已开启（点击调节）', half: '部分声音已开启（点击调节）', off: '声音已关闭（点击打开）' })[st]; b.setAttribute('aria-label', b.title); }
 }
 // 切换到某片田：俯视时镜头移过去；漫游时人物走过去太远，直接传送到那片田边
 function setField(f) { const nf = Math.ceil((view.plots || []).length / CFG.NPLOTS); f = Math.max(0, Math.min(nf - 1, f | 0)); W3.setField(f); if (W3.mode === 'walk') { const [x, z] = W3.fieldCenter(f); W3.teleport(x, z + 6.2, 0); } renderTitle(); }
@@ -3878,15 +4031,37 @@ function renderFriends() {
 
 /* ============ 弹窗基础 ============ */
 let modalStack = null;
-function openModal(html, opt) {
-  opt = opt || {}; const m = $('modal'); m.className = opt.small ? 'small' : opt.wide ? 'wide' : ''; m.innerHTML = (opt.noclose ? '' : `<button class="x" onclick="closeModal()">${ICON('close')}</button>`) + html; $('mback').classList.add('show'); $('mback').dataset.noclose = opt.noclose ? '1' : ''; sfx('open'); if (opt.mount) opt.mount(); modalStack = opt.onclose || null;
+/* v3.3：同一个弹窗（同标题、同标签页）刷新时保留滚动位置、输入的文字和焦点，买东西不会跳回顶部 */
+const modalKey = root => { const h = root.querySelector('h2'), t = root.querySelector('.tabs .on'); return h ? h.textContent + '|' + (t ? t.textContent.replace(/\d+$/, '') : '') : ''; };
+function modalSnap(m) {
+  const sc = [], inp = {}; [m, ...m.querySelectorAll('*')].forEach((el, i) => { if (el.scrollTop > 0 || el.scrollLeft > 0) sc.push([el === m ? '' : el.className + '#' + (el.id || ''), el.scrollTop, el.scrollLeft]); });
+  m.querySelectorAll('input[id],textarea[id],select[id]').forEach(el => { if (el.type !== 'checkbox' && el.type !== 'radio') inp[el.id] = el.value; else inp[el.id] = el.checked; });
+  const f = document.activeElement && m.contains(document.activeElement) && document.activeElement.id ? document.activeElement.id : null;
+  return { key: modalKey(m), sc, inp, f };
 }
-function closeModal(force) { if ($('mback').dataset.noclose === '1' && !force) return; $('mback').classList.remove('show'); $('mback').dataset.noclose = ''; const f = modalStack; modalStack = null; if (f) f(); }
+function modalRestore(m, st) {
+  Object.keys(st.inp).forEach(id => { const el = document.getElementById(id); if (!el || !m.contains(el) || el.disabled) return; if (el.type === 'checkbox' || el.type === 'radio') el.checked = st.inp[id]; else if (el.type !== 'range') el.value = st.inp[id]; });
+  const seen = {}; st.sc.forEach(([k, t, l]) => { let el; if (k === '') el = m; else { const [cls, id] = k.split('#'); if (id) el = document.getElementById(id); else { seen[cls] = (seen[cls] || 0); el = [...m.querySelectorAll('*')].filter(x => x.className === cls)[seen[cls]++]; } } if (el) { el.scrollTop = t; el.scrollLeft = l; } });
+  if (st.f) { const el = document.getElementById(st.f); if (el && !el.disabled) try { el.focus({ preventScroll: true }); } catch (e) { /* 旧浏览器 */ } }
+}
+function openModal(html, opt) {
+  opt = opt || {}; const m = $('modal'), shown = $('mback').classList.contains('show'), st = shown ? modalSnap(m) : null;
+  m.className = opt.small ? 'small' : opt.wide ? 'wide' : ''; m.innerHTML = (opt.noclose ? '' : `<button class="x" onclick="closeModal()">${ICON('close')}</button>`) + html; if (m.querySelector(':scope > .list')) m.classList.add('haslist'); $('mback').classList.add('show'); document.body.classList.add('mopen'); $('mback').dataset.noclose = opt.noclose ? '1' : '';
+  const same = st && st.key && st.key === modalKey(m); if (!same) sfx('open');
+  if (opt.mount) opt.mount(); if (same) modalRestore(m, st); else m.scrollTop = 0; modalStack = opt.onclose || null;
+}
+function closeModal(force) { if ($('mback').dataset.noclose === '1' && !force) return; $('mback').classList.remove('show'); document.body.classList.remove('mopen'); $('mback').dataset.noclose = ''; const f = modalStack; modalStack = null; if (f) f(); }
 const iconImg = id => `<img class="cimg" src="${cropIcon(id)}">`;
 const itemIcon = item => { const ri = CFG.ranchItem(item); if (ri) { const d = ri.kind === 'fish' ? CFG.FISH[ri.id] : ri.kind === 'wool' ? CFG.SHEEP[ri.id] : CFG.TREES[ri.id]; return `<span class="ii emo" style="color:${ri.kind === 'wool' ? (d.body === '#fbf8f0' ? '#e8e0d0' : d.body) : d.col}">${ICON(ri.kind === 'fish' ? 'fish' : ri.kind === 'wool' ? 'sheep' : 'leaf')}</span>`; } if (['ffeed', 'sfeed', 'tfert'].includes(item)) return `<span class="ii emo">${ICON(item === 'ffeed' ? 'fish' : item === 'sfeed' ? 'sheep' : 'drop')}</span>`; const c = cropOf(item); if (c) return `<span class="ii${c.golden ? ' gold' : ''}"><img class="cimg" src="${cropIcon(c.id, c.golden)}"></span>`; return `<span class="ii emo">${ICON(item === 'fert' ? 'flask' : item === 'dogfood' ? 'paw' : 'box')}</span>`; };
 const avHtml = (av, frame, size) => { const fc = frameColor(frame); return `<img class="av" src="${avURL(av)}" style="width:${size || 40}px;height:${size || 40}px;${fc ? `box-shadow:0 0 0 2px ${fc}` : ''}">`; };
 function levelUp(lv) {
   sfx('level'); const unlocked = CROPS.filter(c => c.lv === lv);
+  /* 正在买东西时升级：不要盖掉当前弹窗，用提示条告诉玩家，可以点「看看」再打开升级详情 */
+  if ($('mback').classList.contains('show') && !$('modal').querySelector('.lvup')) { toast(`升到 Lv.${lv} 了！获得 ${lv * 120} 金币${unlocked.length ? `，解锁 ${unlocked.map(c => c.name).join('、')}` : ''}`, 'lv', { label: '看看', fn: () => { closeModal(); levelUpPop(lv); } }); return; }
+  levelUpPop(lv);
+}
+function levelUpPop(lv) {
+  const unlocked = CROPS.filter(c => c.lv === lv);
   openModal(`<div class="lvup"><div class="lvring"><span>Lv.${lv}</span></div><h2>等级提升</h2>
     <p>获得 <b class="gold">${lv * 120}</b> 金币 和 <b>化肥 ×1</b></p>
     ${CFG.DOGS.filter(d => d.lv === lv).map(d => `<div class="unl">可以领养 <b>${d.name}</b> 了！点农场右边的狗窝，或者 商店 → 宠物</div>`).join('')}
@@ -3926,6 +4101,7 @@ function frame(now) {
   rainK += ((raining ? 1 : 0) - rainK) * Math.min(1, dt * 1.2);
   const home = view.key === 'home';
   W3.setTheme(themeOf(home ? (S ? S.me.theme : 'classic') : view.friend.theme)); W3.setDog(dogMode()); W3.setRanch(ranch3d()); W3.setPets(view.key === 'home' ? (S && S.me.pets || []) : ((view.friend && view.friend.pets) || [])); W3.setEnv(curHour(), rainK);
+  { const pn = W3.mode !== 'walk' && W3.panned; if (pn !== document.body.classList.contains('panned')) document.body.classList.toggle('panned', pn); }
   W3.setPlots(view.plots, home); W3.setHover(mouse.in || painting ? hoverIdx : -1); W3.render(dt);
   updateTip(); updateWalkUi(); requestAnimationFrame(frame);
 }
@@ -3986,19 +4162,43 @@ function paintAt(ev, first) {
   if (first) { paintQ.push({ i, first: true }); runPaint(); } else if (view.key === 'home' && view.plots[i].u && !paintQ.some(q => q.i === i)) { paintQ.push({ i, first: false }); runPaint(); }
 }
 let tipTimer = 0;
-const touches = new Map(); let pinch0 = 0;
+const touches = new Map(); let pinch0 = 0, pinchM = null;
 cv.addEventListener('pointerdown', ev => { if (ev.pointerType === 'touch') { touches.set(ev.pointerId, ev); if (touches.size === 2) { painting = false; paintQ.length = 0; const [a, b] = [...touches.values()]; pinch0 = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); return; } } });
-cv.addEventListener('pointermove', ev => { if (ev.pointerType === 'touch' && touches.has(ev.pointerId)) { touches.set(ev.pointerId, ev); if (touches.size === 2 && pinch0) { const [a, b] = [...touches.values()], d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); W3.zoomBy(pinch0 / d); pinch0 = d; } } });
-['pointerup', 'pointercancel'].forEach(n => cv.addEventListener(n, ev => { touches.delete(ev.pointerId); if (touches.size < 2) pinch0 = 0; }));
+cv.addEventListener('pointermove', ev => { if (ev.pointerType === 'touch' && touches.has(ev.pointerId)) { touches.set(ev.pointerId, ev); if (touches.size === 2 && pinch0) { const [a, b] = [...touches.values()], d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), mx = (a.clientX + b.clientX) / 2, my = (a.clientY + b.clientY) / 2; W3.zoomBy(pinch0 / d); pinch0 = d; if (W3.mode !== 'walk' && pinchM) W3.panBy(mx - pinchM[0], my - pinchM[1]); pinchM = [mx, my]; } } });
+['pointerup', 'pointercancel'].forEach(n => cv.addEventListener(n, ev => { touches.delete(ev.pointerId); if (touches.size < 2) { pinch0 = 0; pinchM = null; } }));
 // 漫游模式：拖动转镜头，轻点地块直接操作
 const drag = { on: false, x: 0, y: 0, moved: 0, id: -1 };
 cv.addEventListener('pointerdown', ev => { if (W3.mode !== 'walk') return; if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) { drag.on = false; return; } drag.on = true; drag.x = ev.clientX; drag.y = ev.clientY; drag.moved = 0; drag.id = ev.pointerId; ac(); startMusic(); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
 cv.addEventListener('pointermove', ev => { if (W3.mode !== 'walk') return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); if (!drag.on || ev.pointerId !== drag.id || touches.size > 1) return; const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y; drag.moved += Math.abs(dx) + Math.abs(dy); drag.x = ev.clientX; drag.y = ev.clientY; W3.orbit(dx * 0.0065, dy * 0.0045); });
 cv.addEventListener('pointerup', ev => { if (W3.mode !== 'walk') return; if (drag.on && ev.pointerId === drag.id && drag.moved < 8 && touches.size < 2) { const i = W3.pick(ev.clientX, ev.clientY); if (i >= 0) clickPlot(i, true); else if (i <= -10) pickSpecial(i); } drag.on = false; if (ev.pointerType !== 'mouse') { mouse.in = false; hoverIdx = -1; } });
-cv.addEventListener('pointerdown', ev => { if (W3.mode === 'walk') return; if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) return; painting = true; lastPaint = -1; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, true); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
-cv.addEventListener('pointermove', ev => { if (W3.mode === 'walk') return; if (touches.size > 1) return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY); if (painting) paintAt(ev, false); updateCursor(); });
-cv.addEventListener('pointerup', ev => { painting = false; lastPaint = -1; if (ev.pointerType !== 'mouse') { clearTimeout(tipTimer); tipTimer = setTimeout(() => { mouse.in = false; hoverIdx = -1; updateCursor(); }, 1600); } });
-cv.addEventListener('pointercancel', () => { painting = false; });
+/* 俯视模式（v3.3）：
+   - 按住拖动 = 平移地图（鼠标左键 / 单指），不会碰到任何地块
+   - 轻点（移动不到 8 像素就松开）= 操作那块地
+   - 按住不动 0.4 秒后再拖 = 连续操作（以前的「刷地」玩法），会有震动 / 光圈提示
+   - 双指 = 缩放 + 平移；鼠标滚轮缩放 */
+const tdrag = { on: false, id: -1, x: 0, y: 0, sx: 0, sy: 0, moved: 0, t: 0, hold: 0, paint: false, pan: false };
+/* 用事件自带的时间戳判断「按住多久才开始移动」，就算手机一时卡顿、事件排队，也不会把拖地图误判成连续操作 */
+const HOLD_MS = 420;
+cv.addEventListener('pointerdown', ev => { if (W3.mode === 'walk') return; if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) { tdrag.on = false; clearTimeout(tdrag.hold); return; }
+  Object.assign(tdrag, { on: true, id: ev.pointerId, x: ev.clientX, y: ev.clientY, sx: ev.clientX, sy: ev.clientY, moved: 0, t: ev.timeStamp, paint: false, pan: false }); ac(); startMusic();
+  mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY);
+  clearTimeout(tdrag.hold); tdrag.hold = setTimeout(() => { if (!tdrag.on || tdrag.pan || tdrag.moved >= 8 || touches.size > 1) return; const i = W3.pick(tdrag.sx, tdrag.sy); if (i < 0 || view.key !== 'home') return; cv.classList.add('painting'); try { navigator.vibrate && navigator.vibrate(18); } catch (e) { } }, HOLD_MS);
+  try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
+cv.addEventListener('pointermove', ev => { if (W3.mode === 'walk') return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true;
+  if (touches.size > 1) { tdrag.on = false; clearTimeout(tdrag.hold); return; }
+  if (tdrag.on && ev.pointerId === tdrag.id) { const dx = ev.clientX - tdrag.x, dy = ev.clientY - tdrag.y; tdrag.x = ev.clientX; tdrag.y = ev.clientY; tdrag.moved = Math.max(tdrag.moved, Math.hypot(ev.clientX - tdrag.sx, ev.clientY - tdrag.sy));
+    if (!tdrag.paint && !tdrag.pan && tdrag.moved >= 8) { clearTimeout(tdrag.hold); const i0 = W3.pick(tdrag.sx, tdrag.sy);
+      if (ev.timeStamp - tdrag.t >= HOLD_MS && i0 >= 0 && view.key === 'home') { tdrag.paint = true; painting = true; lastPaint = -1; cv.classList.add('painting'); paintAt({ clientX: tdrag.sx, clientY: tdrag.sy }, true); }
+      else { tdrag.pan = true; cv.classList.remove('painting'); cv.classList.add('panning'); } }
+    if (tdrag.paint) { hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, false); }
+    else if (tdrag.pan) { hoverIdx = -1; W3.panBy(dx, dy); }
+  } else hoverIdx = W3.pick(ev.clientX, ev.clientY);
+  updateCursor(); });
+cv.addEventListener('pointerup', ev => { if (W3.mode === 'walk') return; clearTimeout(tdrag.hold); cv.classList.remove('panning', 'painting');
+  if (tdrag.on && ev.pointerId === tdrag.id && !tdrag.paint && !tdrag.pan && tdrag.moved < 8 && touches.size < 2) { hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, true); }
+  tdrag.on = false; tdrag.paint = false; tdrag.pan = false; painting = false; lastPaint = -1;
+  if (ev.pointerType !== 'mouse') { clearTimeout(tipTimer); tipTimer = setTimeout(() => { mouse.in = false; hoverIdx = -1; updateCursor(); }, 1600); } });
+cv.addEventListener('pointercancel', () => { painting = false; tdrag.on = false; tdrag.paint = false; clearTimeout(tdrag.hold); cv.classList.remove('panning', 'painting'); });
 cv.addEventListener('pointerleave', () => { if (painting) return; mouse.in = false; hoverIdx = -1; updateCursor(); });
 cv.addEventListener('contextmenu', e => { e.preventDefault(); tool = 'auto'; renderToolbar(); updateCursor(); });
 function updateCursor() {
@@ -4041,6 +4241,7 @@ async function enterGame(state, fresh) {
   checkMigrate(fresh);
   try { NET.post('/api/telemetry', { loadMs: Math.round(performance.now()) }).catch(() => { }); } catch (e) { }
   if (window.innerWidth < 600 && window.innerHeight > window.innerWidth) setTimeout(() => toast('横屏体验更好'), 1500);
+  if (!PREF.pan) setTimeout(() => { if (W3.mode === 'walk') return; toast('新功能：按住拖动可以查看整个农场，轻点地块才会操作；双指或滚轮缩放'); savePref({ pan: 1 }); }, 3500);
 }
 function checkMigrate(fresh) {
   let old = null; try { old = JSON.parse(localStorage.getItem('harvest_farm_save_v1') || 'null'); } catch (e) { }
@@ -4069,7 +4270,8 @@ function bindGlobal() {
   $('mback').addEventListener('pointerdown', e => { if (e.target === $('mback')) closeModal(); });
   $('btn-help').innerHTML = ICON('help'); $('btn-menu').innerHTML = ICON('gear'); $('btn-snd').innerHTML = ICON('sound'); $('todbtn').innerHTML = ICON('cloudsun'); $('coinico').innerHTML = ICON('coin');
   $('btn-help').onclick = () => { ac(); openHelp(); }; $('btn-menu').onclick = () => { ac(); openMenu(); };
-  $('btn-snd').onclick = () => { ac(); savePref({ sound: !PREF.sound }); renderHud(); if (PREF.sound) { startMusic(); sfx('click'); } };
+  $('btn-snd').onclick = () => { ac(); toggleSndPop(); };
+  $('recenter').innerHTML = ICON('target') + '<span>回到农场中心</span>'; $('recenter').onclick = () => { sfx('click'); W3.resetView(); };
   $('todbtn').onclick = () => { const o = ['auto', 'day', 'dusk', 'night']; savePref({ tod: o[(o.indexOf(PREF.tod) + 1) % 4] }); renderTitle(); sfx('click'); toast(({ auto: '跟随真实时间', day: '白天', dusk: '黄昏', night: '夜晚' })[PREF.tod]); };
   $('card').onclick = () => { if (S) openProfile(); };
   $('log').onclick = () => openMessages();
@@ -4257,7 +4459,7 @@ function openShop(tab) {
       qsa('[data-pet]').forEach(b => b.onclick = async () => { const nm = ($('pc_' + b.dataset.pet).value || '').trim(); if (!nm) { toast('先给它起个名字', 'warn'); $('pc_' + b.dataset.pet).focus(); return; } b.disabled = true; const r = await api('/api/pet/buy', { coat: b.dataset.pet, name: nm }); if (r) { sfx('bark'); toast(`${r.result.name}来到你的农场啦！`); } openShop('dog'); });
       qsa('[data-ren]').forEach(b => b.onclick = async () => { const nm = ($('pn_' + b.dataset.ren).value || '').trim(); if (!nm) return; b.disabled = true; const r = await api('/api/pet/rename', { id: b.dataset.ren, name: nm }); if (r) toast(`改名为 ${r.result.name}`); openShop('dog'); });
       qsa('[data-buy]').forEach(b => b.onclick = async () => { const r = await api('/api/shop/buy', { item: b.dataset.buy, n: +b.dataset.n }); if (r) { sfx('coin'); toast(`购买成功 ×${b.dataset.n}`); openShop('item'); } });
-      const bf = $('buyfield'); if (bf) bf.onclick = async () => { bf.disabled = true; const r = await api('/api/farm/field'); if (r) { sfx('level'); toast(`开辟了第 ${r.result.field + 1} 片农田，多了 24 块地！`); closeModal(true); setField(r.result.field); } else openShop('land'); };
+      const bf = $('buyfield'); if (bf) bf.onclick = async () => { bf.disabled = true; const r = await api('/api/farm/field'); if (r) { const f = r.result.field; sfx('level'); toast(`开辟了第 ${f + 1} 片农田，多了 24 块地！`, 'lv', { label: '查看新农田', fn: () => { closeModal(true); if (view.key !== 'home') goHome(); setField(f); } }); } openShop('land'); };
       const bl = $('buyland'); if (bl) bl.onclick = async () => { if (view.key !== 'home') goHome(); await doExpand(-1); openShop('land'); };
       qsa('[data-soil]').forEach(b => b.onclick = () => { const T = CFG.SOILS[+b.dataset.soil]; closeModal(); if (view.key !== 'home') goHome(); tool = 'red'; redTo = T.id; renderToolbar(); updateCursor(); toast(`点击要升级的地，直接升为${T.name}（低于${CFG.SOILS[T.id - 1].name}的地会一级一级补齐，按每级价格收费；右键或点「自动」取消）`); });
       qsa('[data-dog]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/shop/dog', { kind: b.dataset.dog }); if (r) { sfx('bark'); toast(`${r.result.name}来到你的农场了，送你一份狗粮，记得去仓库喂它`); } openShop('dog'); });
@@ -4476,8 +4678,9 @@ function openMenu() {
   if (!S) return;
   const row = (t, s, btn) => `<div class="row-item"><div class="ri-main"><b>${t}</b>${s ? `<small>${s}</small>` : ''}</div>${btn}</div>`;
   openModal(`${H2('gear', '设置')}<div class="list">
-    ${row('游戏音效', '', `<button class="btn sm ${PREF.sound ? 'primary' : ''}" id="tsound">${PREF.sound ? '开启' : '关闭'}</button>`)}
-    ${row('背景音乐', '', `<button class="btn sm ${PREF.music ? 'primary' : ''}" id="tmusic">${PREF.music ? '开启' : '关闭'}</button>`)}
+    ${row('操作音效', PREF.sound ? '已开启' : '已关闭', `<button class="sw${PREF.sound ? ' on' : ''}" id="tsound" role="switch" aria-checked="${PREF.sound}"><i></i><span>${PREF.sound ? '开' : '关'}</span></button>`)}
+    ${row('背景音乐', PREF.music ? '已开启' : '已关闭', `<button class="sw${PREF.music ? ' on' : ''}" id="tmusic" role="switch" aria-checked="${PREF.music}"><i></i><span>${PREF.music ? '开' : '关'}</span></button>`)}
+    ${row('音量', '分别调节音乐和音效', `<button class="btn sm" id="tvol">调节</button>`)}
     ${row('昼夜', '', `<button class="btn sm" id="ttod">${({ auto: '跟随时间', day: '白天', dusk: '黄昏', night: '夜晚' })[PREF.tod] || '跟随时间'}</button>`)}
     ${row('成熟 / 被偷提醒', '页面在后台时，用浏览器通知提醒你（默认关闭）', `<button class="btn sm ${PREF.notify ? 'primary' : ''}" id="tnotify">${PREF.notify ? '开启' : '关闭'}</button>`)}
     ${row('账号与数据', S.me.guest ? '游客账号只能在这个浏览器登录，建议绑定' : '已绑定账号：' + esc(S.me.username), '<button class="btn sm" id="tacc">管理</button>')}
@@ -4487,7 +4690,7 @@ function openMenu() {
     ${row('退出登录', '退出并从本机移除这个账号', '<button class="btn sm danger" id="tlogout">退出</button>')}
     ${row('当前版本', '构建时间 ' + (typeof HF_BUILT !== 'undefined' ? HF_BUILT : '未知') + '（北京时间）', `<b class="ver">v${CFG.VERSION}</b>`)}</div>`, {
     small: true, mount: () => {
-      $('tsound').onclick = () => { savePref({ sound: !PREF.sound }); renderHud(); openMenu(); }; $('tmusic').onclick = () => { savePref({ music: !PREF.music }); if (PREF.music) startMusic(); openMenu(); };
+      $('tsound').onclick = () => { setSound({ sound: !PREF.sound }); openMenu(); }; $('tmusic').onclick = () => { setSound({ music: !PREF.music }); openMenu(); }; $('tvol').onclick = () => { closeModal(); toggleSndPop(true); };
       $('ttod').onclick = () => { const o = ['auto', 'day', 'dusk', 'night']; savePref({ tod: o[(o.indexOf(PREF.tod) + 1) % 4] }); renderTitle(); openMenu(); };
       $('tnotify').onclick = async () => { if (!PREF.notify && 'Notification' in window) { const p = await Notification.requestPermission(); if (p !== 'granted') { toast('浏览器没有允许通知', 'warn'); return; } } else if (!('Notification' in window)) { toast('这个浏览器不支持通知', 'warn'); return; } savePref({ notify: !PREF.notify }); openMenu(); };
       $('tacc').onclick = openAccount; $('thelp').onclick = openHelp; $('tlogout').onclick = logout; $('tswitch').onclick = () => showLogin('quick', null, true);
@@ -4576,7 +4779,7 @@ function openRanch(tab) {
       const rc = $('rcol'); if (rc) rc.onclick = () => { rc.disabled = true; act('/api/ranch/fish/collect', {}, x => { sfx('coin'); toast(`收获 ${Object.entries(x.got).map(([id, n]) => `${CFG.FISH[id].name}×${fmt(n)}`).join('、')}${x.exp ? `，+${fmt(x.exp)} 经验` : ''}`); W3.pondSplash && W3.pondSplash(); }); };
       const rs = $('rshear'); if (rs) rs.onclick = () => { rs.disabled = true; act('/api/ranch/shear', {}, x => { sfx('coin'); toast(`剪下 ${Object.entries(x.got).map(([id, n]) => `${CFG.SHEEP[id].woolName}×${fmt(n)}`).join('、')}${x.exp ? `，+${fmt(x.exp)} 经验` : ''}`); }); };
       const rf = $('rfruit'); if (rf) rf.onclick = () => { rf.disabled = true; act('/api/ranch/fruit', {}, x => { sfx('harvest'); toast(`摘了 ${Object.entries(x.got).map(([id, n]) => `${CFG.TREES[id].fruit}×${fmt(n)}`).join('、')}${x.exp ? `，+${fmt(x.exp)} 经验` : ''}`); }); };
-      qsa('[data-herd]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/ranch/herd', { kind: b.dataset.herd }); if (r) { sfx('bark'); toast(`${r.result.name}冲出去放羊啦！${r.result.share < 1 ? `（羊太多了，它只能照看 ${fmt(r.result.cap)} 只，多训练它吧）` : ''}`); closeModal(true); } else openRanch('pasture'); });
+      qsa('[data-herd]').forEach(b => b.onclick = async () => { b.disabled = true; const r = await api('/api/ranch/herd', { kind: b.dataset.herd }); if (r) { sfx('bark'); toast(`${r.result.name}冲出去放羊啦！${r.result.share < 1 ? `（羊太多了，它只能照看 ${fmt(r.result.cap)} 只，多训练它吧）` : ''}`, '', { label: '去看看', fn: () => { closeModal(true); W3.lookAt('pasture'); } }); } openRanch('pasture'); });
     }
   });
 }
