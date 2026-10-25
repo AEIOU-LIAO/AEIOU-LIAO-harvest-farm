@@ -429,3 +429,7 @@ body.hunting #zonebar{display:none}
 .hu-flash{position:fixed;inset:0;z-index:30;pointer-events:none;background:radial-gradient(circle,rgba(255,0,0,0) 40%,rgba(220,30,20,.55));animation:hufl .45s ease-out forwards}@keyframes hufl{to{opacity:0}}
 .hu-dot{display:inline-block;width:12px;height:12px;border-radius:50%}.row-item.dim{opacity:.55}.row-item em.lk{font-style:normal;font-size:11px;color:var(--mut);margin-left:4px}.row-item .ok{color:#9fe0a8;font-size:12px}
 body.hunting #card,body.hunting #gold,body.hunting #rightbtns,body.hunting #sndpop,body.hunting #netbar{display:none!important}
+/* 选角色 */
+.charpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.cpick{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line2);color:var(--ink);font:inherit;cursor:pointer}
+.cpick img{width:88px;height:88px;object-fit:cover;border-radius:10px;background:#cfe6f5}.cpick b{font-size:12.5px;font-weight:600}.cpick.on{border-color:var(--gold);background:rgba(230,196,122,.18)}

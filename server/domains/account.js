@@ -110,7 +110,7 @@ module.exports = {
     if (b.frame !== undefined) { if (!own.has('frame:' + b.frame)) throw bad('还没有这个头像框'); sets.push('frame=?'); args.push(b.frame); }
     if (b.title !== undefined) { if (b.title) { const a = CFG.ACHIEVEMENTS.find(x => x.title === b.title); if (!a || !(await this.db.get('SELECT 1 FROM claims WHERE user_id=? AND key=?', uid, 'ach:' + a.id))) throw bad('还没有获得这个称号'); } sets.push('title=?'); args.push(b.title || ''); }
     if (b.seed !== undefined) { const c = U.int(b.seed, '种子', 0, CROPS.length - 1); sets.push('seed=?'); args.push(c); }
-    if (b.settings !== undefined) { const s = b.settings || {}; const clean = { sound: !!s.sound, music: !!s.music, notify: !!s.notify, tod: ['auto', 'day', 'dusk', 'night'].includes(s.tod) ? s.tod : 'auto', tut: U.int(s.tut || 0, '引导', 0, 99), mvol: U.int(s.mvol === undefined ? 70 : s.mvol, '音乐音量', 0, 100), svol: U.int(s.svol === undefined ? 80 : s.svol, '音效音量', 0, 100), pan: U.int(s.pan || 0, '提示', 0, 9), v3char: !!s.v3char }; sets.push('settings=?'); args.push(JSON.stringify(clean)); }
+    if (b.settings !== undefined) { const s = b.settings || {}; const clean = { sound: !!s.sound, music: !!s.music, notify: !!s.notify, tod: ['auto', 'day', 'dusk', 'night'].includes(s.tod) ? s.tod : 'auto', tut: U.int(s.tut || 0, '引导', 0, 99), mvol: U.int(s.mvol === undefined ? 70 : s.mvol, '音乐音量', 0, 100), svol: U.int(s.svol === undefined ? 80 : s.svol, '音效音量', 0, 100), pan: U.int(s.pan || 0, '提示', 0, 9), v3char: !!s.v3char, v3hero: CFG.ASSETS.some(a => a.id === s.v3hero && a.kind === 'hero') ? s.v3hero : '' }; sets.push('settings=?'); args.push(JSON.stringify(clean)); }
     if (sets.length) this.db.w(`UPDATE users SET ${sets.join(',')} WHERE id=?`, ...args, uid); return {};
   },
 };

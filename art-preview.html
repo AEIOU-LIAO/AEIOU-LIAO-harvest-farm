@@ -50,8 +50,14 @@ button:disabled{opacity:.4}
    V3（默认）：男主角 + 福旺的骨骼绑定和待机动作；走路由程序在骨骼上摆动（lib/entity3.js，和游戏里一样），等美术交 walk 后自动换成美术的动作。
    V2：Tripo 真实 3D 外观候选，静态模型（没有骨骼和动作），手机默认 1024 贴图，可切 2K 高清。
    V1：技术灰盒测试包（有 idle / walk），留作对照。 */
-const PAGE_VER = 8;
+const PAGE_VER = 9;
+const HEROINES = Array.from({ length: 14 }, (_, i) => { const k = 'heroine_' + String(i + 1).padStart(2, '0'); return [k, '女' + (i + 1), 'hero', null, 'h2_' + k]; });
+const CLIP_NAME = { idle: '待机', walk: '走路', run: '跑步', jump_air: '跳（空中）', sit_idle: '坐', lie_idle: '趴', sleep: '睡觉', trot: '小跑', gallop: '奔跑' };
 const VERS = {
+  v4: { label: 'V4 动作', base: 'art/v4_motion/', rig: true, tiers: true, clips: true,
+    roster: [['hero_boy', '男主角', 'hero', 'hero_boy', 'v4_hero_boy'], ['dog_fuwang', '福旺', 'dog', 'dog_fuwang', 'v4_dog_fuwang'], ['dog_ruibao', '睿宝', 'dog', 'dog_ruibao', 'v4_dog_ruibao']].concat(HEROINES),
+    accBy: { hero_boy: [['bag', '挎包'], ['scarf', '围巾']], dog_fuwang: [['harness', '胸背带']], dog_ruibao: [['collar', '项圈'], ['tag', '吊牌']], heroine: [['bag', '提包'], ['hair', '头发']] },
+    note: 'V4：美术交付的完整动作 —— 男主角走 / 跑 / 跳，福旺、睿宝坐 / 趴 / 睡 / 走 / 小跑 / 奔跑，14 位女主角待机 / 走路。「边走边移动」按实测步幅移动，脚不打滑。' },
   v3: { label: 'V3 绑定+待机', base: 'art/v3_rig_idle/', rig: true, tiers: true,
     roster: [['hero_boy', '男主角', 'hero', 'hero_boy'], ['dog_fuwang', '福旺', 'dog', 'dog_fuwang']],
     acc: { hero: [['bag', '挎包'], ['scarf', '围巾']], dog: [['harness', '胸背带']] },
@@ -107,21 +113,22 @@ addEventListener('resize', resize);
 /* 资源统一由 lib/assets3.js 加载（清单来自 content/assets.jsonc；V0.1 起游戏也用同一个模块） */
 const quiet = new Set();
 const lib = new Assets3({ manifest: GAMECONTENT.ASSETS, onProgress: (id, k, b) => { if (!quiet.has(id)) progress(lib.info(id).name, k, b); } });
-const aid = (n, v) => (v || ver) + '_' + n;
+const aid = (n, v) => { const r = VERS[v || ver].roster.find(x => x[0] === n); return (r && r[4]) || (v || ver) + '_' + n; };
 function progress(label, k, bytes) { const el = $('load'); const txt = `正在加载${label}… ${k ? Math.round(k * 100) + '%' : Math.round(bytes / 1024) + ' KB'}`; if (el) el.textContent = txt; else if (label) toast(txt, 800); }
 const NAME = n => (VERS[ver].roster.find(r => r[0] === n) || [n, n])[1];
 const coatTex = k => lib.texture(lib.info('v1_dog_collie').coats.replace('{coat}', k), true);
 const stats = { loadMs: 0, glbMs: {}, fps: [], stress: null };
 
 /* ---------- 状态 ---------- */
-let ver = /[?&]v1\b/.test(location.search) ? 'v1' : /[?&]v2\b/.test(location.search) ? 'v2' : 'v3', who = VERS[ver].roster[0][0], clip = 'idle', moving = false, coat = 'fuwang', hat = true, view = 'near', hi = false, cur = null, stress = null, showTok = 0;
+let ver = /[?&]v1\b/.test(location.search) ? 'v1' : /[?&]v2\b/.test(location.search) ? 'v2' : /[?&]v3\b/.test(location.search) ? 'v3' : 'v4', who = VERS[ver].roster[0][0], clip = 'idle', moving = false, coat = 'fuwang', hat = true, view = 'near', hi = false, cur = null, stress = null, showTok = 0;
 function kindOf(n) { return (VERS[ver].roster.find(r => r[0] === n) || [])[2] || 'hero'; }
 async function instance(n, tier) { const inst = await lib.spawn(aid(n), { tier }); const c = { inst, s: inst.object, id: aid(n) }; if (VERS[ver].rig) c.rig = new Entity3.Rig(inst, kindOf(n)); return c; }
 let accOn = {};
 const hiOK = () => VERS[ver].still || VERS[ver].tiers;
 function drop(c) { if (!c) return; scene.remove(c.s); lib.release(c.inst); }
 function play(c, name, fade) { if (c.rig) { c.rig.play(name, fade); c.clip = name; return; } const real = c.inst.play(name, fade); if (real) c.clip = real; }
-function step(c, dt, v) { if (c.rig) { c.rig.update(dt); if (c.rig.faked && c.clip === 'walk') c.rig.autoGait(dt, v); } else c.inst.update(dt); }
+const natural = (c, clip) => { const L = c.rig && c.rig.loco[clip]; return L ? L.stride / L.dur : 0; };
+function step(c, dt, v) { if (c.rig) { c.rig.pace(v || natural(c, c.rig.real) || 1, 1); c.rig.update(dt); if (c.rig.faked && c.clip === 'walk') c.rig.autoGait(dt, v); } else c.inst.update(dt); }
 function setAcc(s, map) { s.traverse(o => { if (o.name in map) o.visible = !!map[o.name]; }); }
 async function setCoat(inst, k) { const t = await coatTex(k); inst.s.traverse(o => { if (o.isMesh) { const ms = [].concat(o.material).map(m => { if (m.name !== 'dog_coat') return m; if (!m.userData.own) { m = m.clone(); m.userData.own = 1; } m.map = t; m.needsUpdate = true; return m; }); o.material = Array.isArray(o.material) ? ms : ms[0]; } }); setAcc(inst.s, ACC[k] || ACC.other); }
 
@@ -134,7 +141,7 @@ async function show0() {
   const inst = await instance(n, hiOK() && hi ? '2k' : '1k'); inst.kind = kindOf(n); if (!stats.glbMs[aid(n)]) stats.glbMs[aid(n)] = Math.round(performance.now() - t0);
   if (tok !== showTok) { lib.release(inst.inst); return; }
   if (v === 'v1') { if (inst.kind === 'dog') await setCoat(inst, coat); else setAcc(inst.s, { hat, bag: 1, scarf: 1 }); }
-  if (VERS[v].acc) setAcc(inst.s, accOn);
+  if (VERS[v].acc || VERS[v].accBy) setAcc(inst.s, accOn);
   if (tok !== showTok) return;
   drop(cur);
   cur = inst; scene.add(cur.s); applyView(true);
@@ -154,12 +161,14 @@ function renderBars() {
   let t = `<b>新角色预览 <small style="color:#bfae8c;font-weight:400">页面 ${PAGE_VER}</small></b><span class="seg">${Object.keys(VERS).map(k => `<button data-ver="${k}" class="${k === ver ? 'on' : ''}">${VERS[k].label}</button>`).join('')}</span><span class="sep"></span>`;
   t += V.roster.map(([k, n]) => `<button data-who="${k}" class="${k === who ? 'on' : ''}">${n}</button>`).join('');
   t += '<span class="sep"></span>';
-  if (!V.still) t += `<button data-clip="idle" class="${clip === 'idle' ? 'on' : ''}">待机</button><button data-clip="walk" class="${clip === 'walk' ? 'on' : ''}">走路${V.rig ? '（程序）' : ''}</button><button id="move" class="${moving ? 'on' : ''}">边走边移动</button><span class="sep"></span>`;
+  if (V.clips) { const an = lib.info(aid(who)).anims || ['idle']; t += an.map(c => `<button data-clip="${c}" class="${clip === c ? 'on' : ''}">${CLIP_NAME[c] || c}</button>`).join('') + `<button id="move" class="${moving ? 'on' : ''}">边走边移动</button><span class="sep"></span>`; }
+  else if (!V.still) t += `<button data-clip="idle" class="${clip === 'idle' ? 'on' : ''}">待机</button><button data-clip="walk" class="${clip === 'walk' ? 'on' : ''}">走路${V.rig ? '（程序）' : ''}</button><button id="move" class="${moving ? 'on' : ''}">边走边移动</button><span class="sep"></span>`;
   t += `<button id="btn-concept">看设定图</button><button id="btn-stress" class="${stress || $('btn-stress') && $('btn-stress').classList.contains('on') ? 'on' : ''}">压力测试</button><button id="btn-copy">复制测试结果</button><a href="/"><button>回游戏</button></a>`;
   const top = $('top'), sl = top.scrollLeft; top.innerHTML = t; top.scrollLeft = sl;
   let b = `<b>距离</b><span class="seg">${Object.keys(VIEWS).map(k => `<button data-view="${k}" class="${k === view ? 'on' : ''}">${VIEWS[k].label}</button>`).join('')}</span>`;
   if (hiOK()) b += `<span class="sep"></span><b>贴图</b><span class="seg"><button data-hi="0" class="${hi ? '' : 'on'}">手机版 1K</button><button data-hi="1" class="${hi ? 'on' : ''}">高清 2K</button></span>`;
-  if (V.acc) b += '<span class="sep"></span><b>配件</b>' + V.acc[kindOf(who)].map(([k, n]) => `<button data-acc="${k}" class="${accOn[k] !== false ? 'on' : ''}">${n}</button>`).join('');
+  const accList = V.accBy ? (V.accBy[who] || V.accBy.heroine) : V.acc ? V.acc[kindOf(who)] : null;
+  if (accList) b += '<span class="sep"></span><b>配件</b>' + accList.map(([k, n]) => `<button data-acc="${k}" class="${accOn[k] !== false ? 'on' : ''}">${n}</button>`).join('');
   else if (V.still) { }
   else if (kindOf(who) === 'dog') b += '<span class="sep"></span><b>毛色</b>' + COATS.map(([k, n, c]) => `<button class="chip ${k === coat ? 'on' : ''}" data-coat="${k}"><i style="background:${c}"></i>${n}</button>`).join('');
   else b += `<span class="sep"></span><b>配件</b><button id="hat" class="${hat ? 'on' : ''}">草帽</button>`;
@@ -172,14 +181,14 @@ function bind() {
   document.querySelectorAll('[data-ver]').forEach(x => x.onclick = () => { if (x.dataset.ver === ver) return; ver = x.dataset.ver; who = VERS[ver].roster[0][0]; hi = false; show(); });
   document.querySelectorAll('[data-who]').forEach(x => x.onclick = () => { if (cur && hiOK() && hi && who !== x.dataset.who) lib.load(aid(who), '1k'); who = x.dataset.who; hi = false; show(); });
   document.querySelectorAll('[data-clip]').forEach(x => x.onclick = () => { clip = x.dataset.clip; if (clip === 'idle') moving = false; if (cur) play(cur, clip); renderBars(); });
-  const mv = $('move'); if (mv) mv.onclick = () => { moving = !moving; if (moving) { clip = 'walk'; if (cur) play(cur, 'walk'); } else if (cur) cur.s.position.set(0, 0, 0); renderBars(); };
+  const mv = $('move'); if (mv) mv.onclick = () => { moving = !moving; if (moving) { if (!(cur && cur.rig && cur.rig.loco[clip])) clip = cur && cur.kind === 'dog' ? 'trot' : 'walk'; if (cur) play(cur, clip); } else if (cur) cur.s.position.set(0, 0, 0); renderBars(); };
   document.querySelectorAll('[data-view]').forEach(x => x.onclick = () => { view = x.dataset.view; applyView(); renderBars(); });
   document.querySelectorAll('[data-acc]').forEach(x => x.onclick = () => { const k = x.dataset.acc; accOn[k] = accOn[k] === false; if (cur) setAcc(cur.s, { [k]: accOn[k] }); renderBars(); });
   document.querySelectorAll('[data-hi]').forEach(x => x.onclick = () => setHi(x.dataset.hi === '1'));
   document.querySelectorAll('[data-coat]').forEach(x => x.onclick = async () => { coat = x.dataset.coat; if (cur) await setCoat(cur, coat); renderBars(); });
   const hb = $('hat'); if (hb) hb.onclick = () => { hat = !hat; if (cur) setAcc(cur.s, { hat }); renderBars(); };
   document.querySelectorAll('[data-morph]').forEach(x => x.onclick = () => { morphPulse = { k: x.dataset.morph, t: 0 }; });
-  $('btn-concept').onclick = () => { const r = VERS[ver].roster.find(x => x[0] === who); $('concept').querySelector('img').src = 'art/concept/' + (ver === 'v1' && kindOf(who) === 'dog' && coat === 'ruibao' ? 'dog_ruibao' : r[3]) + '.jpg'; $('concept').classList.add('show'); };
+  $('btn-concept').onclick = () => { const r = VERS[ver].roster.find(x => x[0] === who); $('concept').querySelector('img').src = !r[3] ? (lib.info(aid(who)).thumb || '') : 'art/concept/' + (ver === 'v1' && kindOf(who) === 'dog' && coat === 'ruibao' ? 'dog_ruibao' : r[3]) + '.jpg'; $('concept').classList.add('show'); };
   $('btn-stress').onclick = () => { const b = $('btn-stress'); if (b.classList.contains('on')) { if (stress) stopStress(); b.classList.remove('on'); show(); } else { stats.stress = null; b.classList.add('on'); startStress().catch(e => showErr('压力测试失败：' + (e.stack || e))); } };
   $('btn-copy').onclick = async () => { const txt = JSON.stringify(report(), null, 1); try { await navigator.clipboard.writeText(txt); toast('已复制，粘贴到和 Claude 的对话里就行'); } catch (e) { prompt('长按全选复制：', txt); } };
 }
@@ -191,10 +200,10 @@ function applyMorph(dt) { if (!cur || !morphPulse) return; morphPulse.t += dt; c
 async function startStress() {
   hi = false; /* 压力测试统一用手机版 1K 贴图 */
   toast('压力测试准备中…', 3000);
-  const V = VERS[ver], heroN = V.roster.find(r => r[2] === 'hero')[0], dogs = V.roster.filter(r => r[2] === 'dog').map(r => r[0]);
+  const V = VERS[ver], heroN = kindOf(who) === 'hero' ? who : V.roster.find(r => r[2] === 'hero')[0], dogs = V.roster.filter(r => r[2] === 'dog').map(r => r[0]);
   if (ver === 'v1') await Promise.all(COATS.map(c => coatTex(c[0])));
-  const list = [], h = await instance(heroN, '1k'); h.kind = 'hero'; if (!V.still) { setAcc(h.s, { hat: 1, bag: 1, scarf: 1 }); play(h, 'walk', 0.01); } if (V.rig) h.spd = 1.2; h.r = 1.6; h.ph = 0; h.spd = V.still ? 0.8 : STRIDE.hero; list.push(h);
-  for (let i = 0; i < 10; i++) { const d = await instance(dogs[i % dogs.length], '1k'); d.kind = 'dog'; if (!V.still) { if (ver === 'v1') await setCoat(d, COATS[i][0]); play(d, 'walk', 0.01); if (d.inst.mixer) d.inst.mixer.setTime(i * 0.13); d.ts = V.rig ? 1 : 2.2; } d.r = 2.6 + (i % 3) * 1.1; d.ph = i * 0.63; d.spd = V.still ? 0.9 : V.rig ? 1.6 : STRIDE.dog * 2.2; list.push(d); }
+  const list = [], h = await instance(heroN, '1k'); h.kind = 'hero'; if (!V.still) { setAcc(h.s, { hat: 1, bag: 1, scarf: 1 }); play(h, 'walk', 0.01); } if (V.rig) h.spd = 1.2; h.r = 1.6; h.ph = 0; h.spd = V.still ? 0.8 : STRIDE.hero; if (V.clips) h.spd = natural(h, 'walk') || 1.2; list.push(h);
+  for (let i = 0; i < 10; i++) { const d = await instance(dogs[i % dogs.length], '1k'); d.kind = 'dog'; if (!V.still) { if (ver === 'v1') await setCoat(d, COATS[i][0]); play(d, 'walk', 0.01); if (d.inst.mixer) d.inst.mixer.setTime(i * 0.13); d.ts = V.rig ? 1 : 2.2; } d.r = 2.6 + (i % 3) * 1.1; d.ph = i * 0.63; d.spd = V.still ? 0.9 : V.rig ? 1.6 : STRIDE.dog * 2.2; if (V.clips) { play(d, 'trot', 0.01); d.spd = natural(d, 'trot') || d.spd; } list.push(d); }
   if (!$('btn-stress').classList.contains('on')) { list.forEach(x => lib.release(x.inst)); return; }
   drop(cur); cur = null;
   list.forEach(x => { x.s.position.set(Math.cos(x.ph) * x.r, 0, Math.sin(x.ph) * x.r); x.s.rotation.y = -x.ph; scene.add(x.s); });
@@ -229,8 +238,8 @@ function frame(now) {
   if (fpsAcc > 0.5) { stats.fps.push(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
   const focus = new T.Vector3(0, orbit.ty, 0);
   if (stress) stepStress(dt);
-  else if (cur) { step(cur, dt, moving ? (cur.kind === 'dog' ? 1.6 : 1.2) : 1.2); applyMorph(dt);
-    if (moving && cur.clip === 'walk') { const sp = VERS[ver].rig ? (cur.kind === 'dog' ? 1.6 : 1.2) : STRIDE[cur.kind]; cur.ang = (cur.ang || 0) + sp / 2 * dt; cur.s.position.set(Math.sin(cur.ang) * 2, 0, Math.cos(cur.ang) * 2 - 2); cur.s.rotation.y = cur.ang + Math.PI / 2; focus.set(cur.s.position.x, orbit.ty, cur.s.position.z); } }
+  else if (cur) { step(cur, dt, moving ? natural(cur, cur.rig ? cur.rig.real : '') || (cur.kind === 'dog' ? 1.6 : 1.2) : 0); applyMorph(dt);
+    if (moving && cur.clip === 'walk') { const sp = natural(cur, cur.rig ? cur.rig.real : '') || (VERS[ver].rig ? (cur.kind === 'dog' ? 1.6 : 1.2) : STRIDE[cur.kind]); cur.ang = (cur.ang || 0) + sp / 2 * dt; cur.s.position.set(Math.sin(cur.ang) * 2, 0, Math.cos(cur.ang) * 2 - 2); cur.s.rotation.y = cur.ang + Math.PI / 2; focus.set(cur.s.position.x, orbit.ty, cur.s.position.z); } }
   const dd = orbit.dist * fitK; cam.position.set(focus.x + Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * dd, focus.y + Math.sin(orbit.pitch) * dd, focus.z + Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * dd);
   if (cam.position.y < 0.25) cam.position.y = 0.25; /* 镜头不能钻到地面下面 */
   cam.lookAt(focus); sun.position.set(focus.x + 4, 8, focus.z + 5); sun.target.position.copy(focus);

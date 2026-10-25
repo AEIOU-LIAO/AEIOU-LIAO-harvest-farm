@@ -76,7 +76,7 @@ const Hunt = (() => {
     { const cap = new T.Mesh(new T.CapsuleGeometry(0.3, 0.8, 4, 10), new T.MeshStandardMaterial({ color: new T.Color('#4a8fd8').convertSRGBToLinear(), roughness: 0.7 })); cap.position.y = 0.7; cap.castShadow = true; hero.g.add(cap); hero.cap = cap; }
     const ring = new T.Mesh(new T.RingGeometry(0.42, 0.52, 28), new T.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.6, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; hero.g.add(ring); scene.add(hero.g);
     let lib = null, dead = false;
-    (async () => { try { lib = new Assets3({ manifest: GAMECFG.ASSETS }); const rig = await Entity3.spawn(lib, 'v3_hero_boy', 'hero', { tier: '1k' }); if (dead) { Entity3.release(lib, rig, true); return; } rig.object.scale.setScalar(0.8); rig.play('idle', 0); hero.g.add(rig.object); hero.rig = rig; hero.g.remove(hero.cap); } catch (e) { console.warn('猎场主人模型加载失败，用简单模型', e); } })();
+    (async () => { try { lib = new Assets3({ manifest: GAMECFG.ASSETS }); const rig = await Entity3.spawn(lib, PREF.v3hero || 'v4_hero_boy', 'hero', { tier: '1k' }); if (dead) { Entity3.release(lib, rig, true); return; } rig.object.scale.setScalar(0.8); rig.play('idle', 0); hero.g.add(rig.object); hero.rig = rig; hero.g.remove(hero.cap); } catch (e) { console.warn('猎场主人模型加载失败，用简单模型', e); } })();
     /* 野兽 */
     const cmat = CMAT(), beasts = S0.list.map(s => { const b = makeCreature(s, cmat); b.g.position.set(s.x, groundAt(s.x, s.z), s.z); b.g.rotation.y = Math.random() * 6.28; scene.add(b.g); return b; });
     const zzzTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.font = 'bold 40px sans-serif'; x.fillStyle = '#fff'; x.strokeStyle = '#3a5a9a'; x.lineWidth = 5; x.strokeText('Zz', 6, 46); x.fillText('Zz', 6, 46); const t = new T.CanvasTexture(c); return t; })();
@@ -160,7 +160,7 @@ const Hunt = (() => {
         if (dh < H.captureDist) capture(b); else if (b.sleepT <= 0) { b.state = 'flee'; b.t = 4; b.hp = Math.ceil(c.hp / 2); b.g.rotation.x = 0; b.g.remove(b.zzz); b.zzz = null; say(`${c.name}醒了，跑掉了！`); } p.y = groundAt(p.x, p.z); return; }
       b.cool = Math.max(0, b.cool - dt); b.t -= dt;
       if (c.aggro && dh < c.aggro && b.state !== 'flee') { b.state = 'chase'; b.t = Math.max(b.t, 2); }
-      if (c.flee && dh < c.flee * (hero.spd > 4.6 ? 1 : 0.55) && b.state !== 'flee') { b.state = 'flee'; b.t = 3 + Math.random() * 2; } /* 慢慢走过去（不跑）不容易惊动 */
+      if (c.flee && dh < c.flee * (hero.spd > 3.5 ? 1 : 0.55) && b.state !== 'flee') { b.state = 'flee'; b.t = 3 + Math.random() * 2; } /* 慢慢走过去（不跑）不容易惊动 */
       if (b.state === 'chase') { if (dh > 32 || b.t <= 0) { b.state = 'wander'; b.tgt = null; } else { moveTo(b, hero.pos.x, hero.pos.z, c.speed, dt); if (dh < 1.4 * c.size + 0.4 && b.cool <= 0) { hurtHero(b); b.cool = 1.6; b.state = 'back'; b.t = 1.2; } } }
       else if (b.state === 'back') { const a = Math.atan2(p.z - hero.pos.z, p.x - hero.pos.x); moveTo(b, p.x + Math.cos(a) * 3, p.z + Math.sin(a) * 3, c.speed * 0.6, dt); if (b.t <= 0) b.state = c.aggro || c.charge ? 'chase' : 'wander'; }
       else if (b.state === 'flee') { const a = Math.atan2(p.z - hero.pos.z, p.x - hero.pos.x) + Math.sin(t + b.ph) * 0.4; if (!moveTo(b, p.x + Math.cos(a) * 5, p.z + Math.sin(a) * 5, c.speed, dt)) b.g.rotation.y += dt * 3; if (b.t <= 0) { b.state = 'wander'; b.tgt = null; } }
@@ -171,13 +171,13 @@ const Hunt = (() => {
     }
     function updateHero(dt) {
       const mag = Math.min(1, Math.hypot(input.x, input.z)), sy = Math.sin(camYaw), cy = Math.cos(camYaw), mx = input.x * cy + input.z * sy, mz = -input.x * sy + input.z * cy;
-      const want = ended ? 0 : mag > 0.05 ? (input.run ? 6.4 : 3.6) * Math.max(0.35, mag) : 0; hero.spd += (want - hero.spd) * Math.min(1, dt * 10);
+      const want = ended ? 0 : mag > 0.05 ? (input.run ? 4.6 : 3.0) * Math.max(0.35, mag) : 0; hero.spd += (want - hero.spd) * Math.min(1, dt * 10);
       if (mag > 0.05 && !ended) { const f = Math.atan2(mx, mz); let d = f - hero.face; d = Math.atan2(Math.sin(d), Math.cos(d)); hero.face += Math.max(-dt * 12, Math.min(dt * 12, d)); }
       const fx = Math.sin(hero.face), fz = Math.cos(hero.face), st = hero.spd * dt; let nx = hero.pos.x + fx * st + hero.kb.x * dt, nz = hero.pos.z + fz * st + hero.kb.z * dt; hero.kb.multiplyScalar(Math.max(0, 1 - dt * 6));
       if (TR.walkable(nx, nz)) { hero.pos.x = nx; hero.pos.z = nz; } else if (TR.walkable(nx, hero.pos.z)) hero.pos.x = nx; else if (TR.walkable(hero.pos.x, nz)) hero.pos.z = nz;
       hero.pos.y = groundAt(hero.pos.x, hero.pos.z); hero.g.position.copy(hero.pos); hero.g.rotation.y = hero.face; hero.inv = Math.max(0, hero.inv - dt); hero.g.visible = hero.inv <= 0 || Math.floor(hero.inv * 10) % 2 === 0;
       const moving = hero.spd > 0.3; hero.ph += dt * (hero.spd > 4.6 ? 11 : 7.5) * (moving ? 1 : 0);
-      if (hero.rig) { const r = hero.rig; r.play(hero.spd > 4.6 ? 'run' : moving ? 'walk' : 'idle'); r.update(dt); if (r.faked) r.heroGait({ phase: hero.ph, amp: moving ? (hero.spd > 4.6 ? 0.85 : 0.55) * Math.min(1, hero.spd / 3) : 0, lean: hero.spd > 4.6 ? 0.12 : moving ? 0.05 : 0 }); if (hero.shootT > 0) { hero.shootT -= dt; r.rot('RightArm', 'x', -1.4); } }
+      if (hero.rig) { const r = hero.rig; r.play(hero.spd > 2.2 ? 'run' : moving ? 'walk' : 'idle'); r.pace(hero.spd, 0.8); r.update(dt); if (r.faked) r.heroGait({ phase: hero.ph, amp: moving ? (hero.spd > 4.6 ? 0.85 : 0.55) * Math.min(1, hero.spd / 3) : 0, lean: hero.spd > 4.6 ? 0.12 : moving ? 0.05 : 0 }); if (hero.shootT > 0) { hero.shootT -= dt; r.rot('RightArm', 'x', -1.4); } }
       else if (hero.cap) hero.cap.position.y = 0.7 + Math.abs(Math.sin(hero.ph)) * 0.08;
       /* 镜头：慢慢转到人物身后 */
       if (moving && drag.id === -1) { let d = hero.face + Math.PI - camYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); if (Math.abs(d) < 1.6) camYaw += d * Math.min(1, dt * 1.2); }
