@@ -9,5 +9,7 @@
   {"id":"v2_hero_boy","kind":"hero","name":"男主角","stage":"approved","base":"art/v2_static_review/hero_boy/","file":"hero_boy","tiers":["1k","2k"],"anims":[],"accessories":[],"heightM":1.6,"note":"2026-10-25 甲方确认外观；等美术 v3 绑定 + idle"},
   {"id":"v2_hero_girl","kind":"hero","name":"女主角","stage":"candidate","base":"art/v2_static_review/hero_girl/","file":"hero_girl","tiers":["1k","2k"],"anims":[],"accessories":[],"heightM":1.6},
   {"id":"v2_dog_fuwang","kind":"dog","name":"福旺","stage":"approved","base":"art/v2_static_review/dog_fuwang/","file":"dog_fuwang","tiers":["1k","2k"],"anims":[],"accessories":[],"heightM":0.8,"note":"2026-10-25 甲方确认外观；v3 要标定肩高 0.5 m、身体摆正、胸背带拆开"},
+  {"id":"v3_hero_boy","kind":"hero","name":"男主角（绑定 + 待机）","stage":"candidate","base":"art/v3_rig_idle/hero_boy/","file":"hero_boy","tiers":["1k","2k"],"anims":["idle"],"accessories":["bag","scarf"],"heightM":1.6,"note":"2026-10-25 美术 v3：40 骨、idle 3 秒；walk 等动作后续交付，程序先用骨骼摆动补走路"},
+  {"id":"v3_dog_fuwang","kind":"dog","name":"福旺（绑定 + 待机）","stage":"candidate","base":"art/v3_rig_idle/dog_fuwang/","file":"dog_fuwang","tiers":["1k","2k"],"anims":["idle"],"accessories":["harness"],"heightM":0.78,"note":"2026-10-25 美术 v3：29 骨、肩高 0.5 m、idle 2 秒；坐 / 趴 / 睡 / 走路后续交付"},
   {"id":"v2_dog_ruibao","kind":"dog","name":"睿宝","stage":"candidate","base":"art/v2_static_review/dog_ruibao/","file":"dog_ruibao","tiers":["1k","2k"],"anims":[],"accessories":[],"heightM":0.8}
 ]

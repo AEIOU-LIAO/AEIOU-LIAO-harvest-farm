@@ -21,7 +21,7 @@ let S = null;                 // 服务器快照：me / plots / inv / badges / r
 let FR = { list: [], requests: [], sent: [], visitors: [] }; // 好友
 let NB = { list: [] };        // 附近的人
 let MSGS = [];
-let PREF = { sound: true, music: true, notify: false, tod: 'auto', tut: 0, mvol: 70, svol: 80, pan: 0 };
+let PREF = { sound: true, music: true, notify: false, tod: 'auto', tut: 0, mvol: 70, svol: 80, pan: 0, v3char: false };
 let view = { key: 'home', friend: null, plots: [], farm: null };
 let redTo = 0, tool = 'auto', hoverIdx = -1, painting = false, lastPaint = -1, mouse = { x: 0, y: 0, in: false };
 let started = false, dogBarkUntil = 0, sideTab = 'nearby';
@@ -200,7 +200,7 @@ async function refreshState() { try { const r = await NET.get('/api/state'); app
 function applyState(st) {
   if (st && st.me && W3.ready) W3.setHero((() => { const a = st.me.avatar || {}, A = CFG.AVATAR_OPTS; return { skin: A.skin[a.skin | 0], hair: A.hair[a.hair | 0], shirt: A.shirt[a.shirt | 0], band: A.band[a.band | 0], hat: a.hat ? 1 : 0 }; })());
   const prevUnread = S ? S.badges.unread : 0;
-  S = st; PREF = Object.assign({ sound: true, music: true, notify: false, tod: 'auto', tut: 0, mvol: 70, svol: 80, pan: 0 }, S.me.settings || {}); applyVol(); if (!PREF.music) stopMusic();
+  S = st; PREF = Object.assign({ sound: true, music: true, notify: false, tod: 'auto', tut: 0, mvol: 70, svol: 80, pan: 0, v3char: false }, S.me.settings || {}); applyVol(); if (!PREF.music) stopMusic(); applyNewChar();
   if (view.key === 'home') view.plots = S.plots;
   renderHud(); renderToolbar(); renderTitle(); renderSide();
   if (S.badges.unread > prevUnread) { loadMessages(true); loadFriends(); }
@@ -637,6 +637,15 @@ function updateTip() {
 }
 
 /* ============ 启动 ============ */
+/* V0.2 新角色模型（测试开关）：设置里打开，或网址带 ?v3=1。加载失败时保持原来的角色 */
+async function applyNewChar(loud) {
+  const on = !!PREF.v3char || /[?&]v3=1\b/.test(location.search);
+  if (!W3.ready) { setTimeout(() => applyNewChar(loud), 500); return; }
+  if ((W3.newChar === on || (on && applyNewChar.failed)) && !loud) return;
+  if (loud && on) toast('正在加载新角色…');
+  try { const ok = await W3.setNewChar(on); if (loud) toast(on ? (ok ? '新角色已换上：男主角 + 福旺（走路先用程序摆腿）' : '已取消') : '已换回原来的角色'); }
+  catch (e) { applyNewChar.failed = true; console.warn('新角色加载失败', e); if (loud) toast('新角色加载失败：' + (e.message || e), 'warn'); }
+}
 async function savePref(patch) { Object.assign(PREF, patch); try { localStorage.setItem('hf_pref', JSON.stringify(PREF)); } catch (e) { } if (S) await api('/api/me/profile', { settings: PREF }, { quiet: true }); }
 async function enterGame(state, fresh) {
   applyState(state); started = true; closeModal(true); $('loading').classList.add('gone');
