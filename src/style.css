@@ -400,3 +400,10 @@ body.building #toolbar,body.building #side,body.building #friends,body.building 
 .bcard img{width:52px;height:52px;object-fit:contain}.bcard b{font-size:12.5px;font-weight:600}.bcard small{font-size:11px;color:var(--mut);display:flex;align-items:center;gap:2px;white-space:nowrap}.bcard small .ico{width:12px;height:12px;color:var(--gold)}
 .bcard.on{border-color:var(--gold);background:rgba(230,196,122,.18)}.bcard.lock{opacity:.55}.bcard .bc-soon{width:52px;height:52px;display:flex;align-items:center;justify-content:center;color:var(--mut)}.bcard .bc-soon .ico{width:26px;height:26px}
 @media (max-height:480px){#buildbar{padding:6px 8px;gap:4px}.bcard{width:72px;padding:4px 3px}.bcard img,.bcard .bc-soon{width:40px;height:40px}}
+/* 第 1 期：四季 */
+.seachip{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;margin-right:6px;border-radius:50%;font-style:normal;font-size:13px;font-weight:700;cursor:pointer;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35);flex:none}
+.seachip.s-spring{background:#e86f9a}.seachip.s-summer{background:#3fa34a}.seachip.s-autumn{background:#d0802a}.seachip.s-winter{background:#5a9ac8}
+.insea{display:inline-block;margin-left:4px;padding:0 5px;border-radius:6px;font-size:10.5px;font-style:normal;font-weight:600;vertical-align:2px;background:rgba(111,191,90,.25);color:#b8f0a0;border:1px solid rgba(111,191,90,.5)}
+.seabox{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:12px;margin-bottom:8px;color:#fff}.seabox b{font-size:20px;letter-spacing:3px}.seabox span{font-size:13px;opacity:.9}
+.seabox.s-spring{background:linear-gradient(120deg,#d86a90,#f0a8c0)}.seabox.s-summer{background:linear-gradient(120deg,#2f8a3a,#6cc04a)}.seabox.s-autumn{background:linear-gradient(120deg,#b8641e,#e8a648)}.seabox.s-winter{background:linear-gradient(120deg,#3f7fb0,#9cc8e8)}
+h4.sub{margin:12px 0 6px;font-size:13px;color:var(--ink2)}.row-item em.on{font-style:normal;font-size:11px;color:#9fe0a8;margin-left:4px}

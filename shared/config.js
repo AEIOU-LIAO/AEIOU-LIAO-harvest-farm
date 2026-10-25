@@ -156,7 +156,7 @@
   const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
   // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
   function ranchItem(item) { const m = /^(fs|wl|fr)(\d+)$/.exec(item || ''); if (!m) return null; const d = ({ fs: FISH, wl: SHEEP, fr: TREES })[m[1]][+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : m[1] === 'wl' ? { kind: 'wool', id: d.id, name: d.woolName, price: d.sell } : { kind: 'fruit', id: d.id, name: d.fruit, price: d.sell }; }
-  const VERSION = '3.8.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const VERSION = '3.9.0'; // 每次发布改这里；设置页和 /api/health 会显示
   const ZONES = CONTENT.ZONES, ASSETS = CONTENT.ASSETS, HOME = CONTENT.HOME, BUILDINGS = CONTENT.BUILDINGS, BIOMES = CONTENT.BIOMES;
 
   /* ===== V0.3 家园布局与建造网格（3D 画面和服务器共用 content/home.jsonc） ===== */
@@ -188,7 +188,19 @@
     for (const [i, j] of footprint(it)) { if (i < 0 || j < 0 || i >= occ.W || j >= occ.H) return '超出家园范围'; const k = j * occ.W + i; if (occ.cells[k]) return '这里已经有东西了'; if (used.has(k)) return '和别的建筑重叠了'; }
     return '';
   }
-  const CFG = { HOME, BUILDINGS, BIOMES, OCC, fieldCenter, pastSize, pondsOf, gridSpec, homeOccupancy, footprint, canPlace };
+  /* ---------- 第 1 期：四季与节日（content/seasons.jsonc，按北京时间） ---------- */
+  const SEASONS = CONTENT.SEASONS;
+  function monthOf(ms) { return new Date(ms + TZ_MIN * 60000).getUTCMonth() + 1; }
+  function seasonOf(ms) { const m = monthOf(ms); return SEASONS.list.find(s => s.months.includes(m)) || SEASONS.list[0]; }
+  /* 作物属于哪一类（季节表里的 crops 用这个）：南瓜 / 瓜按 art.kind，其他按 art.type */
+  function cropTag(c) { const a = (c && c.art) || {}; return a.type === 'vine' ? (a.kind === 'pumpkin' ? 'pumpkin' : 'melon') : a.type || ''; }
+  function inSeason(cropId, ms) { const c = CROPS[cropId]; return !!c && seasonOf(ms).crops.includes(cropTag(c)); }
+  /* 下一个季节从哪天开始（毫秒） */
+  function seasonEnd(ms) { const cur = seasonOf(ms); let t = dayStart(ms); for (let i = 0; i < 100; i++) { t += 86400000; if (seasonOf(t) !== cur) return t; } return t; }
+  function dayMs(s) { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d) - TZ_MIN * 60000; }
+  /* 正在进行的节日，换算成和后台活动一样的格式（服务器 activeEvents 会合并进去） */
+  function festivalsAt(ms) { return SEASONS.festivals.map(f => ({ id: 'f_' + f.id, name: f.name, kind: f.kind, params: { mult: f.mult }, start_at: dayMs(f.start), end_at: dayMs(f.end) + 86400000, descr: f.descr || '', festival: true })).filter(e => e.start_at <= ms && e.end_at > ms); }
+  const CFG = { HOME, BUILDINGS, BIOMES, OCC, SEASONS, monthOf, seasonOf, cropTag, inSeason, seasonEnd, festivalsAt, fieldCenter, pastSize, pondsOf, gridSpec, homeOccupancy, footprint, canPlace };
   Object.assign(CFG, { ZONES, ASSETS, COLLIES, PETS_MAX, VERSION, COLS, ROWS, NPLOTS, FIELDS_MAX, MAX_PLOTS, fieldNeedLv, fieldCost, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
     FISH, SHEEP, TREES, RANCH, pondCap, pastureCap, pondCapOf, pastureCapOf, orchardCapOf, ranchUpCost, ranchNeedLv, herdOf, sheepCycles, treeCycles, treeGrowLeft, fishLeft, ranchItem,

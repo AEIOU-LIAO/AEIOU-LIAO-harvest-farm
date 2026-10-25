@@ -5,6 +5,11 @@ process.env.QUIET = '1';
 const test = require('node:test'), assert = require('node:assert/strict');
 const { createApp } = require('../server/index');
 const CFG = require('../shared/config');
+/* 第 1 期四季：当季增产和节日会随真实日期变化。其他用例按「没有季节加成、没有节日」来算，季节用例里再临时打开 */
+const SEASON_SAVED = { bonus: CFG.SEASONS.list.map(s => s.bonus), fest: CFG.SEASONS.festivals.slice() };
+function seasonsOff() { CFG.SEASONS.list.forEach(s => { s.bonus = 0; }); CFG.SEASONS.festivals.length = 0; }
+function seasonsOn() { CFG.SEASONS.list.forEach((s, i) => { s.bonus = SEASON_SAVED.bonus[i]; }); CFG.SEASONS.festivals.length = 0; CFG.SEASONS.festivals.push(...SEASON_SAVED.fest); }
+seasonsOff();
 
 // TEST_TURSO=1：改用本地模拟的 Turso（HTTP 协议、独立连接、可加网络延迟 TEST_LATENCY 毫秒）
 const { startMock } = require('./turso-mock');
@@ -669,4 +674,24 @@ test('第 1 期 家园自由建造：移动 / 旋转、存档里带布局、串�
     r = await t.call('POST', '/api/home/move', { id, gx: px, gz: pz }, b.token); assert.match(r.error, /没有这个建筑/, '不能动别人的');
     const v = await t.call('GET', '/api/farm/' + a.id, null, b.token); assert.ok(v.ok !== false, v.error); assert.equal(v.farm.owner.layout.length, 2);
   } finally { await t.close(); }
+});
+
+test('第 1 期 四季：当季作物增产 10%、节日自动成为活动（按北京时间）', async () => {
+  const t = await start();
+  seasonsOn();
+  try {
+    const idx = CFG.UNLOCK_ORDER[0], radish = CFG.CROPS[0];
+    const jump = async ms => { const n = (await t.call('POST', '/api/test/clock', { ms: 0 })).now; await t.call('POST', '/api/test/clock', { ms: ms - n }); };
+    const replant = async u => { await t.call('POST', '/api/farm/harvest', { idx }, u.token); await t.call('POST', '/api/farm/shovel', { idx }, u.token); const r = await t.call('POST', '/api/farm/plant', { idx, crop: 0 }, u.token); assert.ok(r.ok, r.error); return r.state.plots.find(p => p.idx === idx).y; };
+    /* 2027-01-15：冬天，萝卜当季 */
+    const W = Date.UTC(2027, 0, 15, 4); await jump(W); assert.equal(CFG.seasonOf(W).id, 'winter'); assert.ok(CFG.inSeason(0, W));
+    const a = await t.guest('四季甲'); assert.equal(await replant(a), Math.round(radish.yield * 1.1), '冬天种萝卜（当季）产量 +10%');
+    /* 2027-02-06：春节（还是冬天）：活动里出现春节，产量 ×1.2 × 1.1 */
+    await jump(Date.UTC(2027, 1, 6, 4));
+    const st = await t.call('GET', '/api/state', null, a.token); assert.ok(st.events.some(e => e.name === '春节'), JSON.stringify(st.events));
+    assert.equal(await replant(a), Math.round(radish.yield * 1.2 * 1.1), '春节种萝卜：节日 ×1.2、当季 ×1.1');
+    /* 2027-07-15：夏天，萝卜不当季、没有节日 */
+    await jump(Date.UTC(2027, 6, 15, 4)); const b = await t.guest('四季乙');
+    assert.equal(await replant(b), radish.yield, '夏天种萝卜不加成');
+  } finally { seasonsOff(); await t.close(); }
 });

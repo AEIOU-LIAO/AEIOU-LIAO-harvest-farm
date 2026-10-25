@@ -1,0 +1,40 @@
+// 四季与节日（第 1 期）。按真实日期（北京时间）轮换，前后端共用。
+// list：季节。months 月份 · crops 当季作物的类别（按作物外观类别 art.type，南瓜 / 瓜类按 art.kind）· bonus 当季作物增产比例（种下时结算）
+//   look：画面 —— ground 地面颜色（和原色混合的目标色）· groundK 混合比例 · grass 草的颜色 · leaf 树叶 · leaf2 部分树的第二种颜色（春天开花、秋天红叶）· hills 远山 · flowers 是否开花 · fx 飘落效果（petal 花瓣 / firefly 萤火虫 / leaf 落叶 / snow 雪）
+// festivals：节日。start / end 为北京时间的日期（含当天），会自动变成限时活动（和后台建的活动一样生效）
+//   kind：yield_mult 产量 · exp_mult 经验 · golden_mult 变异几率 · price_mult 收购价；mult 倍率
+//   农历节日的日期是按年写死的，每年年底补下一年（2028 年以后需要补）
+{
+  "list": [
+    { "id": "spring", "name": "春", "full": "春天", "months": [3, 4, 5], "crops": ["root", "cabbage", "flower"], "bonus": 0.1,
+      "look": { "ground": "#b2d878", "groundK": 0.28, "grass": "#8ccc5a", "leaf": "#86cc5e", "leaf2": "#f4b4c8", "hills": "#79ad54", "flowers": true, "fx": "petal" } },
+    { "id": "summer", "name": "夏", "full": "夏天", "months": [6, 7, 8], "crops": ["bush", "melon", "sunflower", "corn"], "bonus": 0.1,
+      "look": { "ground": "#9cb46e", "groundK": 0, "grass": "#7cb84a", "leaf": "", "leaf2": "", "hills": "#6a9a4a", "flowers": true, "fx": "firefly" } },
+    { "id": "autumn", "name": "秋", "full": "秋天", "months": [9, 10, 11], "crops": ["pumpkin", "grain", "corn", "pine", "flower"], "bonus": 0.1,
+      "look": { "ground": "#cfae5e", "groundK": 0.58, "grass": "#b8a548", "leaf": "#e08a2c", "leaf2": "#c8452a", "hills": "#a39248", "flowers": false, "fx": "leaf" } },
+    { "id": "winter", "name": "冬", "full": "冬天", "months": [12, 1, 2], "crops": ["cabbage", "root"], "bonus": 0.1,
+      "look": { "ground": "#eef3f6", "groundK": 0.78, "grass": "#c9d6c4", "leaf": "#e6eef2", "leaf2": "#5c7f62", "hills": "#e2eaef", "flowers": false, "fx": "snow" } }
+  ],
+  "festivals": [
+    { "id": "dongzhi2026", "name": "冬至", "start": "2026-12-22", "end": "2026-12-22", "kind": "exp_mult", "mult": 1.5, "descr": "冬至大如年：全天经验 1.5 倍" },
+    { "id": "yuandan2027", "name": "元旦", "start": "2027-01-01", "end": "2027-01-03", "kind": "golden_mult", "mult": 2, "descr": "新年新气象：变异作物几率翻倍" },
+    { "id": "chunjie2027", "name": "春节", "start": "2027-02-05", "end": "2027-02-12", "kind": "yield_mult", "mult": 1.2, "descr": "过大年：所有作物产量 +20%" },
+    { "id": "yuanxiao2027", "name": "元宵节", "start": "2027-02-20", "end": "2027-02-20", "kind": "exp_mult", "mult": 1.5, "descr": "闹元宵：全天经验 1.5 倍" },
+    { "id": "qingming2027", "name": "清明", "start": "2027-04-05", "end": "2027-04-05", "kind": "yield_mult", "mult": 1.1, "descr": "清明前后，种瓜点豆：产量 +10%" },
+    { "id": "laodong2027", "name": "劳动节", "start": "2027-05-01", "end": "2027-05-05", "kind": "exp_mult", "mult": 1.3, "descr": "劳动最光荣：经验 1.3 倍" },
+    { "id": "duanwu2027", "name": "端午节", "start": "2027-06-09", "end": "2027-06-09", "kind": "golden_mult", "mult": 2, "descr": "端午安康：变异作物几率翻倍" },
+    { "id": "qixi2027", "name": "七夕", "start": "2027-08-08", "end": "2027-08-08", "kind": "price_mult", "mult": 1.2, "descr": "七夕：收购价 +20%" },
+    { "id": "zhongqiu2027", "name": "中秋节", "start": "2027-09-15", "end": "2027-09-15", "kind": "yield_mult", "mult": 1.2, "descr": "花好月圆：产量 +20%" },
+    { "id": "guoqing2027", "name": "国庆节", "start": "2027-10-01", "end": "2027-10-07", "kind": "price_mult", "mult": 1.15, "descr": "国庆长假：收购价 +15%" },
+    { "id": "dongzhi2027", "name": "冬至", "start": "2027-12-22", "end": "2027-12-22", "kind": "exp_mult", "mult": 1.5, "descr": "冬至大如年：全天经验 1.5 倍" },
+    { "id": "yuandan2028", "name": "元旦", "start": "2028-01-01", "end": "2028-01-03", "kind": "golden_mult", "mult": 2, "descr": "新年新气象：变异作物几率翻倍" },
+    { "id": "chunjie2028", "name": "春节", "start": "2028-01-25", "end": "2028-02-01", "kind": "yield_mult", "mult": 1.2, "descr": "过大年：所有作物产量 +20%" },
+    { "id": "yuanxiao2028", "name": "元宵节", "start": "2028-02-09", "end": "2028-02-09", "kind": "exp_mult", "mult": 1.5, "descr": "闹元宵：全天经验 1.5 倍" },
+    { "id": "qingming2028", "name": "清明", "start": "2028-04-04", "end": "2028-04-04", "kind": "yield_mult", "mult": 1.1, "descr": "清明前后，种瓜点豆：产量 +10%" },
+    { "id": "laodong2028", "name": "劳动节", "start": "2028-05-01", "end": "2028-05-05", "kind": "exp_mult", "mult": 1.3, "descr": "劳动最光荣：经验 1.3 倍" },
+    { "id": "duanwu2028", "name": "端午节", "start": "2028-05-28", "end": "2028-05-28", "kind": "golden_mult", "mult": 2, "descr": "端午安康：变异作物几率翻倍" },
+    { "id": "qixi2028", "name": "七夕", "start": "2028-08-26", "end": "2028-08-26", "kind": "price_mult", "mult": 1.2, "descr": "七夕：收购价 +20%" },
+    { "id": "guoqing2028", "name": "国庆节", "start": "2028-10-01", "end": "2028-10-07", "kind": "price_mult", "mult": 1.15, "descr": "国庆长假：收购价 +15%" },
+    { "id": "zhongqiu2028", "name": "中秋节", "start": "2028-10-03", "end": "2028-10-03", "kind": "yield_mult", "mult": 1.2, "descr": "花好月圆：产量 +20%" }
+  ]
+}

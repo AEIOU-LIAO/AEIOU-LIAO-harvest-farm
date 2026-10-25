@@ -373,11 +373,18 @@ function renderHud() {
 }
 // 切换到某片田：俯视时镜头移过去；漫游时人物走过去太远，直接传送到那片田边
 function setField(f) { const nf = Math.ceil((view.plots || []).length / CFG.NPLOTS); f = Math.max(0, Math.min(nf - 1, f | 0)); W3.setField(f); if (W3.mode === 'walk') { const [x, z] = W3.fieldCenter(f); W3.teleport(x, z + 6.2, 0); } renderTitle(); }
+/* 第 1 期：四季（网址加 ?season=winter 可以预览别的季节，只改画面，不影响结算） */
+const SEASON_PREVIEW = (new URLSearchParams(location.search).get('season') || '').toLowerCase(); let seasonSeen = '';
+function seasonNow() { return (SEASON_PREVIEW && CFG.SEASONS.list.find(s => s.id === SEASON_PREVIEW)) || CFG.seasonOf(NET.now()); }
+const SEASON_TAGS = { root: '根菜', cabbage: '叶菜', flower: '花卉', bush: '茄果', melon: '瓜类', sunflower: '向日葵', corn: '玉米', pumpkin: '南瓜', grain: '麦稻', pine: '菠萝' };
+function seasonCropText(s) { return (s || seasonNow()).crops.map(k => SEASON_TAGS[k] || k).join('、'); }
 function renderTitle() {
   const nf = Math.ceil((view.plots || []).length / CFG.NPLOTS), fnav = nf > 1 ? `<em class="fnav"><b data-f="-1">‹</b>第${W3.field + 1}/${nf}片田<b data-f="1">›</b></em>` : '';
-  if (view.key === 'home') $('title').innerHTML = S ? `<span>${esc(S.me.name)}的农场</span>${fnav}` : '<span>丰收农场</span>';
+  const sz = seasonNow(), chip = `<em class="seachip s-${sz.id}" data-sea="1" title="${sz.full}">${sz.name}</em>`;
+  if (view.key === 'home') $('title').innerHTML = S ? `${chip}<span>${esc(S.me.name)}的农场</span>${fnav}` : '<span>丰收农场</span>';
   else $('title').innerHTML = `<span>${esc(view.friend.name)}的农场</span>${fnav}<small>Lv.${view.friend.lv}${view.friend.title ? ' · ' + esc(view.friend.title) : ''}${(view.friend.dogs || []).length ? ' · ' + view.friend.dogs.map(d => d.name + (d.fed ? '看家中' : '在睡觉')).join('，') : ''}</small>`;
   $('title').querySelectorAll('[data-f]').forEach(b => b.onclick = e => { e.stopPropagation(); ac(); sfx('click'); setField((W3.field + +b.dataset.f + nf) % nf); });
+  $('title').querySelectorAll('[data-sea]').forEach(b => b.onclick = e => { e.stopPropagation(); ac(); sfx('click'); openSeason(); });
   $('todbtn').innerHTML = ICON(({ auto: 'cloudsun', day: 'sun', dusk: 'sunset', night: 'moon' })[PREF.tod] || 'cloudsun');
 }
 function renderToolbar() {
@@ -514,6 +521,7 @@ function frame(now) {
   const home = view.key === 'home';
   W3.setTheme(themeOf(home ? (S ? S.me.theme : 'classic') : view.friend.theme)); W3.setDog(dogMode()); W3.setRanch(ranch3d()); W3.setPets(view.key === 'home' ? (S && S.me.pets || []) : ((view.friend && view.friend.pets) || [])); W3.setEnv(curHour(), rainK);
   { const pn = W3.mode !== 'walk' && W3.panned; if (pn !== document.body.classList.contains('panned')) document.body.classList.toggle('panned', pn); }
+  { const sid = seasonNow().id; W3.setSeason(sid); if (started && seasonSeen && sid !== seasonSeen) { toast(`${seasonNow().full}到了：${seasonCropText()}当季，产量 +10%`); renderTitle(); } if (started) seasonSeen = sid; }
   if (BUILD.on && (!home || W3.mode === 'walk' || !S)) closeBuild();
   W3.setLayout(home ? (S && S.me.layout) : (view.friend && view.friend.layout)); if (BUILD.on && (BUILD.tick = (BUILD.tick || 0) + 1) % 20 === 0) buildSync(); /* 金币、等级变化时刷新建造栏 */
   W3.setPlots(view.plots, home); W3.setHover(!BUILD.on && (mouse.in || painting) ? hoverIdx : -1); W3.render(dt);

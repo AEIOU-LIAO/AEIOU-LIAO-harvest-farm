@@ -85,12 +85,12 @@ function openSeeds() {
   const cards = CROPS.slice().sort((a, b) => a.lv - b.lv || a.seed - b.seed).map(c => {
     const lock = S.me.lv < c.lv, per = Math.floor(c.yield * c.price), perH = Math.round((per - c.seed) / (c.time / 3600));
     return `<div class="seedcard r${c.rarity}${lock ? ' lock' : ''}${S.me.seed === c.id ? ' sel' : ''}" data-id="${c.id}">
-      ${c.seasons > 1 ? '<em class="tag">两季</em>' : ''}${c.rarity > 1 ? `<em class="rar">${CFG.RARITY[c.rarity]}</em>` : ''}<div class="sci">${iconImg(c.id)}</div><h4>${c.name}</h4>
+      ${c.seasons > 1 ? '<em class="tag">两季</em>' : ''}${c.rarity > 1 ? `<em class="rar">${CFG.RARITY[c.rarity]}</em>` : ''}<div class="sci">${iconImg(c.id)}</div><h4>${c.name}${CFG.inSeason(c.id, NET.now()) ? '<i class="insea">当季</i>' : ''}</h4>
       <div class="meta"><span>${G(c.seed)}</span><span>${ICON('clock', 'mi')}${fmtTime(c.time)}</span></div>
       <div class="meta"><span>产量 ${c.yield}</span><span>售价 ${fmt(per)}</span></div><div class="meta"><span>经验 ${c.exp}</span><span title="每小时净收益">${fmt(perH)}/时</span></div>
       ${lock ? `<div class="lockmask">${ICON('lock')}Lv.${c.lv} 解锁</div>` : ''}</div>`;
   }).join('');
-  openModal(`${H2('sprout', '选择种子', '选好后点击空地播种，种子在播种时自动扣钱')}<div class="seedgrid">${cards}</div>`, {
+  openModal(`${H2('sprout', '选择种子', `选好后点击空地播种，种子在播种时自动扣钱。现在是${CFG.seasonOf(NET.now()).full}：${seasonCropText(CFG.seasonOf(NET.now()))}当季，产量 +${Math.round(CFG.seasonOf(NET.now()).bonus * 100)}%`)}<div class="seedgrid">${cards}</div>`, {
     wide: true, mount: () => qsa('.seedcard').forEach(d => d.onclick = async () => {
       const id = +d.dataset.id; if (S.me.lv < CROPS[id].lv) { toast(`需要 Lv.${CROPS[id].lv} 解锁`, 'warn'); sfx('err'); return; }
       S.me.seed = id; tool = 'auto'; closeModal(); renderToolbar(); sfx('click'); toast(`已选择 ${CROPS[id].name}`); api('/api/me/profile', { seed: id }, { quiet: true });
@@ -311,6 +311,16 @@ async function openCodex() {
   const n = CROPS.filter(c => got['c' + c.id]).length, ng = CROPS.filter(c => got['g' + c.id]).length;
   openModal(`${H2('book', '作物图鉴', `普通 ${n}/${CROPS.length} · 金色变异 ${ng}/${CROPS.length}（每次收获有 ${Math.round(RULES.goldenChance * 100)}% 几率变异）`)}
     <h4 class="sec">普通作物</h4><div class="codex">${CROPS.map(c => cell('c' + c.id, c)).join('')}</div><h4 class="sec">金色变异</h4><div class="codex">${CROPS.map(c => cell('g' + c.id, c, true)).join('')}</div>`, { wide: true });
+}
+/* 第 1 期：四季说明（点标题栏的季节标签） */
+function openSeason() {
+  const now = NET.now(), s = CFG.seasonOf(now), left = Math.max(1, Math.ceil((CFG.seasonEnd(now) - now) / 86400000)), nx = CFG.SEASONS.list[(CFG.SEASONS.list.indexOf(s) + 1) % 4];
+  const fest = CFG.SEASONS.festivals.map(f => Object.assign({}, f, { t: Date.parse(f.start + 'T00:00:00+08:00'), t1: Date.parse(f.end + 'T23:59:59+08:00') })).filter(f => f.t1 > now).slice(0, 4);
+  const crops = CROPS.filter(c => CFG.inSeason(c.id, now) && c.lv <= S.me.lv).sort((a, b) => b.lv - a.lv).slice(0, 8);
+  openModal(`${H2('leaf', '四季')}<div class="seabox s-${s.id}"><b>${s.full}</b><span>还有 ${left} 天到${nx.full}</span></div>
+    <p class="fine">按真实日期（北京时间）换季：3~5 月春、6~8 月夏、9~11 月秋、12~2 月冬。当季作物（${seasonCropText(s)}）种下时产量 +${Math.round(s.bonus * 100)}%。</p>
+    ${crops.length ? `<h4 class="sub">你能种的当季作物</h4><div class="chips">${crops.map(c => `<span class="chip"><img src="${cropIcon(c.id)}">${esc(c.name)}</span>`).join('')}</div>` : ''}
+    <h4 class="sub">节日</h4><div class="list">${fest.map(f => `<div class="row-item"><div class="ri-ic"><span class="ii emo gold">${ICON('party')}</span></div><div class="ri-main"><b>${esc(f.name)}${f.t <= now ? ' <em class="on">进行中</em>' : ''}</b><small>${f.start === f.end ? f.start : f.start + ' ~ ' + f.end.slice(5)} · ${esc(f.descr || '')}</small></div></div>`).join('') || '<div class="empty">近期没有节日</div>'}</div>`, { small: true });
 }
 function openEvents() {
   const rows = S.events.map(e => `<div class="row-item"><div class="ri-ic"><span class="ii emo gold">${ICON('party')}</span></div><div class="ri-main"><b>${esc(e.name)}</b><small>${esc(e.descr || '')} ${({ exp_mult: '经验', price_mult: '收购价', golden_mult: '变异几率', yield_mult: '产量' })[e.kind]} ×${e.params.mult}${e.params.crop != null ? `（${CROPS[e.params.crop].name}）` : ''} · 剩余 ${fmtTime((e.end_at - NET.now()) / 1000)}</small></div></div>`).join('');
