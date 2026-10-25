@@ -633,7 +633,7 @@ test('V0.3 家园自由建造：布局存档、摆放校验、拆除退款、扩
   try {
     const a = await t.guest('建造'); await t.app.db.run('UPDATE users SET gold=9999999, lv=1 WHERE id=?', a.id);
     let L = await t.call('GET', '/api/home/layout', null, a.token); assert.ok(L.ok !== false, L.error); assert.deepEqual(L.items, []); assert.equal(L.fields, 1); assert.equal(L.grid.W, 65); assert.equal(L.grid.H, 66);
-    let r = await t.call('POST', '/api/home/place', { type: 'greatwall', gx: 0, gz: 0 }, a.token); assert.equal(r.ok, false); assert.match(r.error, /还没有开放/);
+    let r = await t.call('POST', '/api/home/place', { type: 'watchtower', gx: 0, gz: 0 }, a.token); assert.equal(r.ok, false); assert.match(r.error, /还没有开放/);
     B('fence').status = 'live'; B('watchtower').status = 'live';
     const occ = CFG.homeOccupancy({ fields: 1, pastLv: 1, pondLv: 1 }), free = []; for (let j = 0; j < occ.H; j++) for (let i = 0; i < occ.W; i++) if (!occ.cells[j * occ.W + i]) free.push([i, j]);
     const [fx, fz] = free[Math.floor(free.length / 2)];
@@ -694,4 +694,28 @@ test('第 1 期 四季：当季作物增产 10%、节日自动成为活动（按
     await jump(Date.UTC(2027, 6, 15, 4)); const b = await t.guest('四季乙');
     assert.equal(await replant(b), radish.yield, '夏天种萝卜不加成');
   } finally { seasonsOff(); await t.close(); }
+});
+
+test('第 1 期 奇观长城：免费选址、分阶段建造（扣金币和作物）、永久增产、开工后不能拆', async () => {
+  const t = await start();
+  try {
+    const a = await t.guest('长城'); await t.app.db.run('UPDATE users SET gold=9999999, lv=20 WHERE id=?', a.id);
+    const occ = CFG.homeOccupancy({ fields: 1, pastLv: 1, pondLv: 1 }); let spot = null;
+    for (let j = 0; j < occ.H - 2 && !spot; j++) for (let i = 0; i < occ.W - 10 && !spot; i++) { let ok = true; for (let y = 0; y < 2; y++) for (let x = 0; x < 10; x++) if (occ.cells[(j + y) * occ.W + i + x]) ok = false; if (ok) spot = [i, j]; }
+    let r = await t.call('POST', '/api/home/place', { type: 'greatwall', gx: spot[0], gz: spot[1] }, a.token); assert.ok(r.ok, r.error); assert.equal(r.result.cost, 0); const id = r.result.item.id; assert.equal(r.result.item.stage, 0);
+    r = await t.call('POST', '/api/home/wonder', { id }, a.token); assert.match(r.error, /萝卜数量不足/);
+    const W = CFG.wonderDef('greatwall'), give = async st => { for (const [k, n] of Object.entries(st.items)) await t.app.db.run('INSERT INTO inventory (user_id,item,qty) VALUES (?,?,?) ON CONFLICT(user_id,item) DO UPDATE SET qty=qty+excluded.qty', a.id, k, n); };
+    await give(W.stages[0]); const g0 = (await t.call('GET', '/api/state', null, a.token)).me.gold;
+    r = await t.call('POST', '/api/home/wonder', { id }, a.token); assert.ok(r.ok, r.error); assert.equal(r.result.stage, 1); assert.equal(r.result.bonus, 0.02);
+    assert.equal(r.state.me.gold, g0 - W.stages[0].gold); assert.equal(r.state.inv.c0 || 0, 0, '萝卜扣光');
+    /* 永久增产：种萝卜产量 ×1.02 */
+    const idx = CFG.UNLOCK_ORDER[0]; await t.call('POST', '/api/test/clock', { ms: 3600e3 }); await t.call('POST', '/api/farm/harvest', { idx }, a.token); await t.call('POST', '/api/farm/shovel', { idx }, a.token);
+    r = await t.call('POST', '/api/farm/plant', { idx, crop: 0 }, a.token); assert.ok(r.ok, r.error); assert.equal(r.state.plots.find(p => p.idx === idx).y, Math.round(CFG.CROPS[0].yield * 1.02));
+    r = await t.call('POST', '/api/home/remove', { id }, a.token); assert.match(r.error, /不能拆除/);
+    r = await t.call('POST', '/api/home/wonder', { id }, a.token); assert.match(r.error, /Lv\.25/);
+    await t.app.db.run('UPDATE users SET lv=60 WHERE id=?', a.id);
+    for (let k = 1; k < W.stages.length; k++) { await give(W.stages[k]); r = await t.call('POST', '/api/home/wonder', { id }, a.token); assert.ok(r.ok, r.error); }
+    assert.equal(r.result.done, true); assert.equal(r.result.bonus, 0.15);
+    r = await t.call('POST', '/api/home/wonder', { id }, a.token); assert.match(r.error, /全部建成/);
+  } finally { await t.close(); }
 });

@@ -156,7 +156,7 @@
   const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
   // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
   function ranchItem(item) { const m = /^(fs|wl|fr)(\d+)$/.exec(item || ''); if (!m) return null; const d = ({ fs: FISH, wl: SHEEP, fr: TREES })[m[1]][+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : m[1] === 'wl' ? { kind: 'wool', id: d.id, name: d.woolName, price: d.sell } : { kind: 'fruit', id: d.id, name: d.fruit, price: d.sell }; }
-  const VERSION = '3.9.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const VERSION = '3.10.0'; // 每次发布改这里；设置页和 /api/health 会显示
   const ZONES = CONTENT.ZONES, ASSETS = CONTENT.ASSETS, HOME = CONTENT.HOME, BUILDINGS = CONTENT.BUILDINGS, BIOMES = CONTENT.BIOMES;
 
   /* ===== V0.3 家园布局与建造网格（3D 画面和服务器共用 content/home.jsonc） ===== */
@@ -200,7 +200,12 @@
   function dayMs(s) { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d) - TZ_MIN * 60000; }
   /* 正在进行的节日，换算成和后台活动一样的格式（服务器 activeEvents 会合并进去） */
   function festivalsAt(ms) { return SEASONS.festivals.map(f => ({ id: 'f_' + f.id, name: f.name, kind: f.kind, params: { mult: f.mult }, start_at: dayMs(f.start), end_at: dayMs(f.end) + 86400000, descr: f.descr || '', festival: true })).filter(e => e.start_at <= ms && e.end_at > ms); }
-  const CFG = { HOME, BUILDINGS, BIOMES, OCC, SEASONS, monthOf, seasonOf, cropTag, inSeason, seasonEnd, festivalsAt, fieldCenter, pastSize, pondsOf, gridSpec, homeOccupancy, footprint, canPlace };
+  /* ---------- 第 1 期：世界奇观（content/wonders.jsonc）。阶段存在布局里：{ type: 'greatwall', stage: 已建成的阶段数 } ---------- */
+  const WONDERS = CONTENT.WONDERS;
+  const wonderDef = id => WONDERS.find(w => w.id === id);
+  /* 所有奇观带来的作物增产（累加） */
+  function wonderBonus(items) { let b = 0; (items || []).forEach(it => { const w = wonderDef(it.type); if (w) for (let i = 0; i < Math.min(it.stage | 0, w.stages.length); i++) b += w.stages[i].bonus; }); return Math.round(b * 1000) / 1000; }
+  const CFG = { HOME, BUILDINGS, BIOMES, OCC, SEASONS, WONDERS, wonderDef, wonderBonus, monthOf, seasonOf, cropTag, inSeason, seasonEnd, festivalsAt, fieldCenter, pastSize, pondsOf, gridSpec, homeOccupancy, footprint, canPlace };
   Object.assign(CFG, { ZONES, ASSETS, COLLIES, PETS_MAX, VERSION, COLS, ROWS, NPLOTS, FIELDS_MAX, MAX_PLOTS, fieldNeedLv, fieldCost, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
     FISH, SHEEP, TREES, RANCH, pondCap, pastureCap, pondCapOf, pastureCapOf, orchardCapOf, ranchUpCost, ranchNeedLv, herdOf, sheepCycles, treeCycles, treeGrowLeft, fishLeft, ranchItem,

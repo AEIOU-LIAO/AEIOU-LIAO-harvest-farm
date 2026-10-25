@@ -149,6 +149,7 @@ async function createCore(opts) {
   R('GET', '/api/home/layout', { auth: 1 }, (c) => game.homeLayout(c.uid));
   R('POST', '/api/home/place', { auth: 1 }, async (c) => own(c.uid, await game.homePlace(c.uid, { type: c.body.type, gx: U.int(c.body.gx, '位置', -1000, 1000), gz: U.int(c.body.gz, '位置', -1000, 1000), rot: U.int(c.body.rot || 0, '朝向', 0, 3) })));
   R('POST', '/api/home/move', { auth: 1 }, async (c) => own(c.uid, await game.homeMove(c.uid, U.int(c.body.id, '建筑', 1, 1e9), { gx: U.int(c.body.gx, '位置', -1000, 1000), gz: U.int(c.body.gz, '位置', -1000, 1000), rot: U.int(c.body.rot || 0, '朝向', 0, 3) })));
+  R('POST', '/api/home/wonder', { auth: 1 }, async (c) => own(c.uid, await game.homeWonder(c.uid, U.int(c.body.id, '建筑', 1, 1e9))));
   R('POST', '/api/home/remove', { auth: 1 }, async (c) => own(c.uid, await game.homeRemove(c.uid, U.int(c.body.id, '建筑', 1, 1e9))));
   R('POST', '/api/ranch/upgrade', { auth: 1 }, async (c) => own(c.uid, await game.ranchUpgrade(c.uid, String(c.body.kind || ''))));
   R('POST', '/api/ranch/tree/buy', { auth: 1 }, async (c) => own(c.uid, await game.buyTree(c.uid, U.int(c.body.type, '树苗', 0, 99), c.body.n)));

@@ -5,14 +5,14 @@ const { CFG, U, CROPS, RULES, NPLOTS, UNLOCK_ORDER, bad, forbid, notFound, confl
 
 module.exports = {
   scheduleEv(P, start) { const dur = CFG.plotDur(P), rem = 1 - P.p, cr = CROPS[P.c]; const n = (U.rand() < (cr.time < 60 ? 0.35 : 0.6) ? 1 : 0) + (U.rand() < 0.3 ? 1 : 0) + (cr.time >= 1800 && U.rand() < 0.4 ? 1 : 0); const ev = []; for (let i = 0; i < n; i++) ev.push([Math.round(start + dur * rem * (0.1 + U.rand() * 0.75)), pick(['d', 'w', 'b'])]); ev.sort((a, b) => a[0] - b[0]); return ev; },
-  async startCycle(P, now) { const cr = CROPS[P.c]; P.y0 = Math.max(1, Math.round(cr.yield * CFG.soilOf(P).yield * await this.evMult('yield_mult', P.c) * (CFG.inSeason(P.c, now) ? 1 + CFG.seasonOf(now).bonus : 1))); /* 第 1 期：当季作物增产 */ P.y = P.y0; P.stolen = 0; P.pr = { d: 0, w: 0, b: 0 }; P.t = now; P.ra = 0; P.cycle++; P.ev = this.scheduleEv(P, now); },
+  async startCycle(P, now, uid) { const cr = CROPS[P.c], wb = uid ? CFG.wonderBonus(this.layoutOf(await this.user(uid)).items) : 0; P.y0 = Math.max(1, Math.round(cr.yield * CFG.soilOf(P).yield * await this.evMult('yield_mult', P.c) * (CFG.inSeason(P.c, now) ? 1 + CFG.seasonOf(now).bonus : 1) * (1 + wb))); /* 第 1 期：当季作物增产、奇观永久增产 */ P.y = P.y0; P.stolen = 0; P.pr = { d: 0, w: 0, b: 0 }; P.t = now; P.ra = 0; P.cycle++; P.ev = this.scheduleEv(P, now); },
   async plant(uid, idx, cropId, out) {
     const cr = CROPS[cropId]; if (!cr) throw bad('没有这种种子');
     const [u, P] = await all([this.user(uid), this.plot(uid, idx)]);
     if (!P.u) throw bad('这块地还没开垦'); if (P.c >= 0) throw conflict('这块地已经种了东西', 'occupied');
     if (u.lv < cr.lv) throw bad(`${cr.name} 需要 Lv.${cr.lv} 解锁`, 'locked');
     this.addGold(uid, -cr.seed, 'seed');
-    const now = this.now(); P.c = cropId; P.p = 0; P.sea = 0; await this.startCycle(P, now); this.savePlot(uid, P);
+    const now = this.now(); P.c = cropId; P.p = 0; P.sea = 0; await this.startCycle(P, now, uid); this.savePlot(uid, P);
     this.db.w('UPDATE users SET plant_total=plant_total+1, seed=? WHERE id=?', cropId, uid); this.pu(uid, x => { x.plant_total++; x.seed = cropId; }); this.bump(uid, 'plant'); await this.addExp(uid, 2, out, u);
     return { idx, crop: cropId, cost: cr.seed };
   },
@@ -27,7 +27,7 @@ module.exports = {
     this.db.w('UPDATE users SET harvest_total=harvest_total+1 WHERE id=?', uid); this.pu(uid, x => x.harvest_total++); this.bump(uid, 'harvest');
     const exp = await this.addExp(uid, cr.exp, out);
     const res = { idx, crop: P.c, n, bonus, golden, exp, stolen: P.stolen, season2: false };
-    if (cr.seasons > 1 && P.sea < cr.seasons - 1) { P.sea++; P.p = RULES.season2Start; await this.startCycle(P, now); res.season2 = true; }
+    if (cr.seasons > 1 && P.sea < cr.seasons - 1) { P.sea++; P.p = RULES.season2Start; await this.startCycle(P, now, uid); res.season2 = true; }
     else { P.c = -1; P.p = 0; P.y = 0; P.y0 = 0; P.stolen = 0; P.sea = 0; P.pr = { d: 0, w: 0, b: 0 }; P.ev = []; P.ra = 0; }
     this.savePlot(uid, P); return res;
   },

@@ -1289,7 +1289,26 @@ const W3 = (() => {
   const BDEF = {}; GAMECFG.BUILDINGS.forEach(b => { BDEF[b.id] = b; }); const GS = GAMECFG.gridSpec();
   const BMODEL = {}, BUILT = {}, BOBST = [], BSEG = []; let builtKey = '', LAMPM = null, LAMPG = null;
   function bRect(it) { const b = BDEF[it.type], odd = (it.rot | 0) % 2 === 1, w = odd ? b.d : b.w, d = odd ? b.w : b.d; return { cx: GS.x0 + (it.gx + w / 2) * GS.cell, cz: GS.z0 + (it.gz + d / 2) * GS.cell, w: w * GS.cell, d: d * GS.cell }; }
-  function bModel(type) {
+  /* 长城：按已建成的阶段数（0 选址 ~ 5 竣工）生成，长 20 米、宽 4 米，沿 x 方向 */
+  function wallModel(g, stage) {
+    const earth = mat('#a8875a', { p: { roughness: 1 } }), brick = mat('#d6cab0', { p: { map: TX.stone, normalMap: TX.stoneN, roughness: 0.9 } }), dark = mat('#6a4a2a', { p: { map: TX.wood, roughness: 0.8 } }), red = mat('#b83a2e', { p: { roughness: 0.6 } }), tile = mat('#4a5a5a', { p: { map: TX.tiles, roughness: 0.75 } });
+    const box = (m, w, h, d, x, y, z) => { const o = mesh(new T.BoxGeometry(w, h, d), m, x, y, z); g.add(o); return o; };
+    if (stage <= 0) { [[-9.8, -1.8], [9.8, -1.8], [-9.8, 1.8], [9.8, 1.8], [0, -1.8], [0, 1.8]].forEach(([x, z]) => box(dark, 0.12, 0.8, 0.12, x, 0.4, z)); const rope = mat('#e8d8a8'); box(rope, 19.6, 0.03, 0.03, 0, 0.62, -1.8); box(rope, 19.6, 0.03, 0.03, 0, 0.62, 1.8); box(rope, 0.03, 0.03, 3.6, -9.8, 0.62, 0); box(rope, 0.03, 0.03, 3.6, 9.8, 0.62, 0); box(dark, 0.1, 1.2, 0.1, -9.2, 0.6, 2.3); box(mat('#d8b878', { p: { map: TX.wood } }), 0.9, 0.5, 0.06, -9.2, 1.15, 2.33); return; }
+    box(earth, 20, 0.6, 3.6, 0, 0.3, 0); [0.2, 0.42].forEach(y => box(mat('#96764a', { p: { roughness: 1 } }), 20.02, 0.04, 3.62, 0, y, 0));
+    if (stage < 2) return;
+    const seg = (x0, x1) => { const L = x1 - x0, cx = (x0 + x1) / 2; box(brick, L, 2.8, 3.0, cx, 2.0, 0); box(mat('#8f8674', { p: { roughness: 1 } }), L, 0.08, 2.4, cx, 3.42, 0);
+      for (let x = x0 + 0.35; x < x1 - 0.2; x += 0.9) [-1.35, 1.35].forEach(z => box(brick, 0.5, 0.55, 0.3, x, 3.7, z)); };
+    const tower = (x, h, roofed) => { box(brick, 4.2, h, 4.2, x, 0.6 + h / 2, 0); for (let i = 0; i < 4; i++) [-1, 1].forEach(s => { box(brick, 0.6, 0.6, 0.3, x - 1.5 + i, 0.6 + h + 0.3, s * 1.95); box(brick, 0.3, 0.6, 0.6, x + s * 1.95, 0.6 + h + 0.3, -1.5 + i); });
+      [-1, 1].forEach(s => box(mat('#2a2018'), 0.7, 1.1, 0.1, x + s * 0.9, 0.6 + h * 0.55, 2.11)); if (roofed) { const r = mesh(new T.ConeGeometry(3.3, 1.6, 4), tile, x, 0.6 + h + 1.4, 0); r.rotation.y = Math.PI / 4; g.add(r); [[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]].forEach(([a, b]) => box(red, 0.18, 0.9, 0.18, x + a, 0.6 + h + 0.45, b)); } };
+    seg(-10, stage >= 4 ? 10 : 0);
+    if (stage >= 3) { tower(-8, 4.6, false); const basin = mesh(new T.CylinderGeometry(0.5, 0.35, 0.4, 10), mat('#3a3430', { p: { metalness: 0.4, roughness: 0.6 } }), -8, 5.65, 0); g.add(basin); const fire = blob(mat('#ff8a2a', { p: { emissive: new T.Color('#ff6010'), emissiveIntensity: 1.2 } }), -8, 6.0, 0, 0.32, 0.5, 0.32, 10); g.add(fire); }
+    if (stage >= 4) tower(7.5, 5.2, true);
+    if (stage >= 5) { [[-8, 5.8], [7.5, 8.2]].forEach(([x, y]) => { box(dark, 0.08, 2.2, 0.08, x + 1.6, y + 1.1, 1.6); const f = box(red, 1.1, 0.7, 0.03, x + 2.15, y + 1.85, 1.6); f.castShadow = false; });
+      box(mat('#e8c060', { p: { metalness: 0.7, roughness: 0.3 } }), 2.4, 0.8, 0.08, 0, 2.2, 1.55); }
+  }
+  function bModel(type, stage) {
+    const key = type + (stage !== undefined ? ':' + stage : ''); if (BMODEL[key]) return BMODEL[key];
+    if (type === 'greatwall') { const g = new T.Group(); wallModel(g, stage | 0); g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return (BMODEL[key] = merge(g)); }
     if (BMODEL[type]) return BMODEL[type];
     const g = new T.Group(), wood = mat('#a8794a', { p: { map: TX.wood, roughness: 0.85 } }), dark = mat('#6a4a2a', { p: { map: TX.wood, roughness: 0.8 } }), stone = mat('#c2bcae', { p: { map: TX.stone, normalMap: TX.stoneN, roughness: 0.85 } });
     const box = (m, w, h, d, x, y, z) => mesh(new T.BoxGeometry(w, h, d), m, x, y, z);
@@ -1316,12 +1335,14 @@ const W3 = (() => {
   }
   function rebuildBObst() { BOBST.length = 0; BSEG.length = 0;
     Object.values(BUILT).forEach(({ it }) => { const b = BDEF[it.type], s = b && b.solid; if (!s) return; const R = bRect(it);
-      if (s === 'seg') { if ((it.rot | 0) % 2) BSEG.push([R.cx, R.cz - 1, R.cx, R.cz + 1]); else BSEG.push([R.cx - 1, R.cz, R.cx + 1, R.cz]); } else BOBST.push([R.cx, R.cz, +s]); }); }
+      if (s === 'seg') { if ((it.rot | 0) % 2) BSEG.push([R.cx, R.cz - 1, R.cx, R.cz + 1]); else BSEG.push([R.cx - 1, R.cz, R.cx + 1, R.cz]); }
+      else if (s === 'wall') { if (b.kind === 'wonder' && !(it.stage > 0)) return; const along = R.w >= R.d, L = Math.max(R.w, R.d), r = Math.min(R.w, R.d) * 0.46; for (let u = -L / 2 + r; u <= L / 2 - r + 0.01; u += r * 0.9) BOBST.push(along ? [R.cx + u, R.cz, r] : [R.cx, R.cz + u, r]); }
+      else BOBST.push([R.cx, R.cz, +s]); }); }
   function setLayout(items) {
     items = (items || []).filter(it => BDEF[it.type] && (!BM.on || it.id !== BM.hideId));
-    const key = items.map(i => i.id + ':' + i.type + ':' + i.gx + ':' + i.gz + ':' + (i.rot | 0)).join('|'); if (key === builtKey) return; builtKey = key; const want = {};
-    items.forEach(it => { const k = it.type + ':' + it.gx + ':' + it.gz + ':' + (it.rot | 0); want[it.id] = 1; const cur = BUILT[it.id]; if (cur && cur.k === k) { cur.it = it; return; } if (cur) scene.remove(cur.o);
-      const o = bModel(it.type).clone(), R = bRect(it); o.position.set(R.cx, 0, R.cz); o.rotation.y = -(it.rot | 0) * Math.PI / 2; o.traverse(c => { c.userData.bid = it.id; }); scene.add(o); BUILT[it.id] = { k, o, it }; });
+    const key = items.map(i => i.id + ':' + i.type + ':' + i.gx + ':' + i.gz + ':' + (i.rot | 0) + ':' + (i.stage | 0)).join('|'); if (key === builtKey) return; builtKey = key; const want = {};
+    items.forEach(it => { const k = it.type + ':' + it.gx + ':' + it.gz + ':' + (it.rot | 0) + ':' + (it.stage | 0); want[it.id] = 1; const cur = BUILT[it.id]; if (cur && cur.k === k) { cur.it = it; return; } if (cur) scene.remove(cur.o);
+      const o = bModel(it.type, BDEF[it.type].kind === 'wonder' ? it.stage | 0 : undefined).clone(), R = bRect(it); o.position.set(R.cx, 0, R.cz); o.rotation.y = -(it.rot | 0) * Math.PI / 2; o.traverse(c => { c.userData.bid = it.id; }); scene.add(o); BUILT[it.id] = { k, o, it }; });
     Object.keys(BUILT).forEach(id => { if (!want[id]) { scene.remove(BUILT[id].o); delete BUILT[id]; } });
     rebuildBObst(); if (BM.on) drawGrid();
   }
@@ -1344,12 +1365,12 @@ const W3 = (() => {
   function setBuildState(st, hideId) { const k = JSON.stringify(st) + '|' + (hideId || 0); if (k === BM.stKey) return; BM.stKey = k; BM.st = st; BM.hideId = hideId || 0; builtKey = ''; }
   /* 预览：g = { type, gx, gz, rot, ok }；null 隐藏 */
   function setGhost(g) {
-    const k = g ? [g.type, g.gx, g.gz, g.rot, g.ok].join(':') : ''; if (k === BM.gkey) return; BM.gkey = k;
+    const k = g ? [g.type, g.gx, g.gz, g.rot, g.ok, g.stage | 0].join(':') : ''; if (k === BM.gkey) return; BM.gkey = k;
     if (BM.ghost) { scene.remove(BM.ghost); BM.ghost = null; } if (BM.foot) { scene.remove(BM.foot); BM.foot.geometry.dispose(); BM.foot = null; } if (!g || !BDEF[g.type]) return;
-    const R = bRect(g); BM.ghost = bModel(g.type).clone(); BM.ghost.position.set(R.cx, 0.02, R.cz); BM.ghost.rotation.y = -(g.rot | 0) * Math.PI / 2; scene.add(BM.ghost);
+    const R = bRect(g); BM.ghost = bModel(g.type, BDEF[g.type].kind === 'wonder' ? g.stage | 0 : undefined).clone(); BM.ghost.position.set(R.cx, 0.02, R.cz); BM.ghost.rotation.y = -(g.rot | 0) * Math.PI / 2; scene.add(BM.ghost);
     const fg = new T.PlaneGeometry(R.w - 0.12, R.d - 0.12); fg.rotateX(-Math.PI / 2); BM.foot = new T.Mesh(fg, new T.MeshBasicMaterial({ color: g.ok ? 0x4ad66a : 0xff4a3a, transparent: true, opacity: 0.5, depthWrite: false })); BM.foot.position.set(R.cx, 0.08, R.cz); BM.foot.renderOrder = 7; scene.add(BM.foot);
   }
-  function setBuildSel(id) { BM.sel = id || 0; Object.values(BUILT).forEach(({ o, it }) => o.traverse(c => { if (c.isMesh) { if (it.id === BM.sel) { if (!c.userData.m0) { c.userData.m0 = c.material; c.material = c.material.clone(); c.material.emissive = new T.Color('#ffcc33'); c.material.emissiveIntensity = 0.35; } } else if (c.userData.m0) { c.material.dispose(); c.material = c.userData.m0; delete c.userData.m0; } } })); }
+  function setBuildSel(id) { BM.sel = id || 0; Object.values(BUILT).forEach(({ o, it }) => o.traverse(c => { if (c.isMesh) { if (it.id === BM.sel) { if (!c.userData.m0) { c.userData.m0 = c.material; c.material = c.material.clone(); c.material.emissive = new T.Color('#ffcc33'); c.material.emissiveIntensity = 0.16; } } else if (c.userData.m0) { c.material.dispose(); c.material = c.userData.m0; delete c.userData.m0; } } })); }
   const gplane = new T.Plane(new T.Vector3(0, 1, 0), 0), gpt = new T.Vector3();
   function rayAt(cx, cy) { const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); }
   /* 屏幕坐标 → 格子（建筑的左上角格子按宽高居中） */
@@ -1359,7 +1380,7 @@ const W3 = (() => {
     if (!ray.ray.intersectPlane(gplane, gpt)) return 0; const gi = Math.floor((gpt.x - GS.x0) / GS.cell), gj = Math.floor((gpt.z - GS.z0) / GS.cell); const f = Object.values(BUILT).find(({ it }) => (GAMECFG.footprint(it) || []).some(([i, j]) => i === gi && j === gj)); return f ? f.it.id : 0; }
   /* 屏幕中心对应的格子（选好建筑时先放在画面中间） */
   function centerCell(type, rot) { const r = canvasEl.getBoundingClientRect(); return cellAt(r.left + r.width / 2, r.top + r.height * 0.45, type, rot); }
-  function buildIcon(type) { const key = 'b:' + type; if (ICONS[key] !== undefined) return ICONS[key]; try { ensureIconRenderer(); const m = bModel(type).clone(); m.rotation.y = -0.6; IS.add(m); const box = new T.Box3().setFromObject(m), c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3()), r = Math.max(sz.x, sz.y, sz.z) * 0.7;
+  function buildIcon(type) { const key = 'b:' + type; if (ICONS[key] !== undefined) return ICONS[key]; try { ensureIconRenderer(); const m = bModel(type, BDEF[type] && BDEF[type].kind === 'wonder' ? 5 : undefined).clone(); m.rotation.y = -0.6; IS.add(m); const box = new T.Box3().setFromObject(m), c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3()), r = Math.max(sz.x, sz.y, sz.z) * 0.7;
     IC.position.set(c.x + r * 1.6, c.y + r * 1.3, c.z + r * 2.2); IC.lookAt(c); IC.updateProjectionMatrix(); IR.render(IS, IC); ICONS[key] = IR.domElement.toDataURL(); IS.remove(m); iconSave(); } catch (e) { ICONS[key] = ''; } return ICONS[key]; }
   const ray = new T.Raycaster(), ndc = new T.Vector2();
   function pick(cx, cy) { if (!ready || ZONE) return -1; const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); const h = ray.intersectObjects(hitBoxes, false).filter(x => (!x.object.userData.dog || (x.object.userData.dog.g.visible && anim.dogs.includes(x.object.userData.dog))) && (!x.object.parent || x.object.parent.visible !== false)); return h.length ? (h[0].object.userData.dog ? -20 - anim.dogs.indexOf(h[0].object.userData.dog) : h[0].object.userData.idx) : -1; }
