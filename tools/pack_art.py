@@ -2,8 +2,9 @@
 1. 去掉内嵌图片（贴图改为单独 jpg 加载，手机微信浏览器解码内嵌图片会报错）；
 2. 压缩二进制数据，去掉图片占用的空间；
 3. 另存一份 gzip 版（.glb.gz），网页用 DecompressionStream 解压，体积约 1/4。
-用法：python3 tools/pack_art.py <美术仓库的 GLB> <输出目录>  （同时导出 tex/ 下的贴图 jpg）"""
-import json, struct, sys, os, gzip
+用法：python3 tools/pack_art.py <美术仓库的 GLB> <输出目录> [--mobile 1024]
+  不加 --mobile：tex/ 下原样导出贴图；加 --mobile N：tex/ 为手机版（缩到 N），tex2k/ 为原尺寸高清版，全部转 JPEG。"""
+import json, struct, sys, os, gzip, io
 
 def read(p):
     b = open(p, 'rb').read(); assert b[:4] == b'glTF'; off = 12; J = BIN = None
@@ -18,13 +19,21 @@ def write(J, BIN):
     total = 12 + 8 + len(js) + 8 + len(BIN)
     return struct.pack('<III', 0x46546C67, 2, total) + struct.pack('<II', len(js), 0x4E4F534A) + js + struct.pack('<II', len(BIN), 0x004E4942) + BIN
 
-def pack(src, out_dir):
+def pack(src, out_dir, mobile=0):
     J, BIN = read(src); name = os.path.splitext(os.path.basename(src))[0]
     os.makedirs(os.path.join(out_dir, 'tex'), exist_ok=True)
     img_views = set()
     for im in J.get('images', []):
         bv = J['bufferViews'][im['bufferView']]; img_views.add(im['bufferView'])
-        open(os.path.join(out_dir, 'tex', im['name'] + '.jpg'), 'wb').write(BIN[bv.get('byteOffset', 0):bv.get('byteOffset', 0) + bv['byteLength']])
+        data = BIN[bv.get('byteOffset', 0):bv.get('byteOffset', 0) + bv['byteLength']]
+        if not mobile: open(os.path.join(out_dir, 'tex', im['name'] + '.jpg'), 'wb').write(data); continue
+        from PIL import Image
+        img = Image.open(io.BytesIO(data)).convert('RGB'); q = 92 if 'normal' in im['name'] else 85
+        os.makedirs(os.path.join(out_dir, 'tex2k'), exist_ok=True)
+        if im.get('mimeType') == 'image/jpeg': open(os.path.join(out_dir, 'tex2k', im['name'] + '.jpg'), 'wb').write(data)
+        else: img.save(os.path.join(out_dir, 'tex2k', im['name'] + '.jpg'), quality=q, optimize=True)
+        small = img.resize((mobile, mobile), Image.LANCZOS) if img.width > mobile else img
+        small.save(os.path.join(out_dir, 'tex', im['name'] + '.jpg'), quality=q, optimize=True)
     # 材质只保留名字和参数，贴图引用去掉（运行时按「材质 → 图片名」从 tex/ 加载），图片名写进 extras 方便查
     for m in J.get('materials', []):
         ex = m.setdefault('extras', {})
@@ -50,4 +59,5 @@ def pack(src, out_dir):
     print(name, '原始', os.path.getsize(src), '→ 去图', len(glb), '→ gzip', os.path.getsize(os.path.join(out_dir, name + '.glb.gz')))
 
 if __name__ == '__main__':
-    pack(sys.argv[1], sys.argv[2])
+    mob = int(sys.argv[sys.argv.index('--mobile') + 1]) if '--mobile' in sys.argv else 0
+    pack(sys.argv[1], sys.argv[2], mob)
