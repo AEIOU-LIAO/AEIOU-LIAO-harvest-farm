@@ -106,7 +106,7 @@ async function createCore(opts) {
   R('POST', '/api/auth/login', { authLimit: 1 }, async (c) => { const u = await game.login(c.body.username, c.body.password); if (u.banned) throw U.forbid('账号已被封禁：' + (u.ban_reason || '违反规则')); const token = (await c.devFor(u.id)) || game.newSession(u.id, c.ua); c.addDev(token); return { token, state: await st(u.id) }; });
   R('POST', '/api/auth/recover', { authLimit: 1 }, async (c) => { const r = await game.recover(c.body.username, c.body.code, c.body.password); const token = game.newSession(r.user.id, c.ua); c.addDev(token); return { token, recovery: r.recovery, state: await st(r.user.id) }; });
   R('GET', '/api/invite/:code', {}, async (c) => { const u = await db.get('SELECT * FROM users WHERE code=? AND banned=0', String(c.params.code)); if (!u) throw U.notFound('邀请链接无效'); return game.publicUser(u); });
-  R('POST', '/api/telemetry', { optAuth: 1, noTx: 1 }, async (c) => { const ms = Math.round(Number(c.body.loadMs)); if (ms > 0 && ms < 60000) { mbump('load_n'); mbump('load_ms', ms); } return {}; });
+  R('POST', '/api/telemetry', { optAuth: 1, noTx: 1 }, async (c) => { const ms = Math.round(Number(c.body.loadMs)); if (ms > 0 && ms < 60000) { mbump('load_n'); mbump('load_ms', ms); const t = c.body.t || {}; for (const k of ['js', 'w3', 'cfg', 'shown']) { const v = Math.round(Number(t[k])); if (v > 0 && v < 60000) mbump('boot_' + k + '_ms', v); } } return {}; });
   // 后台任务触发：无服务器部署时由在线玩家的页面每分钟调用一次（有租约，重复调用会直接跳过）
   let cronAt = 0;
   R('POST', '/api/cron', { noTx: 1, cron: 1 }, async () => { if (Date.now() - cronAt < 20000) return { skipped: true }; cronAt = Date.now(); const [npc, maint] = await all([runNpc(opts.cronBudgetMs || 20000), runMaint()]); flushMetrics(true); return { npc, maint }; });

@@ -440,9 +440,6 @@ body.inzone #toolbar,body.inzone #side,body.inzone #friends,body.inzone #newbie,
 <div id="loading"><div class="lt"><span>丰收农场</span><em>HARVEST FARM</em></div><div class="spin"></div><p>正在加载…</p></div>
 <div id="mback"><div id="modal"></div></div>
 <script src="vendor/three.min.js"></script>
-<script src="vendor/three-addons.js"></script>
-<script src="lib/assets3.js"></script>
-<script src="lib/entity3.js"></script>
 <script>
 /* 自动生成，不要手改：源文件在 content/*.jsonc，运行 node tools/build-content.js 重新生成 */
 (function (root) {
@@ -451,7 +448,7 @@ body.inzone #toolbar,body.inzone #side,body.inzone #friends,body.inzone #newbie,
   if (typeof module !== 'undefined' && module.exports) module.exports = CONTENT; else root.GAMECONTENT = CONTENT;
 })(typeof window !== 'undefined' ? window : globalThis);
 
-var HF_BUILT = '2026-10-25 22:11';
+var HF_BUILT = '2026-10-25 23:18';
 /* =====================================================
    丰收农场 · 前后端共用配置与规则
    服务端是权威；客户端只用它来显示与插值。
@@ -610,7 +607,7 @@ var HF_BUILT = '2026-10-25 22:11';
   const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
   // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
   function ranchItem(item) { const m = /^(fs|wl|fr)(\d+)$/.exec(item || ''); if (!m) return null; const d = ({ fs: FISH, wl: SHEEP, fr: TREES })[m[1]][+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : m[1] === 'wl' ? { kind: 'wool', id: d.id, name: d.woolName, price: d.sell } : { kind: 'fruit', id: d.id, name: d.fruit, price: d.sell }; }
-  const VERSION = '3.6.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const VERSION = '3.7.0'; // 每次发布改这里；设置页和 /api/health 会显示
   const ZONES = CONTENT.ZONES, ASSETS = CONTENT.ASSETS, HOME = CONTENT.HOME, BUILDINGS = CONTENT.BUILDINGS, BIOMES = CONTENT.BIOMES;
 
   /* ===== V0.3 家园布局与建造网格（3D 画面和服务器共用 content/home.jsonc） ===== */
@@ -657,6 +654,15 @@ var HF_BUILT = '2026-10-25 22:11';
    - 写操作带 Idempotency-Key，网络失败自动重试且不会重复结算
    - 服务器时间校准、断网提示
    ===================================================== */
+/* 按需加载脚本（V0.4）：区域、新角色用到的 three 扩展和资源模块不在首屏加载，第一次用到时按顺序加载，只加载一次 */
+const LAZY = {};
+function needScripts(list) {
+  return list.reduce((p, src) => p.then(() => LAZY[src] || (LAZY[src] = new Promise((ok, no) => {
+    const s = document.createElement('script'); s.src = src + '?v=' + (typeof CFG !== 'undefined' ? CFG.VERSION : ''); s.async = false;
+    s.onload = ok; s.onerror = () => { delete LAZY[src]; s.remove(); no(new Error('加载失败：' + src)); }; document.head.appendChild(s);
+  }))), Promise.resolve());
+}
+const LAZY_3D = ['vendor/three-addons.js'], LAZY_CHAR = ['vendor/three-addons.js', 'lib/assets3.js', 'lib/entity3.js'];
 const NET = (() => {
   const meta = document.querySelector('meta[name="farm-api"]');
   const qs = new URLSearchParams(location.search);
@@ -2115,7 +2121,9 @@ const W3 = (() => {
 
   /* ---------------- 材质与几何工具 ---------------- */
   const MC = new Map();
-  function mat(col, o) { o = o || {}; const k = col + JSON.stringify(o); let m = MC.get(k); if (!m) { m = new (o.phys ? T.MeshPhysicalMaterial : T.MeshStandardMaterial)(Object.assign({ color: new T.Color(col), roughness: 0.75, metalness: 0 }, o.p || {})); if (o.vc) m.vertexColors = true; if (o.ds) m.side = T.DoubleSide; MC.set(k, m); } return m; }
+  /* 缓存键：贴图只取 uuid（以前 JSON.stringify 会把整张贴图转成 base64，生成人物要卡十几秒） */
+  const keyOf = v => v && typeof v === 'object' ? (v.isTexture ? 'tex:' + v.uuid : v.isColor ? '#' + v.getHexString() : '{' + Object.keys(v).map(k => k + ':' + keyOf(v[k])).join(',') + '}') : String(v); /* toJSON 会在 replacer 之前调用，所以自己拼 */
+  function mat(col, o) { o = o || {}; const k = col + keyOf(o); let m = MC.get(k); if (!m) { m = new (o.phys ? T.MeshPhysicalMaterial : T.MeshStandardMaterial)(Object.assign({ color: new T.Color(col), roughness: 0.75, metalness: 0 }, o.p || {})); if (o.vc) m.vertexColors = true; if (o.ds) m.side = T.DoubleSide; MC.set(k, m); } return m; }
   const v3 = (x, y, z) => new T.Vector3(x, y, z);
   function mesh(geo, m, x, y, z) { const o = new T.Mesh(geo, m); o.position.set(x || 0, y || 0, z || 0); o.castShadow = true; o.receiveShadow = true; return o; }
   function colorize(g, fn) { const p = g.attributes.position, c = new Float32Array(p.count * 3); for (let i = 0; i < p.count; i++) { const r = fn(p.getX(i), p.getY(i), p.getZ(i), i); c[i * 3] = r[0]; c[i * 3 + 1] = r[1]; c[i * 3 + 2] = r[2]; } g.setAttribute('color', new T.BufferAttribute(c, 3)); return g; }
@@ -2564,7 +2572,7 @@ const W3 = (() => {
     try {
       ensureIconRenderer(); const n = anim.dogs.length; buildDog.preview = true; const m = buildDog(kind); buildDog.preview = false; anim.dogs.length = n; m.remove(m.children.find(c => c.isSprite)); m.rotation.y = -0.65;
       IS.add(m); const box = new T.Box3().setFromObject(m), c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3()), r = Math.max(sz.x, sz.y, sz.z) * 0.6;
-      IC.position.set(c.x + r * 1.4, c.y + r * 0.7, c.z + r * 2.5); IC.lookAt(c); IC.updateProjectionMatrix(); IR.render(IS, IC); ICONS[key] = IR.domElement.toDataURL(); IS.remove(m);
+      IC.position.set(c.x + r * 1.4, c.y + r * 0.7, c.z + r * 2.5); IC.lookAt(c); IC.updateProjectionMatrix(); IR.render(IS, IC); ICONS[key] = IR.domElement.toDataURL(); IS.remove(m); iconSave();
     } catch (e) { console.error(e); ICONS[key] = ''; }
     return ICONS[key];
   }
@@ -3129,6 +3137,7 @@ const W3 = (() => {
     NC.on = !!on;
     if (!NC.on) { ncDrop(NC.hero); NC.hero = null; Object.values(NC.dogs).forEach(ncDrop); NC.dogs = {}; ncAttachHero(); anim.dogs.forEach(ncAttachDog); return true; }
     if (NC.hero) return true;
+    await needScripts(LAZY_CHAR); if (!NC.on) return false;
     if (typeof Entity3 === 'undefined' || typeof Assets3 === 'undefined') throw new Error('资源模块没有加载');
     if (!NC.lib) NC.lib = new Assets3({ manifest: GAMECFG.ASSETS });
     const [h, d] = await Promise.all([Entity3.spawn(NC.lib, NC_IDS.hero, 'hero', { tier: '1k' }), Entity3.spawn(NC.lib, NC_IDS.fuwang, 'dog', { tier: '1k' })]);
@@ -3240,9 +3249,8 @@ const W3 = (() => {
     const scare = buildScarecrow(); scare.position.set(ST.scarecrow.x, 0, ST.scarecrow.z); scare.rotation.y = ST.scarecrow.ry; scene.add(scare);
     const dh = buildDoghouse(); dh.position.set(ST.doghouse.x, 0, ST.doghouse.z); dh.rotation.y = ST.doghouse.ry; scene.add(dh);
     { const hk = new T.Mesh(new T.BoxGeometry(1.8, 1.6, 1.8), new T.MeshBasicMaterial({ visible: false })); hk.position.set(ST.doghouse.x, 0.8, ST.doghouse.z); hk.userData.idx = -10; scene.add(hk); hitBoxes.push(hk); } // 点狗窝：领养 / 喂狗
-    // 狗狗模型计算量较大：画面出来后再生成，避免打开游戏时卡顿
-    setTimeout(() => { const dog = buildDog('fuwang'); dog.position.set(10.4, 0, 1.2); dog.rotation.y = -2.9; dog.visible = false; scene.add(dog);
-      setTimeout(() => { const dog2 = buildDog('ruibao'); dog2.position.set(10.6, 0, -1.4); dog2.rotation.y = -2.6; dog2.visible = false; scene.add(dog2); }, 60); }, 400);
+    // 狗狗模型计算量较大：游戏画面出来以后再生成（afterShown），避免拖慢打开游戏；登录页等情况 8 秒后兜底生成
+    setTimeout(buildBaseDogs, 8000);
     [[-17, -10, 1.2, '#4f9a3a', 1], [-20, 2, 1.1, '#5aa840', 0], [-9, -14, 1.0, '#4a9238', 1], [12, -13, 1.25, '#4f9a3a', 0], [17, -6, 1.05, '#5aa840', 1], [24, 4, 1.2, '#4a9238', 0], [30, -12, 1.0, '#5aa840', 1], [-40, 22, 1.15, '#4f9a3a', 0], [9, 22, 0.9, '#5aa840', 0], [-24, -5, 1.3, '#467f36', 0], [24, 0, 1.25, '#467f36', 1], [-2, -20, 1.2, '#4f9a3a', 0], [-44, -24, 1.1, '#4a9238', 0]].forEach(([x, z, s, c, ap]) => { scene.add(tree(x, z, s, c, ap)); OBST.push([x, z, 0.55 * s]); });
     [[-9.6, -6.5, 0.9], [9.4, 7.2, 1], [-15.5, 3.5, 0.8], [14, 3, 0.9], [7, -8, 0.7], [-7, -8.2, 0.8], [3.4, 9.8, 0.6], [15, -10, 1]].forEach(([x, z, s]) => { scene.add(bushAt(x, z, s, '#4f9a3a')); OBST.push([x, z, 0.75 * s]); });
     [[-9.2, 9.8, 0.5], [9.2, 13.2, 0.4], [-2.2, 10.8, 0.3], [14.5, -1, 0.35], [-16, -6, 0.45], [6, 11, 0.3]].forEach(([x, z, s]) => { scene.add(rock(x, z, s)); OBST.push([x, z, 1.1 * s]); });
@@ -3274,8 +3282,13 @@ const W3 = (() => {
   // 移除一只领养的狗：模型、动画列表、点击区域都要清掉，否则会留下看不见的点击热区
   function dropDog(dg) { scene.remove(dg.g); const i = anim.dogs.indexOf(dg); if (i >= 0) anim.dogs.splice(i, 1); if (dg.hit) { const j = hitBoxes.indexOf(dg.hit); if (j >= 0) hitBoxes.splice(j, 1); }
     const keep = new Set(Object.values(DOG_GEO[dg.kind] || {})); dg.g.traverse(o => { if (o.geometry && !keep.has(o.geometry) && !SG_SET.has(o.geometry)) o.geometry.dispose(); if (o.isSprite && o.material.map) { o.material.map.dispose(); o.material.dispose(); } }); } // 释放这只狗独有的几何体和名牌贴图
+  let dogsBuilt = 0;
+  function buildBaseDogs() { if (dogsBuilt) return; dogsBuilt = 1; const dog = buildDog('fuwang'); dog.position.set(10.4, 0, 1.2); dog.rotation.y = -2.9; dog.visible = false; scene.add(dog);
+    setTimeout(() => { const dog2 = buildDog('ruibao'); dog2.position.set(10.6, 0, -1.4); dog2.rotation.y = -2.6; dog2.visible = false; scene.add(dog2); dogsBuilt = 2; }, 60); }
+  /* 游戏画面出来以后：先生成狗，再生成作物图标 */
+  function afterShown() { setTimeout(buildBaseDogs, 120); setTimeout(releaseIcons, 500); }
   function setPets(list) {
-    if (!RANCH3.ready) return; const want = {}; (list || []).forEach((p, i) => { want[p.id] = p; const k = p.id + '|' + p.coat + '|' + p.name, cur = PETS3[p.id];
+    if (!RANCH3.ready || dogsBuilt < 2) return; /* 宠物狗排在福旺、睿宝后面 */ const want = {}; (list || []).forEach((p, i) => { want[p.id] = p; const k = p.id + '|' + p.coat + '|' + p.name, cur = PETS3[p.id];
       if (cur && cur.key === k) return; if (cur) dropDog(cur.dg);
       const g = buildDog(DOG_LOOK[p.coat] ? p.coat : 'black', p.name, p.id), dg = anim.dogs[anim.dogs.length - 1]; g.position.set(9.6 + (i % 4) * 0.9, 0, 3.2 + Math.floor(i / 4) * 1.0); g.visible = false; scene.add(g); PETS3[p.id] = { key: k, dg }; });
     Object.keys(PETS3).forEach(id => { if (!want[id]) { dropDog(PETS3[id].dg); delete PETS3[id]; } });
@@ -3440,20 +3453,29 @@ const W3 = (() => {
 
   /* ---------------- 作物图标（离屏渲染 3D 模型） ---------------- */
   let IR, IS, IC; const ICONS = {};
+  /* 作物图标（V0.4）：生成要单独开一个 3D 画布，比较慢。
+     ① 存在本机（按版本号），下次打开直接用；② 游戏画面出来之前先放占位图，画面出来后再一个个生成、替换 */
+  const ICON_LS = 'hf_ci_' + GAMECFG.VERSION, ICON_Q = []; let iconHold = true, iconSaveT = 0;
+  try { Object.keys(localStorage).forEach(k => { if (k.startsWith('hf_ci_') && k !== ICON_LS) localStorage.removeItem(k); }); Object.assign(ICONS, JSON.parse(localStorage.getItem(ICON_LS) || '{}')); } catch (e) { }
+  const iconPh = key => "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C!--" + encodeURIComponent(key) + "--%3E%3C/svg%3E";
+  function iconSave() { clearTimeout(iconSaveT); iconSaveT = setTimeout(() => { try { const ks = Object.keys(ICONS).filter(k => ICONS[k]).slice(-60), o = {}; ks.forEach(k => o[k] = ICONS[k]); localStorage.setItem(ICON_LS, JSON.stringify(o)); } catch (e) { try { localStorage.removeItem(ICON_LS); } catch (x) { } } }, 1500); }
+  function iconPump() { const it = ICON_Q.shift(); if (!it) return; const [id, golden, key] = it; if (ICONS[key] === undefined) { iconHold = false; const u = cropIcon(id, golden), ph = iconPh(key); document.querySelectorAll('img').forEach(im => { if (im.getAttribute('src') === ph) im.src = u; }); } if (ICON_Q.length) setTimeout(iconPump, 30); }
+  function releaseIcons() { if (!iconHold) return; iconHold = false; setTimeout(iconPump, 50); }
   function ensureIconRenderer() { if (IR) return; const c = document.createElement('canvas'); c.width = c.height = 160; IR = new T.WebGLRenderer({ canvas: c, antialias: true, alpha: true, preserveDrawingBuffer: true }); IR.outputEncoding = T.sRGBEncoding; IR.toneMapping = T.ACESFilmicToneMapping; IR.setClearColor(0x000000, 0); IS = new T.Scene(); IS.add(new T.HemisphereLight(0xffffff, 0x6a7a4a, 0.9)); const d = new T.DirectionalLight(0xfff4e0, 2.2); d.position.set(3, 5, 4); IS.add(d); IC = new T.PerspectiveCamera(28, 1, 0.1, 50); if (!TX.soil) buildTextures(); }
   function cropIcon(id, golden) {
-    const key = id + (golden ? 'g' : ''); if (ICONS[key]) return ICONS[key];
+    const key = id + (golden ? 'g' : ''); if (ICONS[key] !== undefined) return ICONS[key];
+    if (iconHold) { if (!ICON_Q.some(q => q[2] === key)) ICON_Q.push([id, golden, key]); return iconPh(key); }
     try {
       ensureIconRenderer();
       const m = cropModel(id, 4).clone(); if (golden) { const gm = new T.MeshStandardMaterial({ color: new T.Color('#ffcc33'), metalness: 0.85, roughness: 0.28, emissive: new T.Color('#6a4400'), emissiveIntensity: 0.3 }); m.traverse(o => { if (o.isMesh) o.material = gm; }); }
       IS.add(m); const box = new T.Box3().setFromObject(m), c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3()), r = Math.max(sz.x, sz.y, sz.z) * 0.68;
-      IC.position.set(c.x + r * 2.2, c.y + r * 1.4, c.z + r * 2.4); IC.lookAt(c); IC.updateProjectionMatrix(); IR.render(IS, IC); ICONS[key] = IR.domElement.toDataURL(); IS.remove(m);
+      IC.position.set(c.x + r * 2.2, c.y + r * 1.4, c.z + r * 2.4); IC.lookAt(c); IC.updateProjectionMatrix(); IR.render(IS, IC); ICONS[key] = IR.domElement.toDataURL(); IS.remove(m); iconSave();
     } catch (e) { ICONS[key] = ''; }
     return ICONS[key];
   }
   function zoomBy(f) { if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * f)); return; } zoom = Math.max(0.6, Math.min(2.6, zoom * f)); applyCam(); }
   return { useZone, get zone() { return ZONE; }, get renderer() { return R; }, get __scene() { return scene; }, zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, hits: hitBoxes.length, dogs: anim.dogs.length, objs: (() => { let n = 0, v = 0; scene.traverse(o => { if (o.isMesh || o.isSprite) { n++; let vis = true, q = o; while (q) { if (!q.visible) { vis = false; break; } q = q.parent; } if (vis) v++; } }); return n + '/' + v; })(), parts: parts.length, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, setPets, dogInfo: k => { const d = anim.dogs[k]; return d ? { did: d.did, name: d.name, kind: d.kind } : null; }, pondSplash, setField: f => { ACTF = Math.max(0, f | 0); pan.set(0, 0, 0); panGoal.v = null; if (viewMode !== 'walk') fit(); }, panBy, panTo, resetView, lookAt: k => { const p = SPOT[k] && SPOT[k](); if (p) panTo(p[0], p[1]); }, get panned() { return pan.length() > 1 || zoom > 1.35; }, worldBox, get pan() { return pan.toArray().map(v => +v.toFixed(2)); }, get zoom() { return zoom; }, get field() { return ACTF; }, fieldCenter: fieldC, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ leg: RANCH3.leg, follow: RANCH3.follow, A: RANCH3.A && RANCH3.A.toArray().map(v => +v.toFixed(1)), phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, dbgDogCam: (k, yaw, pitch, dist) => { const dg = anim.dogs[k]; if (!dg) return null; const c = dg.g.position, cam2 = new T.PerspectiveCamera(32, W / H, 0.05, 80), d = dist || 2.2, a = dg.g.rotation.y + (yaw || 0); cam2.position.set(c.x + Math.cos(a) * d * Math.cos(pitch || 0.2), 0.35 + Math.sin(pitch || 0.2) * d, c.z - Math.sin(a) * d * Math.cos(pitch || 0.2)); cam2.lookAt(c.x, 0.3, c.z); R.render(scene, cam2); return R.domElement.toDataURL('image/png'); }, dbgPose: (k, p) => { const d = anim.dogs[k]; if (d) d.force = p || null; }, dogGround: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const v = new T.Vector3(); let lo = 9; const body = dg.torso.children[0], P = body.geometry.attributes.position; for (let i = 0; i < P.count; i += 2) { v.fromBufferAttribute(P, i).applyMatrix4(body.matrixWorld); if (v.y < lo) lo = v.y; }
-    const feet = dg.legs.map(l => { let m = 9; l.children.forEach(c => { const Q = c.geometry.attributes.position; for (let i = 0; i < Q.count; i++) { v.fromBufferAttribute(Q, i).applyMatrix4(c.matrixWorld); if (v.y < m) m = v.y; } }); return +m.toFixed(3); }); return { body: +lo.toFixed(3), feet, vis: dg.legs.map(l => l.visible), x: dg.g.position.x, z: dg.g.position.z, ry: dg.g.rotation.y }; }, heroModelRot: () => HERO.g ? HERO.g.rotation.y : NaN, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setNewChar, get newChar() { return NC.on && !!NC.hero; }, ncBox: () => { const b = o => { const B = new T.Box3().setFromObject(o); return [+(B.max.y - B.min.y).toFixed(3), +B.min.y.toFixed(3)]; }, r = {}; if (HERO.g) { r.heroOld = b(HERO.g.children.find(c => c !== HERO.p.ring && (!NC.hero || c !== NC.hero.wrap))); if (NC.hero) r.heroNew = b(NC.hero.wrap); } const dg = anim.dogs.find(d => d.did === 'fuwang'); if (dg) { r.dogOld = b(dg.torso); if (dg.rig) r.dogNew = b(dg.rig.wrap); } return r; }, ncInfo: () => ({ on: NC.on, hero: !!NC.hero, heroState: NC.hero && NC.hero.rig.real, dogs: anim.dogs.filter(d => d.rig).map(d => ({ did: d.did, state: d.rig.rig.state, real: d.rig.rig.real, vis: d.g.visible })) }), setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
+    const feet = dg.legs.map(l => { let m = 9; l.children.forEach(c => { const Q = c.geometry.attributes.position; for (let i = 0; i < Q.count; i++) { v.fromBufferAttribute(Q, i).applyMatrix4(c.matrixWorld); if (v.y < m) m = v.y; } }); return +m.toFixed(3); }); return { body: +lo.toFixed(3), feet, vis: dg.legs.map(l => l.visible), x: dg.g.position.x, z: dg.g.position.z, ry: dg.g.rotation.y }; }, heroModelRot: () => HERO.g ? HERO.g.rotation.y : NaN, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, releaseIcons, afterShown, setNewChar, get newChar() { return NC.on && !!NC.hero; }, ncBox: () => { const b = o => { const B = new T.Box3().setFromObject(o); return [+(B.max.y - B.min.y).toFixed(3), +B.min.y.toFixed(3)]; }, r = {}; if (HERO.g) { r.heroOld = b(HERO.g.children.find(c => c !== HERO.p.ring && (!NC.hero || c !== NC.hero.wrap))); if (NC.hero) r.heroNew = b(NC.hero.wrap); } const dg = anim.dogs.find(d => d.did === 'fuwang'); if (dg) { r.dogOld = b(dg.torso); if (dg.rig) r.dogNew = b(dg.rig.wrap); } return r; }, ncInfo: () => ({ on: NC.on, hero: !!NC.hero, heroState: NC.hero && NC.hero.rig.real, dogs: anim.dogs.filter(d => d.rig).map(d => ({ did: d.did, state: d.rig.rig.state, real: d.rig.rig.real, vis: d.g.visible })) }), setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
 })();
 
 /* =====================================================
@@ -3485,7 +3507,7 @@ const Zones = (() => {
     if (z.status === 'planned') return false; if (z.status === 'dev' && !DEV) return false;
     busy = true;
     try {
-      await fade(true);
+      await needScripts(LAZY_3D); await fade(true);
       if (active) { W3.useZone(null); active.dispose(); active = null; }
       if (id !== 'home') { const B = BUILDERS[id]; if (!B) throw new Error('区域 ' + id + ' 还没有实现'); active = B(z); W3.useZone(active); }
       cur = id; document.body.classList.toggle('inzone', id !== 'home'); listeners.forEach(f => { try { f(id); } catch (e) { } });
@@ -4098,7 +4120,12 @@ function dogMode() {
   return o;
 }
 let lastT = performance.now(), rainK = 0, wasRain = false;
+/* 加载画面还盖着时只画前两帧（顺便编译着色器），之后暂停，把手机的计算留给加载（V0.4） */
+let warmFrames = 0, loadingEl = null;
 function frame(now) {
+  loadingEl = loadingEl || $('loading');
+  if (!loadingEl.classList.contains('gone') && warmFrames++ > 1) { lastT = now; requestAnimationFrame(frame); return; }
+  if (BOOT_T.frame1 === undefined && started) bootMark('frame1');
   const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
   const raining = !!CFG.rainUntil(NET.now()); if (raining && !wasRain && started) { toast('下雨了，农田被滋润了'); sfx('rain'); } wasRain = raining;
   rainK += ((raining ? 1 : 0) - rainK) * Math.min(1, dt * 1.2);
@@ -4244,14 +4271,14 @@ async function applyNewChar(loud) {
 }
 async function savePref(patch) { Object.assign(PREF, patch); try { localStorage.setItem('hf_pref', JSON.stringify(PREF)); } catch (e) { } if (S) await api('/api/me/profile', { settings: PREF }, { quiet: true }); }
 async function enterGame(state, fresh) {
-  applyState(state); started = true; closeModal(true); $('loading').classList.add('gone');
+  bootMark('state'); applyState(state); started = true; closeModal(true); $('loading').classList.add('gone'); bootMark('shown'); W3.afterShown();
   NET.rememberAccount(S.me); NET.post('/api/accounts/remember').catch(() => { });
   view = { key: 'home', friend: null, plots: S.plots, farm: null }; renderTitle();
   await Promise.all([loadFriends(), loadNeighbors()]); loadMessages(false);
   const inv = new URLSearchParams(location.search).get('invite');
   if (inv) { history.replaceState(null, '', location.pathname); const r = await api('/api/invite/accept', { code: inv }, { quiet: true }); if (r && r.friend) { toast(r.added ? `你和 ${r.friend.name} 成为了好友` : `你和 ${r.friend.name} 已经是好友了`); await loadFriends(); refreshState(); } else if (r && r.self) toast('这是你自己的邀请链接，发给朋友吧'); else if (!r) toast('邀请链接无效', 'warn'); }
   checkMigrate(fresh);
-  try { NET.post('/api/telemetry', { loadMs: Math.round(performance.now()) }).catch(() => { }); } catch (e) { }
+  try { NET.post('/api/telemetry', { loadMs: Math.round(performance.now()), t: BOOT_T }).catch(() => { }); } catch (e) { }
   if (window.innerWidth < 600 && window.innerHeight > window.innerWidth) setTimeout(() => toast('横屏体验更好'), 1500);
   if (!PREF.pan) setTimeout(() => { if (W3.mode === 'walk') return; toast('新功能：按住拖动可以查看整个农场，轻点地块才会操作；双指或滚轮缩放'); savePref({ pan: 1 }); }, 3500);
 }
@@ -4261,22 +4288,27 @@ function checkMigrate(fresh) {
   if (old && !S.me.migrated && !dismissed) return openMigrate(old);
   if (fresh || !PREF.tut) welcome();
 }
+/* 启动耗时（毫秒，从页面开始加载算起），随遥测上报，用来看真机上哪一步慢 */
+const BOOT_T = {}; function bootMark(k) { if (BOOT_T[k] === undefined) BOOT_T[k] = Math.round(performance.now()); }
 async function boot() {
-  try { W3.init(cv); initWalkUi(); } catch (e) { $('loading').querySelector('p').innerHTML = '你的浏览器不支持 3D 画面（WebGL），请换用最新版 Chrome、Edge 或 Safari'; return; }
+  bootMark('js');
+  /* V0.4：先把配置和存档请求发出去，再生成 3D 场景（网络和计算同时进行，以前是场景生成完才开始请求） */
+  const pre = { cfg: NET.get('/api/config'), st: NET.token ? NET.get('/api/state') : null }; pre.cfg.catch(() => { }); if (pre.st) pre.st.catch(() => { });
+  try { W3.init(cv); initWalkUi(); bootMark('w3'); } catch (e) { $('loading').querySelector('p').innerHTML = '你的浏览器不支持 3D 画面（WebGL），请换用最新版 Chrome、Edge 或 Safari'; return; }
   window.addEventListener('resize', () => W3.resize()); requestAnimationFrame(frame);
   try { PREF = Object.assign(PREF, JSON.parse(localStorage.getItem('hf_pref') || '{}')); } catch (e) { }
   NET.onAuthLost(() => { if (started) { started = false; S = null; view = { key: 'home', friend: null, plots: blankPlots(), farm: null }; renderToolbar(); renderFriends(); toast('登录已失效，请重新登录', 'warn'); showLogin(); } });
   NET.onOnline(() => { if (started) poll(true); });
   for (let i = 0; i < 3; i++) {
-    try { const c = await NET.get('/api/config'); c.CROPS.forEach((x, k) => { if (CROPS[k]) ['seed', 'time', 'yield', 'price', 'exp', 'lv'].forEach(f => CROPS[k][f] = x[f]); }); Object.assign(RULES, c.RULES); CFG.setTz(c.TZ_MIN); break; }
+    try { const c = await (i === 0 ? pre.cfg : NET.get('/api/config')); bootMark('cfg'); c.CROPS.forEach((x, k) => { if (CROPS[k]) ['seed', 'time', 'yield', 'price', 'exp', 'lv'].forEach(f => CROPS[k][f] = x[f]); }); Object.assign(RULES, c.RULES); CFG.setTz(c.TZ_MIN); break; }
     catch (e) { $('loading').querySelector('p').textContent = '正在连接服务器…（' + (i + 1) + '）'; await new Promise(r => setTimeout(r, 1500)); }
   }
   if (!NET.online) { $('loading').querySelector('p').innerHTML = '连接不上服务器，请检查网络后 <a href="javascript:location.reload()">刷新重试</a>'; return; }
-  if (NET.token) { try { const st = await NET.get('/api/state'); return enterGame(st, false); } catch (e) { if (e.code === 'network') { $('loading').querySelector('p').innerHTML = '网络异常，<a href="javascript:location.reload()">点此重试</a>'; return; } } }
+  if (NET.token) { try { const st = await (pre.st || NET.get('/api/state')); return enterGame(st, false); } catch (e) { if (e.code === 'network') { $('loading').querySelector('p').innerHTML = '网络异常，<a href="javascript:location.reload()">点此重试</a>'; return; } } }
   // 没有当前登录：本机保存过账号就自动进入最近用过的那个（刚退出或要切换时显示账号列表）
   const accs = await NET.accounts(); let pickMode = false; try { pickMode = sessionStorage.getItem('hf_pick') === '1'; sessionStorage.removeItem('hf_pick'); } catch (e) { }
   if (accs.length && !pickMode) { try { const st = await NET.useAccount(accs[0]); return enterGame(st, false); } catch (e) { } }
-  $('loading').classList.add('gone'); showLogin(null, accs);
+  $('loading').classList.add('gone'); W3.afterShown(); showLogin(null, accs);
 }
 function bindGlobal() {
   $('mback').addEventListener('pointerdown', e => { if (e.target === $('mback')) closeModal(); });

@@ -95,9 +95,18 @@ server/
 - 数据：已有玩法用现有表；新玩法优先用玩家 JSON 列（像牧场 `users.ranch` 一样）+ 必要时新表；每次加表 / 加列都写迁移（`server/db.js` MIGRATIONS），老存档自动升级。
 - 免费额度预算：每次操作 ≤ 2 次写入；轮询统一走 `/api/poll`。
 
+### 3.4.1 服务器玩法模块（V0.4）
+
+- `server/game.js` 只留核心：配置覆盖、活动倍率、事务缓存、玩家 / 土地 / 背包 / 金币 / 经验 / 计数器 / 消息 / 可见性、概况。
+- 玩法在 `server/domains/`：`account` 账号 · `farm` 农田 · `ranch` 牧场与狗 · `home` 家园建造 · `quest` 任务成就订单 · `social` 好友串门偷菜 · `economy` 集市排行赛季；共用工具在 `common.js`。
+- 每个模块导出一组方法，启动时挂到 `Game.prototype`（重名直接报错），`this` 仍是 Game 实例，接口层（`server/app.js`）调用方式不变。新玩法（狩猎、战斗、奇观）各加一个模块。
+- 云函数打包（`deploy/bundle-functions.js`）只认字面量 `require`，新加模块要同时登记到 `game.js` 的 `DOMAINS` 和打包脚本的 `MODS`。
+
 ### 3.5 前端
 
 - 构建从「拼接单文件」逐步改为「首屏核心 + 按需加载的模块」：家园首屏只加载必要代码，区域、玩法模块进入时才加载。
+- **V0.4 已做**：`needScripts()`（`src/net.js`）按需加载 `vendor/three-addons.js`、`lib/assets3.js`、`lib/entity3.js`（进区域、开新角色时）；启动时 `/api/config`、`/api/state` 先发出再生成场景；加载画面盖着时暂停渲染；狗和作物图标在画面出来后生成（`W3.afterShown`），作物图标按版本号存在本机。
+- **启动耗时遥测**：`BOOT_T`（js 脚本就绪 / w3 场景生成完 / cfg 配置到达 / shown 画面出来）随 `/api/telemetry` 上报，按天累计在 metrics（`boot_*_ms`）。以后按真机数据决定下一步优化什么。
 - 所有界面文字中文；手机优先（触摸、单手、竖屏 / 横屏）。
 
 ### 3.6 与沙盒游戏（我的世界 / 迷你世界）的关系（2026-10-25 甲方确认）

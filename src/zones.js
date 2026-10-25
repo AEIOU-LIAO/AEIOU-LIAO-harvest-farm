@@ -27,7 +27,7 @@ const Zones = (() => {
     if (z.status === 'planned') return false; if (z.status === 'dev' && !DEV) return false;
     busy = true;
     try {
-      await fade(true);
+      await needScripts(LAZY_3D); await fade(true);
       if (active) { W3.useZone(null); active.dispose(); active = null; }
       if (id !== 'home') { const B = BUILDERS[id]; if (!B) throw new Error('区域 ' + id + ' 还没有实现'); active = B(z); W3.useZone(active); }
       cur = id; document.body.classList.toggle('inzone', id !== 'home'); listeners.forEach(f => { try { f(id); } catch (e) { } });

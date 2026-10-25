@@ -502,7 +502,12 @@ function dogMode() {
   return o;
 }
 let lastT = performance.now(), rainK = 0, wasRain = false;
+/* 加载画面还盖着时只画前两帧（顺便编译着色器），之后暂停，把手机的计算留给加载（V0.4） */
+let warmFrames = 0, loadingEl = null;
 function frame(now) {
+  loadingEl = loadingEl || $('loading');
+  if (!loadingEl.classList.contains('gone') && warmFrames++ > 1) { lastT = now; requestAnimationFrame(frame); return; }
+  if (BOOT_T.frame1 === undefined && started) bootMark('frame1');
   const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
   const raining = !!CFG.rainUntil(NET.now()); if (raining && !wasRain && started) { toast('下雨了，农田被滋润了'); sfx('rain'); } wasRain = raining;
   rainK += ((raining ? 1 : 0) - rainK) * Math.min(1, dt * 1.2);
@@ -648,14 +653,14 @@ async function applyNewChar(loud) {
 }
 async function savePref(patch) { Object.assign(PREF, patch); try { localStorage.setItem('hf_pref', JSON.stringify(PREF)); } catch (e) { } if (S) await api('/api/me/profile', { settings: PREF }, { quiet: true }); }
 async function enterGame(state, fresh) {
-  applyState(state); started = true; closeModal(true); $('loading').classList.add('gone');
+  bootMark('state'); applyState(state); started = true; closeModal(true); $('loading').classList.add('gone'); bootMark('shown'); W3.afterShown();
   NET.rememberAccount(S.me); NET.post('/api/accounts/remember').catch(() => { });
   view = { key: 'home', friend: null, plots: S.plots, farm: null }; renderTitle();
   await Promise.all([loadFriends(), loadNeighbors()]); loadMessages(false);
   const inv = new URLSearchParams(location.search).get('invite');
   if (inv) { history.replaceState(null, '', location.pathname); const r = await api('/api/invite/accept', { code: inv }, { quiet: true }); if (r && r.friend) { toast(r.added ? `你和 ${r.friend.name} 成为了好友` : `你和 ${r.friend.name} 已经是好友了`); await loadFriends(); refreshState(); } else if (r && r.self) toast('这是你自己的邀请链接，发给朋友吧'); else if (!r) toast('邀请链接无效', 'warn'); }
   checkMigrate(fresh);
-  try { NET.post('/api/telemetry', { loadMs: Math.round(performance.now()) }).catch(() => { }); } catch (e) { }
+  try { NET.post('/api/telemetry', { loadMs: Math.round(performance.now()), t: BOOT_T }).catch(() => { }); } catch (e) { }
   if (window.innerWidth < 600 && window.innerHeight > window.innerWidth) setTimeout(() => toast('横屏体验更好'), 1500);
   if (!PREF.pan) setTimeout(() => { if (W3.mode === 'walk') return; toast('新功能：按住拖动可以查看整个农场，轻点地块才会操作；双指或滚轮缩放'); savePref({ pan: 1 }); }, 3500);
 }
@@ -665,22 +670,27 @@ function checkMigrate(fresh) {
   if (old && !S.me.migrated && !dismissed) return openMigrate(old);
   if (fresh || !PREF.tut) welcome();
 }
+/* 启动耗时（毫秒，从页面开始加载算起），随遥测上报，用来看真机上哪一步慢 */
+const BOOT_T = {}; function bootMark(k) { if (BOOT_T[k] === undefined) BOOT_T[k] = Math.round(performance.now()); }
 async function boot() {
-  try { W3.init(cv); initWalkUi(); } catch (e) { $('loading').querySelector('p').innerHTML = '你的浏览器不支持 3D 画面（WebGL），请换用最新版 Chrome、Edge 或 Safari'; return; }
+  bootMark('js');
+  /* V0.4：先把配置和存档请求发出去，再生成 3D 场景（网络和计算同时进行，以前是场景生成完才开始请求） */
+  const pre = { cfg: NET.get('/api/config'), st: NET.token ? NET.get('/api/state') : null }; pre.cfg.catch(() => { }); if (pre.st) pre.st.catch(() => { });
+  try { W3.init(cv); initWalkUi(); bootMark('w3'); } catch (e) { $('loading').querySelector('p').innerHTML = '你的浏览器不支持 3D 画面（WebGL），请换用最新版 Chrome、Edge 或 Safari'; return; }
   window.addEventListener('resize', () => W3.resize()); requestAnimationFrame(frame);
   try { PREF = Object.assign(PREF, JSON.parse(localStorage.getItem('hf_pref') || '{}')); } catch (e) { }
   NET.onAuthLost(() => { if (started) { started = false; S = null; view = { key: 'home', friend: null, plots: blankPlots(), farm: null }; renderToolbar(); renderFriends(); toast('登录已失效，请重新登录', 'warn'); showLogin(); } });
   NET.onOnline(() => { if (started) poll(true); });
   for (let i = 0; i < 3; i++) {
-    try { const c = await NET.get('/api/config'); c.CROPS.forEach((x, k) => { if (CROPS[k]) ['seed', 'time', 'yield', 'price', 'exp', 'lv'].forEach(f => CROPS[k][f] = x[f]); }); Object.assign(RULES, c.RULES); CFG.setTz(c.TZ_MIN); break; }
+    try { const c = await (i === 0 ? pre.cfg : NET.get('/api/config')); bootMark('cfg'); c.CROPS.forEach((x, k) => { if (CROPS[k]) ['seed', 'time', 'yield', 'price', 'exp', 'lv'].forEach(f => CROPS[k][f] = x[f]); }); Object.assign(RULES, c.RULES); CFG.setTz(c.TZ_MIN); break; }
     catch (e) { $('loading').querySelector('p').textContent = '正在连接服务器…（' + (i + 1) + '）'; await new Promise(r => setTimeout(r, 1500)); }
   }
   if (!NET.online) { $('loading').querySelector('p').innerHTML = '连接不上服务器，请检查网络后 <a href="javascript:location.reload()">刷新重试</a>'; return; }
-  if (NET.token) { try { const st = await NET.get('/api/state'); return enterGame(st, false); } catch (e) { if (e.code === 'network') { $('loading').querySelector('p').innerHTML = '网络异常，<a href="javascript:location.reload()">点此重试</a>'; return; } } }
+  if (NET.token) { try { const st = await (pre.st || NET.get('/api/state')); return enterGame(st, false); } catch (e) { if (e.code === 'network') { $('loading').querySelector('p').innerHTML = '网络异常，<a href="javascript:location.reload()">点此重试</a>'; return; } } }
   // 没有当前登录：本机保存过账号就自动进入最近用过的那个（刚退出或要切换时显示账号列表）
   const accs = await NET.accounts(); let pickMode = false; try { pickMode = sessionStorage.getItem('hf_pick') === '1'; sessionStorage.removeItem('hf_pick'); } catch (e) { }
   if (accs.length && !pickMode) { try { const st = await NET.useAccount(accs[0]); return enterGame(st, false); } catch (e) { } }
-  $('loading').classList.add('gone'); showLogin(null, accs);
+  $('loading').classList.add('gone'); W3.afterShown(); showLogin(null, accs);
 }
 function bindGlobal() {
   $('mback').addEventListener('pointerdown', e => { if (e.target === $('mback')) closeModal(); });

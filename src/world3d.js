@@ -73,7 +73,9 @@ const W3 = (() => {
 
   /* ---------------- 材质与几何工具 ---------------- */
   const MC = new Map();
-  function mat(col, o) { o = o || {}; const k = col + JSON.stringify(o); let m = MC.get(k); if (!m) { m = new (o.phys ? T.MeshPhysicalMaterial : T.MeshStandardMaterial)(Object.assign({ color: new T.Color(col), roughness: 0.75, metalness: 0 }, o.p || {})); if (o.vc) m.vertexColors = true; if (o.ds) m.side = T.DoubleSide; MC.set(k, m); } return m; }
+  /* 缓存键：贴图只取 uuid（以前 JSON.stringify 会把整张贴图转成 base64，生成人物要卡十几秒） */
+  const keyOf = v => v && typeof v === 'object' ? (v.isTexture ? 'tex:' + v.uuid : v.isColor ? '#' + v.getHexString() : '{' + Object.keys(v).map(k => k + ':' + keyOf(v[k])).join(',') + '}') : String(v); /* toJSON 会在 replacer 之前调用，所以自己拼 */
+  function mat(col, o) { o = o || {}; const k = col + keyOf(o); let m = MC.get(k); if (!m) { m = new (o.phys ? T.MeshPhysicalMaterial : T.MeshStandardMaterial)(Object.assign({ color: new T.Color(col), roughness: 0.75, metalness: 0 }, o.p || {})); if (o.vc) m.vertexColors = true; if (o.ds) m.side = T.DoubleSide; MC.set(k, m); } return m; }
   const v3 = (x, y, z) => new T.Vector3(x, y, z);
   function mesh(geo, m, x, y, z) { const o = new T.Mesh(geo, m); o.position.set(x || 0, y || 0, z || 0); o.castShadow = true; o.receiveShadow = true; return o; }
   function colorize(g, fn) { const p = g.attributes.position, c = new Float32Array(p.count * 3); for (let i = 0; i < p.count; i++) { const r = fn(p.getX(i), p.getY(i), p.getZ(i), i); c[i * 3] = r[0]; c[i * 3 + 1] = r[1]; c[i * 3 + 2] = r[2]; } g.setAttribute('color', new T.BufferAttribute(c, 3)); return g; }
@@ -522,7 +524,7 @@ const W3 = (() => {
     try {
       ensureIconRenderer(); const n = anim.dogs.length; buildDog.preview = true; const m = buildDog(kind); buildDog.preview = false; anim.dogs.length = n; m.remove(m.children.find(c => c.isSprite)); m.rotation.y = -0.65;
       IS.add(m); const box = new T.Box3().setFromObject(m), c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3()), r = Math.max(sz.x, sz.y, sz.z) * 0.6;
-      IC.position.set(c.x + r * 1.4, c.y + r * 0.7, c.z + r * 2.5); IC.lookAt(c); IC.updateProjectionMatrix(); IR.render(IS, IC); ICONS[key] = IR.domElement.toDataURL(); IS.remove(m);
+      IC.position.set(c.x + r * 1.4, c.y + r * 0.7, c.z + r * 2.5); IC.lookAt(c); IC.updateProjectionMatrix(); IR.render(IS, IC); ICONS[key] = IR.domElement.toDataURL(); IS.remove(m); iconSave();
     } catch (e) { console.error(e); ICONS[key] = ''; }
     return ICONS[key];
   }
@@ -1087,6 +1089,7 @@ const W3 = (() => {
     NC.on = !!on;
     if (!NC.on) { ncDrop(NC.hero); NC.hero = null; Object.values(NC.dogs).forEach(ncDrop); NC.dogs = {}; ncAttachHero(); anim.dogs.forEach(ncAttachDog); return true; }
     if (NC.hero) return true;
+    await needScripts(LAZY_CHAR); if (!NC.on) return false;
     if (typeof Entity3 === 'undefined' || typeof Assets3 === 'undefined') throw new Error('资源模块没有加载');
     if (!NC.lib) NC.lib = new Assets3({ manifest: GAMECFG.ASSETS });
     const [h, d] = await Promise.all([Entity3.spawn(NC.lib, NC_IDS.hero, 'hero', { tier: '1k' }), Entity3.spawn(NC.lib, NC_IDS.fuwang, 'dog', { tier: '1k' })]);
@@ -1198,9 +1201,8 @@ const W3 = (() => {
     const scare = buildScarecrow(); scare.position.set(ST.scarecrow.x, 0, ST.scarecrow.z); scare.rotation.y = ST.scarecrow.ry; scene.add(scare);
     const dh = buildDoghouse(); dh.position.set(ST.doghouse.x, 0, ST.doghouse.z); dh.rotation.y = ST.doghouse.ry; scene.add(dh);
     { const hk = new T.Mesh(new T.BoxGeometry(1.8, 1.6, 1.8), new T.MeshBasicMaterial({ visible: false })); hk.position.set(ST.doghouse.x, 0.8, ST.doghouse.z); hk.userData.idx = -10; scene.add(hk); hitBoxes.push(hk); } // 点狗窝：领养 / 喂狗
-    // 狗狗模型计算量较大：画面出来后再生成，避免打开游戏时卡顿
-    setTimeout(() => { const dog = buildDog('fuwang'); dog.position.set(10.4, 0, 1.2); dog.rotation.y = -2.9; dog.visible = false; scene.add(dog);
-      setTimeout(() => { const dog2 = buildDog('ruibao'); dog2.position.set(10.6, 0, -1.4); dog2.rotation.y = -2.6; dog2.visible = false; scene.add(dog2); }, 60); }, 400);
+    // 狗狗模型计算量较大：游戏画面出来以后再生成（afterShown），避免拖慢打开游戏；登录页等情况 8 秒后兜底生成
+    setTimeout(buildBaseDogs, 8000);
     [[-17, -10, 1.2, '#4f9a3a', 1], [-20, 2, 1.1, '#5aa840', 0], [-9, -14, 1.0, '#4a9238', 1], [12, -13, 1.25, '#4f9a3a', 0], [17, -6, 1.05, '#5aa840', 1], [24, 4, 1.2, '#4a9238', 0], [30, -12, 1.0, '#5aa840', 1], [-40, 22, 1.15, '#4f9a3a', 0], [9, 22, 0.9, '#5aa840', 0], [-24, -5, 1.3, '#467f36', 0], [24, 0, 1.25, '#467f36', 1], [-2, -20, 1.2, '#4f9a3a', 0], [-44, -24, 1.1, '#4a9238', 0]].forEach(([x, z, s, c, ap]) => { scene.add(tree(x, z, s, c, ap)); OBST.push([x, z, 0.55 * s]); });
     [[-9.6, -6.5, 0.9], [9.4, 7.2, 1], [-15.5, 3.5, 0.8], [14, 3, 0.9], [7, -8, 0.7], [-7, -8.2, 0.8], [3.4, 9.8, 0.6], [15, -10, 1]].forEach(([x, z, s]) => { scene.add(bushAt(x, z, s, '#4f9a3a')); OBST.push([x, z, 0.75 * s]); });
     [[-9.2, 9.8, 0.5], [9.2, 13.2, 0.4], [-2.2, 10.8, 0.3], [14.5, -1, 0.35], [-16, -6, 0.45], [6, 11, 0.3]].forEach(([x, z, s]) => { scene.add(rock(x, z, s)); OBST.push([x, z, 1.1 * s]); });
@@ -1232,8 +1234,13 @@ const W3 = (() => {
   // 移除一只领养的狗：模型、动画列表、点击区域都要清掉，否则会留下看不见的点击热区
   function dropDog(dg) { scene.remove(dg.g); const i = anim.dogs.indexOf(dg); if (i >= 0) anim.dogs.splice(i, 1); if (dg.hit) { const j = hitBoxes.indexOf(dg.hit); if (j >= 0) hitBoxes.splice(j, 1); }
     const keep = new Set(Object.values(DOG_GEO[dg.kind] || {})); dg.g.traverse(o => { if (o.geometry && !keep.has(o.geometry) && !SG_SET.has(o.geometry)) o.geometry.dispose(); if (o.isSprite && o.material.map) { o.material.map.dispose(); o.material.dispose(); } }); } // 释放这只狗独有的几何体和名牌贴图
+  let dogsBuilt = 0;
+  function buildBaseDogs() { if (dogsBuilt) return; dogsBuilt = 1; const dog = buildDog('fuwang'); dog.position.set(10.4, 0, 1.2); dog.rotation.y = -2.9; dog.visible = false; scene.add(dog);
+    setTimeout(() => { const dog2 = buildDog('ruibao'); dog2.position.set(10.6, 0, -1.4); dog2.rotation.y = -2.6; dog2.visible = false; scene.add(dog2); dogsBuilt = 2; }, 60); }
+  /* 游戏画面出来以后：先生成狗，再生成作物图标 */
+  function afterShown() { setTimeout(buildBaseDogs, 120); setTimeout(releaseIcons, 500); }
   function setPets(list) {
-    if (!RANCH3.ready) return; const want = {}; (list || []).forEach((p, i) => { want[p.id] = p; const k = p.id + '|' + p.coat + '|' + p.name, cur = PETS3[p.id];
+    if (!RANCH3.ready || dogsBuilt < 2) return; /* 宠物狗排在福旺、睿宝后面 */ const want = {}; (list || []).forEach((p, i) => { want[p.id] = p; const k = p.id + '|' + p.coat + '|' + p.name, cur = PETS3[p.id];
       if (cur && cur.key === k) return; if (cur) dropDog(cur.dg);
       const g = buildDog(DOG_LOOK[p.coat] ? p.coat : 'black', p.name, p.id), dg = anim.dogs[anim.dogs.length - 1]; g.position.set(9.6 + (i % 4) * 0.9, 0, 3.2 + Math.floor(i / 4) * 1.0); g.visible = false; scene.add(g); PETS3[p.id] = { key: k, dg }; });
     Object.keys(PETS3).forEach(id => { if (!want[id]) { dropDog(PETS3[id].dg); delete PETS3[id]; } });
@@ -1398,18 +1405,27 @@ const W3 = (() => {
 
   /* ---------------- 作物图标（离屏渲染 3D 模型） ---------------- */
   let IR, IS, IC; const ICONS = {};
+  /* 作物图标（V0.4）：生成要单独开一个 3D 画布，比较慢。
+     ① 存在本机（按版本号），下次打开直接用；② 游戏画面出来之前先放占位图，画面出来后再一个个生成、替换 */
+  const ICON_LS = 'hf_ci_' + GAMECFG.VERSION, ICON_Q = []; let iconHold = true, iconSaveT = 0;
+  try { Object.keys(localStorage).forEach(k => { if (k.startsWith('hf_ci_') && k !== ICON_LS) localStorage.removeItem(k); }); Object.assign(ICONS, JSON.parse(localStorage.getItem(ICON_LS) || '{}')); } catch (e) { }
+  const iconPh = key => "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C!--" + encodeURIComponent(key) + "--%3E%3C/svg%3E";
+  function iconSave() { clearTimeout(iconSaveT); iconSaveT = setTimeout(() => { try { const ks = Object.keys(ICONS).filter(k => ICONS[k]).slice(-60), o = {}; ks.forEach(k => o[k] = ICONS[k]); localStorage.setItem(ICON_LS, JSON.stringify(o)); } catch (e) { try { localStorage.removeItem(ICON_LS); } catch (x) { } } }, 1500); }
+  function iconPump() { const it = ICON_Q.shift(); if (!it) return; const [id, golden, key] = it; if (ICONS[key] === undefined) { iconHold = false; const u = cropIcon(id, golden), ph = iconPh(key); document.querySelectorAll('img').forEach(im => { if (im.getAttribute('src') === ph) im.src = u; }); } if (ICON_Q.length) setTimeout(iconPump, 30); }
+  function releaseIcons() { if (!iconHold) return; iconHold = false; setTimeout(iconPump, 50); }
   function ensureIconRenderer() { if (IR) return; const c = document.createElement('canvas'); c.width = c.height = 160; IR = new T.WebGLRenderer({ canvas: c, antialias: true, alpha: true, preserveDrawingBuffer: true }); IR.outputEncoding = T.sRGBEncoding; IR.toneMapping = T.ACESFilmicToneMapping; IR.setClearColor(0x000000, 0); IS = new T.Scene(); IS.add(new T.HemisphereLight(0xffffff, 0x6a7a4a, 0.9)); const d = new T.DirectionalLight(0xfff4e0, 2.2); d.position.set(3, 5, 4); IS.add(d); IC = new T.PerspectiveCamera(28, 1, 0.1, 50); if (!TX.soil) buildTextures(); }
   function cropIcon(id, golden) {
-    const key = id + (golden ? 'g' : ''); if (ICONS[key]) return ICONS[key];
+    const key = id + (golden ? 'g' : ''); if (ICONS[key] !== undefined) return ICONS[key];
+    if (iconHold) { if (!ICON_Q.some(q => q[2] === key)) ICON_Q.push([id, golden, key]); return iconPh(key); }
     try {
       ensureIconRenderer();
       const m = cropModel(id, 4).clone(); if (golden) { const gm = new T.MeshStandardMaterial({ color: new T.Color('#ffcc33'), metalness: 0.85, roughness: 0.28, emissive: new T.Color('#6a4400'), emissiveIntensity: 0.3 }); m.traverse(o => { if (o.isMesh) o.material = gm; }); }
       IS.add(m); const box = new T.Box3().setFromObject(m), c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3()), r = Math.max(sz.x, sz.y, sz.z) * 0.68;
-      IC.position.set(c.x + r * 2.2, c.y + r * 1.4, c.z + r * 2.4); IC.lookAt(c); IC.updateProjectionMatrix(); IR.render(IS, IC); ICONS[key] = IR.domElement.toDataURL(); IS.remove(m);
+      IC.position.set(c.x + r * 2.2, c.y + r * 1.4, c.z + r * 2.4); IC.lookAt(c); IC.updateProjectionMatrix(); IR.render(IS, IC); ICONS[key] = IR.domElement.toDataURL(); IS.remove(m); iconSave();
     } catch (e) { ICONS[key] = ''; }
     return ICONS[key];
   }
   function zoomBy(f) { if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * f)); return; } zoom = Math.max(0.6, Math.min(2.6, zoom * f)); applyCam(); }
   return { useZone, get zone() { return ZONE; }, get renderer() { return R; }, get __scene() { return scene; }, zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, hits: hitBoxes.length, dogs: anim.dogs.length, objs: (() => { let n = 0, v = 0; scene.traverse(o => { if (o.isMesh || o.isSprite) { n++; let vis = true, q = o; while (q) { if (!q.visible) { vis = false; break; } q = q.parent; } if (vis) v++; } }); return n + '/' + v; })(), parts: parts.length, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, setPets, dogInfo: k => { const d = anim.dogs[k]; return d ? { did: d.did, name: d.name, kind: d.kind } : null; }, pondSplash, setField: f => { ACTF = Math.max(0, f | 0); pan.set(0, 0, 0); panGoal.v = null; if (viewMode !== 'walk') fit(); }, panBy, panTo, resetView, lookAt: k => { const p = SPOT[k] && SPOT[k](); if (p) panTo(p[0], p[1]); }, get panned() { return pan.length() > 1 || zoom > 1.35; }, worldBox, get pan() { return pan.toArray().map(v => +v.toFixed(2)); }, get zoom() { return zoom; }, get field() { return ACTF; }, fieldCenter: fieldC, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ leg: RANCH3.leg, follow: RANCH3.follow, A: RANCH3.A && RANCH3.A.toArray().map(v => +v.toFixed(1)), phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, dbgDogCam: (k, yaw, pitch, dist) => { const dg = anim.dogs[k]; if (!dg) return null; const c = dg.g.position, cam2 = new T.PerspectiveCamera(32, W / H, 0.05, 80), d = dist || 2.2, a = dg.g.rotation.y + (yaw || 0); cam2.position.set(c.x + Math.cos(a) * d * Math.cos(pitch || 0.2), 0.35 + Math.sin(pitch || 0.2) * d, c.z - Math.sin(a) * d * Math.cos(pitch || 0.2)); cam2.lookAt(c.x, 0.3, c.z); R.render(scene, cam2); return R.domElement.toDataURL('image/png'); }, dbgPose: (k, p) => { const d = anim.dogs[k]; if (d) d.force = p || null; }, dogGround: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const v = new T.Vector3(); let lo = 9; const body = dg.torso.children[0], P = body.geometry.attributes.position; for (let i = 0; i < P.count; i += 2) { v.fromBufferAttribute(P, i).applyMatrix4(body.matrixWorld); if (v.y < lo) lo = v.y; }
-    const feet = dg.legs.map(l => { let m = 9; l.children.forEach(c => { const Q = c.geometry.attributes.position; for (let i = 0; i < Q.count; i++) { v.fromBufferAttribute(Q, i).applyMatrix4(c.matrixWorld); if (v.y < m) m = v.y; } }); return +m.toFixed(3); }); return { body: +lo.toFixed(3), feet, vis: dg.legs.map(l => l.visible), x: dg.g.position.x, z: dg.g.position.z, ry: dg.g.rotation.y }; }, heroModelRot: () => HERO.g ? HERO.g.rotation.y : NaN, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setNewChar, get newChar() { return NC.on && !!NC.hero; }, ncBox: () => { const b = o => { const B = new T.Box3().setFromObject(o); return [+(B.max.y - B.min.y).toFixed(3), +B.min.y.toFixed(3)]; }, r = {}; if (HERO.g) { r.heroOld = b(HERO.g.children.find(c => c !== HERO.p.ring && (!NC.hero || c !== NC.hero.wrap))); if (NC.hero) r.heroNew = b(NC.hero.wrap); } const dg = anim.dogs.find(d => d.did === 'fuwang'); if (dg) { r.dogOld = b(dg.torso); if (dg.rig) r.dogNew = b(dg.rig.wrap); } return r; }, ncInfo: () => ({ on: NC.on, hero: !!NC.hero, heroState: NC.hero && NC.hero.rig.real, dogs: anim.dogs.filter(d => d.rig).map(d => ({ did: d.did, state: d.rig.rig.state, real: d.rig.rig.real, vis: d.g.visible })) }), setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
+    const feet = dg.legs.map(l => { let m = 9; l.children.forEach(c => { const Q = c.geometry.attributes.position; for (let i = 0; i < Q.count; i++) { v.fromBufferAttribute(Q, i).applyMatrix4(c.matrixWorld); if (v.y < m) m = v.y; } }); return +m.toFixed(3); }); return { body: +lo.toFixed(3), feet, vis: dg.legs.map(l => l.visible), x: dg.g.position.x, z: dg.g.position.z, ry: dg.g.rotation.y }; }, heroModelRot: () => HERO.g ? HERO.g.rotation.y : NaN, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, releaseIcons, afterShown, setNewChar, get newChar() { return NC.on && !!NC.hero; }, ncBox: () => { const b = o => { const B = new T.Box3().setFromObject(o); return [+(B.max.y - B.min.y).toFixed(3), +B.min.y.toFixed(3)]; }, r = {}; if (HERO.g) { r.heroOld = b(HERO.g.children.find(c => c !== HERO.p.ring && (!NC.hero || c !== NC.hero.wrap))); if (NC.hero) r.heroNew = b(NC.hero.wrap); } const dg = anim.dogs.find(d => d.did === 'fuwang'); if (dg) { r.dogOld = b(dg.torso); if (dg.rig) r.dogNew = b(dg.rig.wrap); } return r; }, ncInfo: () => ({ on: NC.on, hero: !!NC.hero, heroState: NC.hero && NC.hero.rig.real, dogs: anim.dogs.filter(d => d.rig).map(d => ({ did: d.did, state: d.rig.rig.state, real: d.rig.rig.real, vis: d.g.visible })) }), setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
 })();
