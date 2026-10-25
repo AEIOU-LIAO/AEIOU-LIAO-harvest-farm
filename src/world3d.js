@@ -1216,7 +1216,7 @@ const W3 = (() => {
     P.body.position.y = P.baseY + (HERO.ground ? Math.abs(s) * 0.03 * amp - HERO.land * 0.4 : 0) + (!moving && HERO.ground ? Math.sin(tNow * 2) * 0.008 : 0);
     P.head.rotation.y = !moving ? Math.sin(tNow * 0.5) * 0.25 : 0;
     P.ring.material.opacity = 0.35 + Math.sin(tNow * 3) * 0.15; P.ring.position.y = gY - HERO.y + 0.02;
-    if (NC.hero) { const r = NC.hero.rig; r.play(!HERO.ground ? 'jump_air' : HERO.spd > 2.2 ? 'run' : moving ? 'walk' : 'idle'); r.pace(HERO.spd, NC_SCALE.hero); r.update(dt); if (r.faked) r.heroGait({ phase: HERO.phase, amp: amp * 0.9, air: !HERO.ground, lean: run ? 0.12 : moving ? 0.05 : 0 }); NC.hero.wrap.position.y = HERO.ground && r.faked ? Math.abs(s) * 0.015 * amp : 0; }
+    if (NC.hero) { const r = NC.hero.rig; r.play(!HERO.ground ? 'jump_air' : HERO.spd > 2.2 ? 'run' : moving ? 'walk' : 'idle'); r.pace(HERO.spd, NC_SCALE.hero); r.update(dt); if (r.faked) r.heroGait({ phase: HERO.phase, amp: amp * 0.9, air: !HERO.ground, lean: run ? 0.12 : moving ? 0.05 : 0 }); const lb = r.liven() * NC_SCALE.hero; NC.hero.wrap.position.y = HERO.ground && r.faked ? Math.abs(s) * 0.015 * amp : HERO.ground ? lb : 0; }
     // 附近的地块（优先面前的）
     let best = -1, bd = 1e9; const fx = Math.sin(HERO.face), fz = Math.cos(HERO.face);
     const hf = fieldAtXZ(HERO.pos.x, HERO.pos.z); if (hf >= 0 && hf !== ACTF && hf * 24 < plots.length) ACTF = hf; // 走进哪片田，哪片田就用精细模型

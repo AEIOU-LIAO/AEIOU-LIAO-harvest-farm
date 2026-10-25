@@ -177,7 +177,7 @@ const Hunt = (() => {
       if (TR.walkable(nx, nz)) { hero.pos.x = nx; hero.pos.z = nz; } else if (TR.walkable(nx, hero.pos.z)) hero.pos.x = nx; else if (TR.walkable(hero.pos.x, nz)) hero.pos.z = nz;
       hero.pos.y = groundAt(hero.pos.x, hero.pos.z); hero.g.position.copy(hero.pos); hero.g.rotation.y = hero.face; hero.inv = Math.max(0, hero.inv - dt); hero.g.visible = hero.inv <= 0 || Math.floor(hero.inv * 10) % 2 === 0;
       const moving = hero.spd > 0.3; hero.ph += dt * (hero.spd > 4.6 ? 11 : 7.5) * (moving ? 1 : 0);
-      if (hero.rig) { const r = hero.rig; r.play(hero.spd > 2.2 ? 'run' : moving ? 'walk' : 'idle'); r.pace(hero.spd, 0.8); r.update(dt); if (r.faked) r.heroGait({ phase: hero.ph, amp: moving ? (hero.spd > 4.6 ? 0.85 : 0.55) * Math.min(1, hero.spd / 3) : 0, lean: hero.spd > 4.6 ? 0.12 : moving ? 0.05 : 0 }); if (hero.shootT > 0) { hero.shootT -= dt; r.rot('RightArm', 'x', -1.4); } }
+      if (hero.rig) { const r = hero.rig; r.play(hero.spd > 2.2 ? 'run' : moving ? 'walk' : 'idle'); r.pace(hero.spd, 0.8); r.update(dt); if (r.faked) r.heroGait({ phase: hero.ph, amp: moving ? (hero.spd > 4.6 ? 0.85 : 0.55) * Math.min(1, hero.spd / 3) : 0, lean: hero.spd > 4.6 ? 0.12 : moving ? 0.05 : 0 }); else if (hero.shootT <= 0) r.liven(); if (hero.shootT > 0) { hero.shootT -= dt; r.rot('RightArm', 'x', -1.4); } }
       else if (hero.cap) hero.cap.position.y = 0.7 + Math.abs(Math.sin(hero.ph)) * 0.08;
       /* 镜头：慢慢转到人物身后 */
       if (moving && drag.id === -1) { let d = hero.face + Math.PI - camYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); if (Math.abs(d) < 1.6) camYaw += d * Math.min(1, dt * 1.2); }

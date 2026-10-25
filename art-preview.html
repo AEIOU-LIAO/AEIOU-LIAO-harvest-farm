@@ -128,7 +128,7 @@ const hiOK = () => VERS[ver].still || VERS[ver].tiers;
 function drop(c) { if (!c) return; scene.remove(c.s); lib.release(c.inst); }
 function play(c, name, fade) { if (c.rig) { c.rig.play(name, fade); c.clip = name; return; } const real = c.inst.play(name, fade); if (real) c.clip = real; }
 const natural = (c, clip) => { const L = c.rig && c.rig.loco[clip]; return L ? L.stride / L.dur : 0; };
-function step(c, dt, v) { if (c.rig) { c.rig.pace(v || natural(c, c.rig.real) || 1, 1); c.rig.update(dt); if (c.rig.faked && c.clip === 'walk') c.rig.autoGait(dt, v); } else c.inst.update(dt); }
+function step(c, dt, v) { if (c.rig) { c.rig.pace(v || natural(c, c.rig.real) || 1, 1); c.rig.update(dt); if (c.rig.faked && c.clip === 'walk') c.rig.autoGait(dt, v); const b = c.rig.liven(); c.s.position.y = b; } else c.inst.update(dt); }
 function setAcc(s, map) { s.traverse(o => { if (o.name in map) o.visible = !!map[o.name]; }); }
 async function setCoat(inst, k) { const t = await coatTex(k); inst.s.traverse(o => { if (o.isMesh) { const ms = [].concat(o.material).map(m => { if (m.name !== 'dog_coat') return m; if (!m.userData.own) { m = m.clone(); m.userData.own = 1; } m.map = t; m.needsUpdate = true; return m; }); o.material = Array.isArray(o.material) ? ms : ms[0]; } }); setAcc(inst.s, ACC[k] || ACC.other); }
 
@@ -161,7 +161,7 @@ function renderBars() {
   let t = `<b>新角色预览 <small style="color:#bfae8c;font-weight:400">页面 ${PAGE_VER}</small></b><span class="seg">${Object.keys(VERS).map(k => `<button data-ver="${k}" class="${k === ver ? 'on' : ''}">${VERS[k].label}</button>`).join('')}</span><span class="sep"></span>`;
   t += V.roster.map(([k, n]) => `<button data-who="${k}" class="${k === who ? 'on' : ''}">${n}</button>`).join('');
   t += '<span class="sep"></span>';
-  if (V.clips) { const an = lib.info(aid(who)).anims || ['idle']; t += an.map(c => `<button data-clip="${c}" class="${clip === c ? 'on' : ''}">${CLIP_NAME[c] || c}</button>`).join('') + `<button id="move" class="${moving ? 'on' : ''}">边走边移动</button><span class="sep"></span>`; }
+  if (V.clips) { const an = lib.info(aid(who)).anims || ['idle']; t += an.map(c => `<button data-clip="${c}" class="${clip === c ? 'on' : ''}">${CLIP_NAME[c] || c}</button>`).join('') + `<button id="move" class="${moving ? 'on' : ''}">边走边移动</button><button id="liven" class="${Entity3.Rig.LIVEN.on ? 'on' : ''}">放松跑姿</button><span class="sep"></span>`; }
   else if (!V.still) t += `<button data-clip="idle" class="${clip === 'idle' ? 'on' : ''}">待机</button><button data-clip="walk" class="${clip === 'walk' ? 'on' : ''}">走路${V.rig ? '（程序）' : ''}</button><button id="move" class="${moving ? 'on' : ''}">边走边移动</button><span class="sep"></span>`;
   t += `<button id="btn-concept">看设定图</button><button id="btn-stress" class="${stress || $('btn-stress') && $('btn-stress').classList.contains('on') ? 'on' : ''}">压力测试</button><button id="btn-copy">复制测试结果</button><a href="/"><button>回游戏</button></a>`;
   const top = $('top'), sl = top.scrollLeft; top.innerHTML = t; top.scrollLeft = sl;
@@ -181,6 +181,7 @@ function bind() {
   document.querySelectorAll('[data-ver]').forEach(x => x.onclick = () => { if (x.dataset.ver === ver) return; ver = x.dataset.ver; who = VERS[ver].roster[0][0]; hi = false; show(); });
   document.querySelectorAll('[data-who]').forEach(x => x.onclick = () => { if (cur && hiOK() && hi && who !== x.dataset.who) lib.load(aid(who), '1k'); who = x.dataset.who; hi = false; show(); });
   document.querySelectorAll('[data-clip]').forEach(x => x.onclick = () => { clip = x.dataset.clip; if (clip === 'idle') moving = false; if (cur) play(cur, clip); renderBars(); });
+  const lv = $('liven'); if (lv) lv.onclick = () => { Entity3.Rig.LIVEN.on = !Entity3.Rig.LIVEN.on; toast(Entity3.Rig.LIVEN.on ? '放松跑姿：开（程序叠加躯干扭转、前倾、摆臂、起伏）' : '放松跑姿：关（美术原动作）', 1600); renderBars(); };
   const mv = $('move'); if (mv) mv.onclick = () => { moving = !moving; if (moving) { if (!(cur && cur.rig && cur.rig.loco[clip])) clip = cur && cur.kind === 'dog' ? 'trot' : 'walk'; if (cur) play(cur, clip); } else if (cur) cur.s.position.set(0, 0, 0); renderBars(); };
   document.querySelectorAll('[data-view]').forEach(x => x.onclick = () => { view = x.dataset.view; applyView(); renderBars(); });
   document.querySelectorAll('[data-acc]').forEach(x => x.onclick = () => { const k = x.dataset.acc; accOn[k] = accOn[k] === false; if (cur) setAcc(cur.s, { [k]: accOn[k] }); renderBars(); });
