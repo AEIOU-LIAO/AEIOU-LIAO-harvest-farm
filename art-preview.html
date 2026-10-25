@@ -31,7 +31,7 @@ button.on{background:linear-gradient(#f1c95c,#c8902a);color:#2a1c08;border-color
 <canvas id="cv"></canvas>
 <div id="load">正在加载新角色…</div>
 <div class="bar" id="top">
-  <b>新角色预览 v1_test <small style="color:#bfae8c;font-weight:400">页面 2</small></b>
+  <b>新角色预览 v1_test <small style="color:#bfae8c;font-weight:400">页面 3</small></b>
   <button data-who="hero_boy" class="on">男主角</button><button data-who="hero_girl">女主角</button><button data-who="dog">边牧</button>
   <span class="sep"></span>
   <button data-clip="idle" class="on">待机</button><button data-clip="walk">走路</button><button id="move">边走边移动</button>
@@ -79,16 +79,33 @@ addEventListener('resize', resize); resize();
 const gl = new T.GLTFLoader(), tl = new T.TextureLoader(), cache = {}, texC = {};
 /* 贴图不用 GLB 里内嵌的图片（手机微信浏览器解码内嵌图片会失败，模型变成全白），改为加载同名的单独 jpg 文件 */
 const texFile = {}; const fileTex = (url, srgb) => texFile[url] || (texFile[url] = new Promise(ok => tl.load(url, t => { t.flipY = false; if (srgb) t.encoding = T.sRGBEncoding; ok(t); }, undefined, () => ok(null))));
+/* 网页版 GLB（tools/pack_art.py 处理过）：没有内嵌图片，材质 extras 里记着贴图文件名 */
 async function externalTextures(g, n) {
-  const J = g.parser.json, img = ti => ti === undefined ? null : J.images[J.textures[ti].source].name, mats = new Set();
+  const J = g.parser.json, mats = new Set();
   g.scene.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => mats.add(m)); });
-  await Promise.all([...mats].map(async m => { const d = (J.materials || []).find(x => x.name === m.name); if (!d) return; const pbr = d.pbrMetallicRoughness || {}, bc = img(pbr.baseColorTexture && pbr.baseColorTexture.index), nm = img(d.normalTexture && d.normalTexture.index);
-    if (bc) { const t = await fileTex(BASE + n + '/tex/' + bc + '.jpg', true); if (t) m.map = t; }
-    if (nm) { const t = await fileTex(BASE + n + '/tex/' + nm + '.jpg', false); if (t) m.normalMap = t; }
+  await Promise.all([...mats].map(async m => { const d = (J.materials || []).find(x => x.name === m.name); if (!d) return; const ex = d.extras || {};
+    if (ex.baseColorTexture) { const t = await fileTex(BASE + n + '/tex/' + ex.baseColorTexture + '.jpg', true); if (t) m.map = t; }
+    if (ex.normalTexture) { const t = await fileTex(BASE + n + '/tex/' + ex.normalTexture + '.jpg', false); if (t) m.normalMap = t; }
     m.needsUpdate = true; }));
   return g;
 }
-const loadGLB = n => cache[n] || (cache[n] = new Promise((ok, no) => gl.load(BASE + n + '/' + n + '.glb', ok, undefined, no)).then(g => externalTextures(g, n)));
+/* 下载：优先下载 gzip 压缩版（约 160KB，原来 800KB），用浏览器自带的 DecompressionStream 解压；不支持就下载未压缩版。显示下载进度 */
+const NAME = { hero_boy: '男主角', hero_girl: '女主角', dog_collie: '边牧' };
+async function fetchBytes(url, label) {
+  const r = await fetch(url); if (!r.ok) throw new Error(url + ' HTTP ' + r.status);
+  const total = +r.headers.get('content-length') || 0; if (!r.body || !r.body.getReader) return new Uint8Array(await r.arrayBuffer());
+  const rd = r.body.getReader(), parts = []; let got = 0;
+  for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; if (label) progress(label, total ? got / total : 0, got); }
+  const out = new Uint8Array(got); let o = 0; parts.forEach(p => { out.set(p, o); o += p.length; }); return out;
+}
+async function gunzip(u8) { if (u8[0] !== 0x1f || u8[1] !== 0x8b) return u8; /* CDN 已经自动解压过 */ const s = new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip')); return new Uint8Array(await new Response(s).arrayBuffer()); }
+async function fetchGLB(n, label) {
+  let u8; if (typeof DecompressionStream !== 'undefined') { try { u8 = await gunzip(await fetchBytes(BASE + n + '/' + n + '.glb.gz', label)); } catch (e) { u8 = null; } }
+  if (!u8) u8 = await fetchBytes(BASE + n + '/' + n + '.glb', label);
+  return new Promise((ok, no) => gl.parse(u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength), BASE + n + '/', ok, no));
+}
+function progress(label, k, bytes) { const el = $('load'); const txt = `正在加载${label}… ${k ? Math.round(k * 100) + '%' : Math.round(bytes / 1024) + ' KB'}`; if (el) el.textContent = txt; else if (label !== '（后台）') toast(txt, 800); }
+const loadGLB = (n, quiet) => cache[n] || (cache[n] = fetchGLB(n, quiet ? '' : NAME[n]).then(g => externalTextures(g, n)).catch(e => { delete cache[n]; throw e; }));
 const coatTex = k => texC[k] || (texC[k] = new Promise((ok, no) => tl.load(BASE + 'dog_collie/textures/dog_coat_' + k + '_basecolor.jpg', t => { t.flipY = false; t.encoding = T.sRGBEncoding; ok(t); }, undefined, no)));
 const stats = { loadMs: 0, glbMs: {}, fps: [], stress: null };
 
@@ -111,7 +128,7 @@ async function show0() {
   const tok = ++showTok;
   if (stress) stopStress();
   if (cur) { scene.remove(cur.s); cur = null; }
-  const w = who, n = w === 'dog' ? 'dog_collie' : w, t0 = performance.now(), g = await loadGLB(n); if (!stats.glbMs[n]) stats.glbMs[n] = Math.round(performance.now() - t0);
+  const w = who, n = w === 'dog' ? 'dog_collie' : w, t0 = performance.now(), g = await (cache[n] ? (toast('正在加载' + NAME[n] + '…', 1200), cache[n]) : loadGLB(n)); if (!stats.glbMs[n]) stats.glbMs[n] = Math.round(performance.now() - t0);
   if (tok !== showTok) return;
   const inst = instance(g); inst.kind = w === 'dog' ? 'dog' : 'hero';
   if (inst.kind === 'dog') await setCoat(inst, coat); else setAcc(inst.s, { hat, bag: 1, scarf: 1 });
@@ -183,7 +200,9 @@ function frame(now) {
   $('hud').textContent = `帧率 ${f.toFixed(0)} 帧/秒\n绘制 ${i.calls} 次  三角面 ${(i.triangles / 1000).toFixed(1)}k${stress ? `\n压力测试 ${Math.max(0, 11 - stress.t).toFixed(0)} 秒` : ''}`;
   requestAnimationFrame(frame);
 }
-(async () => { const t0 = performance.now(); try { await show(); } catch (e) { $('load').textContent = '加载失败：' + e.message; return; } stats.loadMs = Math.round(performance.now() - t0); $('load').remove(); requestAnimationFrame(frame); })();
+(async () => { const t0 = performance.now(); await show(); stats.loadMs = Math.round(performance.now() - t0); if ($('load')) $('load').remove(); requestAnimationFrame(frame);
+  /* 第一个角色出来后，后台预加载另外两个和福旺的毛色，切换时不用再等 */
+  setTimeout(() => { ['dog_collie', 'hero_girl', 'hero_boy'].forEach(n => loadGLB(n, true).catch(() => { })); coatTex('fuwang').catch(() => { }); coatTex('ruibao').catch(() => { }); }, 400); })();
 window.__art = { report, stats, get cur() { return cur; } };
 </script>
 </body>
