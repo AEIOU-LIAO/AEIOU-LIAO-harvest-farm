@@ -97,6 +97,8 @@ const MIGRATIONS = [
   `ALTER TABLE users ADD COLUMN ranch TEXT NOT NULL DEFAULT '{}';`,
   // v5 家园自由建造（V0.3）：玩家摆放的建筑布局存成一段 JSON：{ v, seq, items: [{ id, type, gx, gz, rot, at }] }
   `ALTER TABLE users ADD COLUMN layout TEXT NOT NULL DEFAULT '{}';`,
+  // v6 名山猎场（第 2 期）：武器、每天进山次数、当前这次进山（种子）、累计捕获，存成一段 JSON
+  `ALTER TABLE users ADD COLUMN hunt TEXT NOT NULL DEFAULT '{}';`,
 ];
 
 const BUSY = /SQLITE_BUSY|database is locked|SQLITE_LOCKED|BUSY_SNAPSHOT/i;

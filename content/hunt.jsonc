@@ -1,0 +1,29 @@
+// 第 2 期：名山猎场（温和狩猎：用弹弓 / 猎弓 / 麻醉枪把野兽打晕，走过去捕获，送去山里的保护站换赏金和材料）
+// trips 每天能进山几次 · tripSec 每次最长几秒（时间到自动下山）· heroHp 主人的体力（被狼、熊、野猪撞到会掉，掉光了被猎户送回家，收获减半）
+// gen：地图生成参数（种子每次进山由服务器给，地形和野兽位置前后端算出来一样）
+// creatures：lv 主人多少级以后山里才会出现 · hp 要打中几下（按武器 dmg 扣）· speed 跑得多快（米/秒）· flee 主人靠近到几米就跑（0 = 不怕人）
+//   aggro 主动攻击的距离（0 = 不主动攻击；野猪被打中后会反冲）· dmg 撞到主人扣几点体力 · biomes 出现在哪些群系 · count 每次进山最多几只 · size 体型
+//   reward：gold 金币 · exp 经验 · items 材料（hm + 材料序号 → 数量）
+// weapons：lv 解锁等级 · price 价格（0 = 进山时送）· dmg 每发扣几点 · range 射程（米）· cd 两发之间的间隔（秒）
+// materials：只能在末尾追加（存档里存的是序号）· price 仓库出售单价
+{
+  "zone": "mountain", "trips": 5, "tripSec": 300, "heroHp": 6, "captureDist": 3.2, "dogGoldBonus": 0.2,
+  "gen": { "size": 200, "seg": 120, "height": 30 },
+  "creatures": [
+    { "id": "deer", "name": "梅花鹿", "lv": 15, "hp": 2, "speed": 6.0, "flee": 14, "aggro": 0, "dmg": 0, "biomes": ["meadow", "shrub", "forest"], "count": 7, "size": 1.0, "reward": { "gold": 300, "exp": 60, "items": { "hm0": 1 } }, "desc": "胆子小，一听到动静就跑" },
+    { "id": "boar", "name": "野猪", "lv": 18, "hp": 3, "speed": 5.0, "flee": 0, "aggro": 0, "charge": true, "dmg": 1, "biomes": ["shrub", "forest"], "count": 5, "size": 0.9, "reward": { "gold": 600, "exp": 120, "items": { "hm1": 1 } }, "desc": "平时不惹事，打中它会冲过来" },
+    { "id": "wolf", "name": "灰狼", "lv": 24, "hp": 4, "speed": 6.8, "flee": 0, "aggro": 12, "dmg": 1, "biomes": ["forest", "rock"], "count": 4, "size": 0.95, "reward": { "gold": 1000, "exp": 200, "items": { "hm2": 1 } }, "desc": "看到人会扑过来" },
+    { "id": "bear", "name": "黑熊", "lv": 32, "hp": 10, "speed": 4.6, "flee": 0, "aggro": 9, "dmg": 2, "biomes": ["forest", "rock"], "count": 1, "size": 1.6, "reward": { "gold": 3500, "exp": 700, "items": { "hm3": 2 } }, "desc": "守着野蜂蜜，力气很大" }
+  ],
+  "weapons": [
+    { "id": "slingshot", "name": "弹弓", "lv": 15, "price": 0, "dmg": 1, "range": 14, "cd": 0.7, "desc": "猎户送的入门弹弓" },
+    { "id": "bow", "name": "猎弓", "lv": 22, "price": 20000, "dmg": 2, "range": 22, "cd": 0.9, "desc": "射得更远，一箭顶两颗石子" },
+    { "id": "tranq", "name": "麻醉枪", "lv": 30, "price": 120000, "dmg": 4, "range": 32, "cd": 1.4, "desc": "黑熊也能很快睡着" }
+  ],
+  "materials": [
+    { "id": 0, "name": "鹿角", "price": 120, "desc": "梅花鹿每年自然脱落的角" },
+    { "id": 1, "name": "野猪鬃", "price": 240, "desc": "又硬又亮的鬃毛，可以做刷子" },
+    { "id": 2, "name": "狼毛", "price": 400, "desc": "换季时掉下来的狼毛，很暖和" },
+    { "id": 3, "name": "野蜂蜜", "price": 700, "desc": "黑熊守着的蜂蜜" }
+  ]
+}

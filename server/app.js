@@ -149,6 +149,10 @@ async function createCore(opts) {
   R('GET', '/api/home/layout', { auth: 1 }, (c) => game.homeLayout(c.uid));
   R('POST', '/api/home/place', { auth: 1 }, async (c) => own(c.uid, await game.homePlace(c.uid, { type: c.body.type, gx: U.int(c.body.gx, '位置', -1000, 1000), gz: U.int(c.body.gz, '位置', -1000, 1000), rot: U.int(c.body.rot || 0, '朝向', 0, 3) })));
   R('POST', '/api/home/move', { auth: 1 }, async (c) => own(c.uid, await game.homeMove(c.uid, U.int(c.body.id, '建筑', 1, 1e9), { gx: U.int(c.body.gx, '位置', -1000, 1000), gz: U.int(c.body.gz, '位置', -1000, 1000), rot: U.int(c.body.rot || 0, '朝向', 0, 3) })));
+  R('GET', '/api/hunt', { auth: 1 }, (c) => game.huntInfo(c.uid));
+  R('POST', '/api/hunt/start', { auth: 1 }, async (c) => own(c.uid, await game.huntStart(c.uid)));
+  R('POST', '/api/hunt/end', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.huntEnd(c.uid, { sid: c.body.sid, caught: (Array.isArray(c.body.caught) ? c.body.caught : []).slice(0, 60), faint: !!c.body.faint }, o), o); });
+  R('POST', '/api/hunt/buy', { auth: 1 }, async (c) => own(c.uid, await game.huntBuy(c.uid, c.body.weapon)));
   R('POST', '/api/home/wonder', { auth: 1 }, async (c) => own(c.uid, await game.homeWonder(c.uid, U.int(c.body.id, '建筑', 1, 1e9))));
   R('POST', '/api/home/remove', { auth: 1 }, async (c) => own(c.uid, await game.homeRemove(c.uid, U.int(c.body.id, '建筑', 1, 1e9))));
   R('POST', '/api/ranch/upgrade', { auth: 1 }, async (c) => own(c.uid, await game.ranchUpgrade(c.uid, String(c.body.kind || ''))));

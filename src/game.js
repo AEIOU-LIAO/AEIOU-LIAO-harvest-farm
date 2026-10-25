@@ -712,6 +712,7 @@ function bindGlobal() {
   $('card').onclick = () => { if (S) openProfile(); };
   $('log').onclick = () => openMessages();
   document.addEventListener('keydown', e => {
+    if (typeof Zones !== 'undefined' && Zones.current !== 'home') return; /* 在野外区域时不响应家园的快捷键 */
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return; const k = e.key.toLowerCase();
     if (k === 'escape') { closeBuild(); closeModal(); tool = 'auto'; renderToolbar(); updateCursor(); }
     else if ($('mback').classList.contains('show') || !S) return;

@@ -155,8 +155,8 @@
   const treeGrowLeft = (r, now) => { const d = TREES[r.t]; return d ? Math.max(0, ((r.at || 0) + d.grow * 1000 - now) / 1000) : 0; };
   const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
   // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
-  function ranchItem(item) { const m = /^(fs|wl|fr)(\d+)$/.exec(item || ''); if (!m) return null; const d = ({ fs: FISH, wl: SHEEP, fr: TREES })[m[1]][+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : m[1] === 'wl' ? { kind: 'wool', id: d.id, name: d.woolName, price: d.sell } : { kind: 'fruit', id: d.id, name: d.fruit, price: d.sell }; }
-  const VERSION = '3.11.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  function ranchItem(item) { const hm = /^hm(\d+)$/.exec(item || ''); if (hm) { const d = CONTENT.HUNT.materials[+hm[1]]; return d ? { kind: 'hunt', id: d.id, name: d.name, price: d.price } : null; } const m = /^(fs|wl|fr)(\d+)$/.exec(item || ''); if (!m) return null; const d = ({ fs: FISH, wl: SHEEP, fr: TREES })[m[1]][+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : m[1] === 'wl' ? { kind: 'wool', id: d.id, name: d.woolName, price: d.sell } : { kind: 'fruit', id: d.id, name: d.fruit, price: d.sell }; }
+  const VERSION = '3.12.0'; // 每次发布改这里；设置页和 /api/health 会显示
   const ZONES = CONTENT.ZONES, ASSETS = CONTENT.ASSETS, HOME = CONTENT.HOME, BUILDINGS = CONTENT.BUILDINGS, BIOMES = CONTENT.BIOMES;
 
   /* ===== V0.3 家园布局与建造网格（3D 画面和服务器共用 content/home.jsonc） ===== */
@@ -205,7 +205,46 @@
   const wonderDef = id => WONDERS.find(w => w.id === id);
   /* 所有奇观带来的作物增产（累加） */
   function wonderBonus(items) { let b = 0; (items || []).forEach(it => { const w = wonderDef(it.type); if (w) for (let i = 0; i < Math.min(it.stage | 0, w.stages.length); i++) b += w.stages[i].bonus; }); return Math.round(b * 1000) / 1000; }
-  const CFG = { HOME, BUILDINGS, BIOMES, OCC, SEASONS, WONDERS, wonderDef, wonderBonus, monthOf, seasonOf, cropTag, inSeason, seasonEnd, festivalsAt, fieldCenter, pastSize, pondsOf, gridSpec, homeOccupancy, footprint, canPlace };
+  /* ---------- 野外地图生成（V0.3 从 src/zones.js 搬到这里，第 2 期起服务器也用同一个种子算野兽位置）：不依赖 Three.js ---------- */
+  function makeNoise(seed) {
+    const r = rng(seed), N = 256, perm = new Uint16Array(N * 2), grad = new Float32Array(N);
+    for (let i = 0; i < N; i++) { perm[i] = i; grad[i] = r(); } for (let i = N - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const t = perm[i]; perm[i] = perm[j]; perm[j] = t; } for (let i = 0; i < N; i++) perm[i + N] = perm[i];
+    const sm = t => t * t * (3 - 2 * t), v = (x, y) => grad[perm[(perm[x & 255] + y) & 511] & 255];
+    const n2 = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, a = v(xi, yi), b = v(xi + 1, yi), c = v(xi, yi + 1), d = v(xi + 1, yi + 1), u = sm(xf), w = sm(yf); return a + (b - a) * u + (c - a) * w + (a - b - c + d) * u * w; };
+    return (x, y, oct) => { let s = 0, amp = 0.5, f = 1, norm = 0; for (let k = 0; k < (oct || 5); k++) { s += n2(x * f, y * f) * amp; norm += amp; amp *= 0.5; f *= 2.03; } return s / norm; };
+  }
+  function biomeAt(h, m) { const B = BIOMES; let b = B.find(x => h < x.maxH) || B[B.length - 1]; if (b.moist !== undefined && m < b.moist && b.dry) b = B.find(x => x.id === b.dry) || b; return b; }
+  function genWorld(gen, seed) {
+    const size = gen.size, seg = gen.seg, n = seg + 1, H = new Float32Array(n * n), M = new Float32Array(n * n), BI = new Array(n * n);
+    const hN = makeNoise(seed), mN = makeNoise(seed ^ 0x9e3779b1), BIDX = {}; BIOMES.forEach((b, i) => { BIDX[b.id] = i; });
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const u = i / seg, w = j / seg, x = u * 4, y = w * 4, dx = u - 0.5, dz = w - 0.5, edge = Math.min(1, Math.hypot(dx, dz) * 2);
+      let h = hN(x, y, 5) * 0.75 + Math.pow(Math.max(0, hN(x * 0.5 + 9, y * 0.5 + 3, 3) - 0.35), 1.4) * 1.1;
+      h = h * (1 - Math.pow(edge, 3) * 0.55) + (edge > 0.92 ? (edge - 0.92) * 2 : 0);
+      H[j * n + i] = Math.max(0, Math.min(1, h)); M[j * n + i] = mN(x * 1.3 + 4, y * 1.3 + 7, 4);
+    }
+    let lo = 1, hi = 0; for (let k = 0; k < H.length; k++) { if (H[k] < lo) lo = H[k]; if (H[k] > hi) hi = H[k]; } for (let k = 0; k < H.length; k++) { H[k] = (H[k] - lo) / (hi - lo || 1); BI[k] = biomeAt(H[k], M[k]); }
+    const count = {}; BI.forEach(b => { count[b.id] = (count[b.id] || 0) + 1; });
+    const r = rng(seed + 7), cellA = (size / seg) * (size / seg), trees = [], rocks = [];
+    for (let k = 0; k < BI.length; k++) { const b = BI[k], i = k % n, j = (k / n) | 0; if (i === seg || j === seg) continue; const x = (i / seg - 0.5) * size, z = (j / seg - 0.5) * size;
+      if (b.trees && r() < b.trees * cellA / 100) trees.push({ x: x + (r() - 0.5) * size / seg, z: z + (r() - 0.5) * size / seg, s: 0.7 + r() * 0.7, kind: b.tree || 'pine', ry: r() * 6.28 });
+      if (b.rocks && r() < b.rocks * cellA / 100) rocks.push({ x: x + (r() - 0.5) * size / seg, z: z + (r() - 0.5) * size / seg, s: 0.4 + r() * 1.2, ry: r() * 6.28 }); }
+    return { size, seg, n, H, M, BI, count, trees, rocks, seed, BIDX };
+  }
+  /* 地图上某点的群系 */
+  function worldBiome(W, x, z) { const i = Math.max(0, Math.min(W.seg, Math.round((x / W.size + 0.5) * W.seg))), j = Math.max(0, Math.min(W.seg, Math.round((z / W.size + 0.5) * W.seg))); return W.BI[j * W.n + i]; }
+  /* ---------- 第 2 期：名山猎场（content/hunt.jsonc）。同一个种子 + 等级，前后端算出一样的起点和野兽位置 ---------- */
+  const HUNT = CONTENT.HUNT;
+  function huntSpawns(seed, lv, W) {
+    W = W || genWorld(HUNT.gen, seed); const r = rng(seed + 101), S = W.size, cells = [];
+    for (let k = 0; k < W.BI.length; k++) { const i = k % W.n, j = (k / W.n) | 0; if (i < 4 || j < 4 || i > W.seg - 4 || j > W.seg - 4) continue; cells.push([k, (i / W.seg - 0.5) * S, (j / W.seg - 0.5) * S]); }
+    /* 起点：靠近南边中间、能走的平地 */
+    let start = [0, S * 0.3], bd = 1e9; cells.forEach(([k, x, z]) => { const b = W.BI[k]; if (!b.walk || b.id === 'snow' || b.id === 'rock') return; const d = Math.hypot(x, z - S * 0.3); if (d < bd) { bd = d; start = [x, z]; } });
+    const list = []; HUNT.creatures.forEach((c, ci) => { if (lv < c.lv) return; const ok = cells.filter(([k, x, z]) => c.biomes.includes(W.BI[k].id) && Math.hypot(x - start[0], z - start[1]) > 28);
+      for (let n = 0; n < c.count && ok.length; n++) { const p = ok.splice(Math.floor(r() * ok.length), 1)[0]; list.push({ i: list.length, id: c.id, x: Math.round(p[1] * 10) / 10, z: Math.round(p[2] * 10) / 10 }); } });
+    return { start, list };
+  }
+  const CFG = { HOME, BUILDINGS, BIOMES, OCC, SEASONS, WONDERS, HUNT, makeNoise, biomeAt, genWorld, worldBiome, huntSpawns, wonderDef, wonderBonus, monthOf, seasonOf, cropTag, inSeason, seasonEnd, festivalsAt, fieldCenter, pastSize, pondsOf, gridSpec, homeOccupancy, footprint, canPlace };
   Object.assign(CFG, { ZONES, ASSETS, COLLIES, PETS_MAX, VERSION, COLS, ROWS, NPLOTS, FIELDS_MAX, MAX_PLOTS, fieldNeedLv, fieldCost, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
     FISH, SHEEP, TREES, RANCH, pondCap, pastureCap, pondCapOf, pastureCapOf, orchardCapOf, ranchUpCost, ranchNeedLv, herdOf, sheepCycles, treeCycles, treeGrowLeft, fishLeft, ranchItem,

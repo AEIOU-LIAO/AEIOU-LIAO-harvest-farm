@@ -719,3 +719,36 @@ test('第 1 期 奇观长城：免费选址、分阶段建造（扣金币和作�
     r = await t.call('POST', '/api/home/wonder', { id }, a.token); assert.match(r.error, /全部建成/);
   } finally { await t.close(); }
 });
+
+test('第 2 期 名山猎场：进山拿种子、前后端野兽位置一致、下山校验与奖励、每天次数、买武器', async () => {
+  const t = await start();
+  try {
+    const a = await t.guest('猎户'); await t.app.db.run('UPDATE users SET gold=500000, lv=10 WHERE id=?', a.id);
+    let r = await t.call('POST', '/api/hunt/start', {}, a.token); assert.match(r.error, /Lv\.15/);
+    await t.app.db.run('UPDATE users SET lv=40 WHERE id=?', a.id);
+    let info = await t.call('GET', '/api/hunt', null, a.token); assert.deepEqual(info.weapons, ['slingshot']); assert.equal(info.tripsLeft, CFG.HUNT.trips);
+    r = await t.call('POST', '/api/hunt/start', {}, a.token); assert.ok(r.ok, r.error); const S = r.result;
+    assert.deepEqual(CFG.huntSpawns(S.seed, S.lv).list, S.list, '前端用同一个种子算出一样的野兽位置'); assert.ok(S.list.some(x => x.id === 'bear'));
+    const deer = S.list.filter(x => x.id === 'deer').slice(0, 2).map(x => x.i), bear = S.list.find(x => x.id === 'bear').i;
+    r = await t.call('POST', '/api/hunt/end', { sid: S.sid, caught: deer.concat([bear]) }, a.token); assert.match(r.error, /太快/);
+    r = await t.call('POST', '/api/hunt/end', { sid: S.sid, caught: [9999] }, a.token); assert.match(r.error, /没有这只/);
+    await t.call('POST', '/api/test/clock', { ms: 120e3 });
+    const g0 = (await t.call('GET', '/api/state', null, a.token)).me.gold;
+    r = await t.call('POST', '/api/hunt/end', { sid: S.sid, caught: deer.concat([bear, deer[0]]) }, a.token); assert.ok(r.ok, r.error);
+    const D = CFG.HUNT.creatures.find(c => c.id === 'deer'), B = CFG.HUNT.creatures.find(c => c.id === 'bear');
+    assert.equal(r.result.n, 3, '重复的不算'); assert.equal(r.result.gold, D.reward.gold * 2 + B.reward.gold); assert.equal(r.state.me.gold, g0 + r.result.gold);
+    assert.equal(r.state.inv.hm0, 2); assert.equal(r.state.inv.hm3, 2);
+    r = await t.call('POST', '/api/hunt/end', { sid: S.sid, caught: [] }, a.token); assert.match(r.error, /已经结束/);
+    /* 体力耗尽：收获减半 */
+    r = await t.call('POST', '/api/hunt/start', {}, a.token); const S2 = r.result; await t.call('POST', '/api/test/clock', { ms: 60e3 });
+    r = await t.call('POST', '/api/hunt/end', { sid: S2.sid, caught: S2.list.filter(x => x.id === 'deer').slice(0, 2).map(x => x.i), faint: true }, a.token); assert.ok(r.ok, r.error); assert.equal(r.result.gold, D.reward.gold);
+    for (let k = 2; k < CFG.HUNT.trips; k++) { r = await t.call('POST', '/api/hunt/start', {}, a.token); assert.ok(r.ok, r.error); }
+    r = await t.call('POST', '/api/hunt/start', {}, a.token); assert.match(r.error, /明天再来/);
+    /* 武器 */
+    r = await t.call('POST', '/api/hunt/buy', { weapon: 'tranq' }, a.token); assert.ok(r.ok, r.error);
+    r = await t.call('POST', '/api/hunt/buy', { weapon: 'tranq' }, a.token); assert.match(r.error, /已经有/);
+    info = await t.call('GET', '/api/hunt', null, a.token); assert.deepEqual(info.weapons.sort(), ['slingshot', 'tranq']); assert.equal(info.tripsLeft, 0); assert.equal(info.total.deer, 4);
+    /* 材料可以在仓库出售 */
+    r = await t.call('POST', '/api/wh/sell', { item: 'hm3', n: 1 }, a.token); assert.ok(r.ok, r.error); assert.equal(r.state.inv.hm3, 1);
+  } finally { await t.close(); }
+});

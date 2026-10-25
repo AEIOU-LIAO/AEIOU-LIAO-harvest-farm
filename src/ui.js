@@ -443,7 +443,7 @@ function openWorldMap() {
     const btn = isHere ? '' : live ? `<button class="btn sm primary" data-zone="${z.id}" ${lock ? 'disabled' : ''}>${lock ? `需要 Lv.${z.unlockLv}` : '前往'}</button>` : '<button class="btn sm" disabled>未开放</button>';
     return `<div class="zcard ${z.status === 'planned' ? 'planned' : 'live'}"><b>${esc(z.name)}</b><div class="zs">${tags}</div><small>${esc(z.desc || '')}</small>${btn}</div>`; };
   openModal(`${H2('compass', '世界地图', '村外有村，山外有山。更多区域会随着赛季陆续开放')}<div class="zmap">${Zones.list().map(card).join('')}</div>`, {
-    wide: true, mount: () => qsa('[data-zone]').forEach(b => b.onclick = async () => { closeModal(true); await Zones.enter(b.dataset.zone); })
+    wide: true, mount: () => qsa('[data-zone]').forEach(b => b.onclick = async () => { closeModal(true); if (b.dataset.zone === CFG.HUNT.zone) return Hunt.open(); await Zones.enter(b.dataset.zone); })
   });
 }
 function openRanch(tab) {

@@ -4,7 +4,7 @@
 [
   {"id":"home","name":"家园","status":"live","unlockLv":1,"desc":"你的农场：菜地、牧场、鱼塘、果园","budget":{"tris":300000,"calls":150,"texMB":150},"assets":[]},
   {"id":"trial","name":"试炼野外","status":"dev","unlockLv":1,"desc":"开发用：验证区域切换和「种子 + 生物群系」程序生成","budget":{"tris":300000,"calls":150,"texMB":150},"assets":[],"gen":{"size":160,"seg":120,"seed":20261025,"height":26}},
-  {"id":"mountain","name":"名山猎场","status":"planned","unlockLv":60,"desc":"深山里有鹿、野猪、狼和熊，带上猎犬去狩猎","season":"第 2 期"},
+  {"id":"mountain","name":"名山猎场","status":"live","unlockLv":15,"desc":"深山里有梅花鹿、野猪、灰狼和黑熊。用弹弓、猎弓、麻醉枪把它们打晕，送去保护站换赏金和材料","budget":{"tris":300000,"calls":150,"texMB":150},"assets":["v3_hero_boy"]},
   {"id":"river","name":"河谷","status":"planned","unlockLv":150,"desc":"大河两岸，可以钓鱼、行船","season":"之后"},
   {"id":"desert","name":"大漠","status":"planned","unlockLv":400,"desc":"黄沙里埋着金字塔","season":"之后"},
   {"id":"snowridge","name":"雪岭","status":"planned","unlockLv":800,"desc":"长城蜿蜒在雪山之上","season":"之后"},
