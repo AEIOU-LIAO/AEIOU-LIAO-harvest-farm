@@ -31,7 +31,7 @@ button.on{background:linear-gradient(#f1c95c,#c8902a);color:#2a1c08;border-color
 <canvas id="cv"></canvas>
 <div id="load">正在加载新角色…</div>
 <div class="bar" id="top">
-  <b>新角色预览 v1_test <small style="color:#bfae8c;font-weight:400">页面 4</small></b>
+  <b>新角色预览 v1_test <small style="color:#bfae8c;font-weight:400">页面 5</small></b>
   <button data-who="hero_boy" class="on">男主角</button><button data-who="hero_girl">女主角</button><button data-who="dog">边牧</button>
   <span class="sep"></span>
   <button data-clip="idle" class="on">待机</button><button data-clip="walk">走路</button><button id="move">边走边移动</button>
@@ -62,7 +62,7 @@ scene.add(new T.HemisphereLight(0xfff6e0, 0x6a8a4a, 0.85));
 const sun = new T.DirectionalLight(0xfff0d8, 2.3); sun.position.set(4, 8, 5); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8 }); scene.add(sun); scene.add(sun.target);
 { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.fillStyle = '#7fb85a'; x.fillRect(0, 0, 256, 256); for (let i = 0; i < 2600; i++) { x.fillStyle = `hsl(${92 + Math.random() * 20},${40 + Math.random() * 20}%,${36 + Math.random() * 16}%)`; x.fillRect(Math.random() * 256, Math.random() * 256, 1.5, 3); }
   const tx = new T.CanvasTexture(c); tx.wrapS = tx.wrapT = T.RepeatWrapping; tx.repeat.set(30, 30); tx.encoding = T.sRGBEncoding;
-  const g = new T.Mesh(new T.CircleGeometry(40, 48), new T.MeshStandardMaterial({ map: tx, roughness: 1 })); g.rotation.x = -Math.PI / 2; g.receiveShadow = true; scene.add(g); }
+  const g = new T.Mesh(new T.CircleGeometry(40, 48), new T.MeshStandardMaterial({ map: tx, roughness: 1, side: T.DoubleSide })); g.rotation.x = -Math.PI / 2; g.receiveShadow = true; scene.add(g); }
 const cam = new T.PerspectiveCamera(34, 1, 0.05, 120);
 const orbit = { yaw: 0.5, pitch: 0.18, dist: 4.2, ty: 0.9 };
 /* 镜头对准上下两个按钮栏之间的空白区域，角色不会被按钮挡住 */
