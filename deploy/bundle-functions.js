@@ -4,7 +4,7 @@
 //       打包后的文件只依赖 Node 内置模块，平台打包或不打包都能直接运行。
 const fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
-const MODS = ['shared/content.js', 'shared/config.js', 'server/util.js', 'server/db.js', 'server/game.js', 'server/admin.js', 'server/npc.js', 'server/app.js'];
+const MODS = ['shared/content.js', 'shared/config.js', 'server/util.js', 'server/db.js', 'server/domains/common.js', 'server/domains/account.js', 'server/domains/farm.js', 'server/domains/ranch.js', 'server/domains/home.js', 'server/domains/quest.js', 'server/domains/social.js', 'server/domains/economy.js', 'server/game.js', 'server/admin.js', 'server/npc.js', 'server/app.js'];
 const BUILTIN = { crypto: '__crypto', async_hooks: '__async_hooks', fs: '__fs', path: '__path' };
 
 function resolve(from, spec) {
