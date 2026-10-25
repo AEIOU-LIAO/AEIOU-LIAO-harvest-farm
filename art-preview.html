@@ -31,7 +31,7 @@ button.on{background:linear-gradient(#f1c95c,#c8902a);color:#2a1c08;border-color
 <canvas id="cv"></canvas>
 <div id="load">正在加载新角色…</div>
 <div class="bar" id="top">
-  <b>新角色预览 v1_test <small style="color:#bfae8c;font-weight:400">页面 3</small></b>
+  <b>新角色预览 v1_test <small style="color:#bfae8c;font-weight:400">页面 4</small></b>
   <button data-who="hero_boy" class="on">男主角</button><button data-who="hero_girl">女主角</button><button data-who="dog">边牧</button>
   <span class="sep"></span>
   <button data-clip="idle" class="on">待机</button><button data-clip="walk">走路</button><button id="move">边走边移动</button>
@@ -154,9 +154,13 @@ function applyMorph(dt) { if (!cur || !morphPulse) return; morphPulse.t += dt; c
 /* ---- 压力测试：1 个主角 + 10 只狗一起走 ---- */
 async function startStress() {
   if (cur) { scene.remove(cur.s); cur = null; }
-  const H = await loadGLB('hero_boy'), D = await loadGLB('dog_collie'); const list = [];
-  const h = instance(H); setAcc(h.s, { hat: 1, bag: 1, scarf: 1 }); play(h, 'walk', 0.01); h.r = 1.6; h.ph = 0; h.spd = STRIDE.hero; scene.add(h.s); list.push(h);
-  for (let i = 0; i < 10; i++) { const d = instance(D); await setCoat(d, COATS[i][0]); play(d, 'walk', 0.01); d.mx.setTime(i * 0.13); d.r = 2.4 + (i % 3) * 0.9; d.ph = i * 0.63; d.spd = STRIDE.dog * 2.2; d.ts = 2.2; scene.add(d.s); list.push(d); }
+  /* 先把 11 个角色和 10 种毛色全部准备好、摆到各自的位置，再一起放进场景（以前边加载边放，开头几秒全挤在原点，看起来像人骑在狗身上） */
+  toast('压力测试准备中…', 3000);
+  const [H, D] = await Promise.all([loadGLB('hero_boy'), loadGLB('dog_collie'), ...COATS.map(c => coatTex(c[0]))]); const list = [];
+  const h = instance(H); setAcc(h.s, { hat: 1, bag: 1, scarf: 1 }); play(h, 'walk', 0.01); h.r = 1.6; h.ph = 0; h.spd = STRIDE.hero; list.push(h);
+  for (let i = 0; i < 10; i++) { const d = instance(D); await setCoat(d, COATS[i][0]); play(d, 'walk', 0.01); d.mx.setTime(i * 0.13); d.r = 2.6 + (i % 3) * 1.0; d.ph = i * 0.63; d.spd = STRIDE.dog * 2.2; d.ts = 2.2; list.push(d); }
+  if (!$('btn-stress').classList.contains('on')) return; /* 准备期间用户又点了一次（取消） */
+  list.forEach(x => { x.s.position.set(Math.cos(x.ph) * x.r, 0, Math.sin(x.ph) * x.r); x.s.rotation.y = -x.ph; scene.add(x.s); });
   stress = { list, t: 0, frames: [], t0: performance.now() }; Object.assign(orbit, { dist: 11, ty: 0.4, pitch: 0.5 }); toast('压力测试：1 个主角 + 10 只狗，10 秒后出结果');
 }
 function stopStress() { stress.list.forEach(x => scene.remove(x.s)); stress = null; }
@@ -171,16 +175,16 @@ function stepStress(dt) {
 document.querySelectorAll('[data-who]').forEach(b => b.onclick = () => { who = b.dataset.who; document.querySelectorAll('[data-who]').forEach(x => x.classList.toggle('on', x === b)); show(); });
 document.querySelectorAll('[data-clip]').forEach(b => b.onclick = () => { clip = b.dataset.clip; document.querySelectorAll('[data-clip]').forEach(x => x.classList.toggle('on', x === b)); if (clip === 'idle') { moving = false; $('move').classList.remove('on'); } if (cur) play(cur, clip); });
 $('move').onclick = () => { moving = !moving; $('move').classList.toggle('on', moving); if (moving && clip !== 'walk') document.querySelector('[data-clip="walk"]').click(); if (!moving && cur) cur.s.position.set(0, 0, 0); };
-$('btn-stress').onclick = () => { if (stress) { stopStress(); show(); $('btn-stress').classList.remove('on'); } else { stats.stress = null; startStress(); $('btn-stress').classList.add('on'); } };
+$('btn-stress').onclick = () => { if ($('btn-stress').classList.contains('on')) { if (stress) stopStress(); $('btn-stress').classList.remove('on'); show(); } else { stats.stress = null; $('btn-stress').classList.add('on'); startStress().catch(e => showErr('压力测试失败：' + (e.stack || e))); } };
 $('btn-concept').onclick = () => { const k = who === 'dog' ? (coat === 'ruibao' ? 'dog_ruibao' : 'dog_fuwang') : who; $('concept').querySelector('img').src = 'art/concept/' + k + '.jpg'; $('concept').classList.add('show'); };
 $('concept').onclick = () => $('concept').classList.remove('show');
 $('btn-copy').onclick = async () => { const txt = JSON.stringify(report(), null, 1); try { await navigator.clipboard.writeText(txt); toast('已复制，粘贴到和 Claude 的对话里就行'); } catch (e) { prompt('长按全选复制：', txt); } };
-function report() { let gpu = ''; try { const g = R.getContext(), e = g.getExtension('WEBGL_debug_renderer_info'); gpu = e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; } catch (e) { } const f = stats.fps.slice(-30); return { page: 'art-preview v1_test', ua: navigator.userAgent, screen: `${screen.width}x${screen.height}@${devicePixelRatio}`, gpu, loadMs: stats.loadMs, glbMs: stats.glbMs, fps: f.length ? +(f.reduce((a, b) => a + b, 0) / f.length).toFixed(1) : null, stress: stats.stress, time: new Date().toISOString() }; }
+function report() { let gpu = ''; try { const g = R.getContext(), e = g.getExtension('WEBGL_debug_renderer_info'); gpu = e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; } catch (e) { } const f = stats.fps.slice(-30); return { page: 'art-preview v1_test', ua: navigator.userAgent, screen: `${screen.width}x${screen.height}@${devicePixelRatio}`, gpu, loadMs: stats.loadMs, glbMs: stats.glbMs, fps: f.length ? +(f.reduce((a, b) => a + b, 0) / f.length).toFixed(1) : null, stress: stats.stress || (stress && stress.frames.length ? { running: true, seconds: +stress.t.toFixed(1), avgFps: +(stress.frames.length / stress.frames.reduce((a, b) => a + b, 0)).toFixed(1), note: '还没跑满 11 秒' } : '没有运行（点「压力测试」，等 11 秒出结果后再复制）'), time: new Date().toISOString() }; }
 let tt = 0; function toast(s, ms) { const t = $('toast'); t.textContent = s; t.style.display = 'block'; clearTimeout(tt); tt = setTimeout(() => t.style.display = 'none', ms || 2600); }
 /* 拖动旋转视角，双指 / 滚轮缩放 */
 const pts = new Map(); let pinch = 0;
 $('cv').addEventListener('pointerdown', e => { pts.set(e.pointerId, [e.clientX, e.clientY]); try { $('cv').setPointerCapture(e.pointerId); } catch (x) { } if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
-$('cv').addEventListener('pointermove', e => { const p = pts.get(e.pointerId); if (!p) return; if (pts.size === 2) { pts.set(e.pointerId, [e.clientX, e.clientY]); const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) orbit.dist = Math.max(0.8, Math.min(20, orbit.dist * pinch / d)); pinch = d; return; } orbit.yaw -= (e.clientX - p[0]) * 0.008; orbit.pitch = Math.max(-0.05, Math.min(1.3, orbit.pitch + (e.clientY - p[1]) * 0.005)); pts.set(e.pointerId, [e.clientX, e.clientY]); });
+$('cv').addEventListener('pointermove', e => { const p = pts.get(e.pointerId); if (!p) return; if (pts.size === 2) { pts.set(e.pointerId, [e.clientX, e.clientY]); const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) orbit.dist = Math.max(0.8, Math.min(20, orbit.dist * pinch / d)); pinch = d; return; } orbit.yaw -= (e.clientX - p[0]) * 0.008; orbit.pitch = Math.max(0.03, Math.min(1.3, orbit.pitch + (e.clientY - p[1]) * 0.005)); pts.set(e.pointerId, [e.clientX, e.clientY]); });
 ['pointerup', 'pointercancel'].forEach(n => $('cv').addEventListener(n, e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = 0; }));
 $('cv').addEventListener('wheel', e => { orbit.dist = Math.max(0.8, Math.min(20, orbit.dist * (e.deltaY > 0 ? 1.08 : 0.93))); }, { passive: true });
 
@@ -193,17 +197,19 @@ function frame(now) {
   if (stress) stepStress(dt);
   else if (cur) { cur.mx.update(dt); applyMorph(dt);
     if (moving && cur.clip === 'walk') { const sp = STRIDE[cur.kind]; cur.ang = (cur.ang || 0) + sp / 2 * dt; cur.s.position.set(Math.sin(cur.ang) * 2, 0, Math.cos(cur.ang) * 2 - 2); cur.s.rotation.y = cur.ang + Math.PI / 2; focus.set(cur.s.position.x, orbit.ty, cur.s.position.z); } }
-  const dd = orbit.dist * fitK; cam.position.set(focus.x + Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * dd, focus.y + Math.sin(orbit.pitch) * dd, focus.z + Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * dd); cam.lookAt(focus);
+  const dd = orbit.dist * fitK; cam.position.set(focus.x + Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * dd, focus.y + Math.sin(orbit.pitch) * dd, focus.z + Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * dd); if (cam.position.y < 0.25) cam.position.y = 0.25; /* 镜头不能钻到地面下面 */ cam.lookAt(focus);
   sun.position.set(focus.x + 4, 8, focus.z + 5); sun.target.position.copy(focus);
   R.render(scene, cam);
   const f = stats.fps.length ? stats.fps[stats.fps.length - 1] : 0, i = R.info.render;
-  $('hud').textContent = `帧率 ${f.toFixed(0)} 帧/秒\n绘制 ${i.calls} 次  三角面 ${(i.triangles / 1000).toFixed(1)}k${stress ? `\n压力测试 ${Math.max(0, 11 - stress.t).toFixed(0)} 秒` : ''}`;
+  $('hud').textContent = `帧率 ${f.toFixed(0)} 帧/秒\n绘制 ${i.calls} 次  三角面 ${(i.triangles / 1000).toFixed(1)}k${stress && !stats.stress ? `\n压力测试中，还剩 ${Math.max(0, 11 - stress.t).toFixed(0)} 秒` : ''}${stats.stress ? `\n压力测试：平均 ${stats.stress.avgFps}，最低 ${stats.stress.lowFps} 帧/秒` : ''}`;
   requestAnimationFrame(frame);
 }
 (async () => { const t0 = performance.now(); await show(); stats.loadMs = Math.round(performance.now() - t0); if ($('load')) $('load').remove(); requestAnimationFrame(frame);
   /* 第一个角色出来后，后台预加载另外两个和福旺的毛色，切换时不用再等 */
   setTimeout(() => { ['dog_collie', 'hero_girl', 'hero_boy'].forEach(n => loadGLB(n, true).catch(() => { })); coatTex('fuwang').catch(() => { }); coatTex('ruibao').catch(() => { }); }, 400); })();
 window.__art = { report, stats, get cur() { return cur; } };
+/* 测试用：压力测试中各角色的位置、镜头高度 */
+window.__dbg = () => stress ? stress.list.map(x => [x.s.position.x, x.s.position.z]) : null; window.__camY = () => cam.position.y;
 </script>
 </body>
 </html>
