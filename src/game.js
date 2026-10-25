@@ -670,7 +670,7 @@ async function applyNewChar(loud) {
 /* 选择自己的角色（男主角 / 14 位女主角），选了就自动打开「新角色模型」 */
 function openCharPick() {
   const list = CFG.ASSETS.filter(a => a.kind === 'hero' && a.thumb), cur = PREF.v3hero || 'v4_hero_boy';
-  openModal(`${H2('user', '选择角色', '美术新模型（测试中）：女主角目前只有待机和走路，跑步先用走路动作代替')}<div class="charpick">${list.map(a => `<button class="cpick${a.id === cur ? ' on' : ''}" data-hid="${a.id}"><img src="${a.thumb}" alt="" loading="lazy"><b>${esc(a.name)}</b></button>`).join('')}</div>`, {
+  openModal(`${H2('user', '选择角色', '美术新模型（测试中）：男主角和 14 位女主角都有走、跑、跳')}<div class="charpick">${list.map(a => `<button class="cpick${a.id === cur ? ' on' : ''}" data-hid="${a.id}"><img src="${a.thumb}" alt="" loading="lazy"><b>${esc(a.name)}</b></button>`).join('')}</div>`, {
     wide: true, mount: () => qsa('[data-hid]').forEach(b => b.onclick = async () => { sfx('click'); closeModal(true); await savePref({ v3hero: b.dataset.hid, v3char: true }); applyNewChar(true); })
   });
 }

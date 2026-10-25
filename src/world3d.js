@@ -1626,7 +1626,7 @@ const W3 = (() => {
       dg.wag = (dg.wag || 0) + dt * freq; dg.tail.rotation.y = Math.sin(dg.wag) * amp * 0.55; dg.tail.rotation.z = pose === 'sleep' || pose === 'lie' ? 0 : pose === 'stalk' ? -0.15 : 0.1 + Math.min(0.3, v * 0.06) + ex * 0.25;
       if (NC.on && NC.dogs[dg.did] && !dg.rig) ncAttachDog(dg);
       if (dg.rig) { const R = dg.rig.rig, still = pose === 'sleep' || pose === 'lie' || pose === 'sit', moving = !still && v > 0.15;
-        R.play(pose === 'sleep' ? 'sleep' : pose === 'lie' ? 'lie_idle' : pose === 'sit' ? 'sit_idle' : v > 2.6 ? 'gallop' : v > 1.0 ? 'trot' : moving ? 'walk' : 'idle'); R.pace(v, NC_SCALE.dog); R.update(dt);
+        R.play(pose === 'sleep' ? 'sleep' : pose === 'lie' ? 'lie_idle' : pose === 'sit' ? 'sit_idle' : v > 4.6 ? 'sprint' : v > 2.6 ? 'gallop' : v > 1.0 ? 'trot' : moving ? 'walk' : 'idle'); R.pace(v, NC_SCALE.dog); R.update(dt);
         if (R.faked) R.dogGait({ a: moving ? dg.la : null, lift: dg.ll, yaw: still ? 0 : dg.hy || 0, pitch: still ? 0 : -(dg.headDown || 0) * 0.5 + (dg.sniff || dg.lap ? Math.sin(t * 10) * 0.08 : 0), wag: Math.sin(dg.wag) * amp * 0.5 });
         dg.rig.wrap.position.y = moving ? bob + (dg.hop || 0) : dg.hop || 0; }
       const mv = Math.min(1, v / 4.5), U = dg.U; if (U) { U.uT.value = t + k * 3; U.uMove.value = mv; U.uBob.value = mk * Math.cos(phi * Math.PI * 4) * Math.min(1, v / 2); U.uWagPh.value = dg.wag; U.uWagA.value = amp; U.uLift.value = mv * 0.5 + ex * 0.4; }

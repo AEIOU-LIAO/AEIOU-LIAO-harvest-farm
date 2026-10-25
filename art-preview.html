@@ -52,12 +52,12 @@ button:disabled{opacity:.4}
    V1：技术灰盒测试包（有 idle / walk），留作对照。 */
 const PAGE_VER = 9;
 const HEROINES = Array.from({ length: 14 }, (_, i) => { const k = 'heroine_' + String(i + 1).padStart(2, '0'); return [k, '女' + (i + 1), 'hero', null, 'h2_' + k]; });
-const CLIP_NAME = { idle: '待机', walk: '走路', run: '跑步', jump_air: '跳（空中）', sit_idle: '坐', lie_idle: '趴', sleep: '睡觉', trot: '小跑', gallop: '奔跑' };
+const CLIP_NAME = { idle: '待机', walk: '走路', run: '跑步', jump_air: '跳（空中）', sit_idle: '坐', lie_idle: '趴', sleep: '睡觉', trot: '小跑', gallop: '奔跑', sprint: '冲刺' };
 const VERS = {
-  v4: { label: 'V4 动作', base: 'art/v4_motion/', rig: true, tiers: true, clips: true,
+  v4: { label: 'V5 动作', base: 'art/v5_motion/', rig: true, tiers: true, clips: true,
     roster: [['hero_boy', '男主角', 'hero', 'hero_boy', 'v4_hero_boy'], ['dog_fuwang', '福旺', 'dog', 'dog_fuwang', 'v4_dog_fuwang'], ['dog_ruibao', '睿宝', 'dog', 'dog_ruibao', 'v4_dog_ruibao']].concat(HEROINES),
     accBy: { hero_boy: [['bag', '挎包'], ['scarf', '围巾']], dog_fuwang: [['harness', '胸背带']], dog_ruibao: [['collar', '项圈'], ['tag', '吊牌']], heroine: [['bag', '提包'], ['hair', '头发']] },
-    note: 'V4：美术交付的完整动作 —— 男主角走 / 跑 / 跳，福旺、睿宝坐 / 趴 / 睡 / 走 / 小跑 / 奔跑，14 位女主角待机 / 走路。「边走边移动」按实测步幅移动，脚不打滑。' },
+    note: 'V5：美术交付的完整动作 —— 男主角和 14 位女主角走 / 跑 / 跳，福旺、睿宝坐 / 趴 / 睡 / 走 / 小跑 / 奔跑 / 冲刺。「边走边移动」按实测步幅移动，脚不打滑。' },
   v3: { label: 'V3 绑定+待机', base: 'art/v3_rig_idle/', rig: true, tiers: true,
     roster: [['hero_boy', '男主角', 'hero', 'hero_boy'], ['dog_fuwang', '福旺', 'dog', 'dog_fuwang']],
     acc: { hero: [['bag', '挎包'], ['scarf', '围巾']], dog: [['harness', '胸背带']] },
