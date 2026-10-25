@@ -3614,6 +3614,8 @@ class GLTFParser {
 		if ( typeof navigator !== 'undefined' ) {
 
 			isSafari = /^((?!chrome|android).)*safari/i.test( navigator.userAgent ) === true;
+			/* 丰收农场补丁：iOS 上所有浏览器（含微信内置浏览器，标识里没有 Safari）都是 WebKit，createImageBitmap 带参数会失败，统一走 TextureLoader */
+			if ( /iP(hone|ad|od)/.test( navigator.userAgent ) || ( navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1 ) ) isSafari = true;
 			isFirefox = navigator.userAgent.indexOf( 'Firefox' ) > - 1;
 			firefoxVersion = isFirefox ? navigator.userAgent.match( /Firefox\/([0-9]+)\./ )[ 1 ] : - 1;
 

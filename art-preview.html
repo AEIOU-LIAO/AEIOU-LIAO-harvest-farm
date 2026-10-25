@@ -31,7 +31,7 @@ button.on{background:linear-gradient(#f1c95c,#c8902a);color:#2a1c08;border-color
 <canvas id="cv"></canvas>
 <div id="load">正在加载新角色…</div>
 <div class="bar" id="top">
-  <b>新角色预览 v1_test</b>
+  <b>新角色预览 v1_test <small style="color:#bfae8c;font-weight:400">页面 2</small></b>
   <button data-who="hero_boy" class="on">男主角</button><button data-who="hero_girl">女主角</button><button data-who="dog">边牧</button>
   <span class="sep"></span>
   <button data-clip="idle" class="on">待机</button><button data-clip="walk">走路</button><button id="move">边走边移动</button>
@@ -77,7 +77,18 @@ addEventListener('resize', resize); resize();
 
 /* ---- 资源 ---- */
 const gl = new T.GLTFLoader(), tl = new T.TextureLoader(), cache = {}, texC = {};
-const loadGLB = n => cache[n] || (cache[n] = new Promise((ok, no) => gl.load(BASE + n + '/' + n + '.glb', ok, undefined, no)));
+/* 贴图不用 GLB 里内嵌的图片（手机微信浏览器解码内嵌图片会失败，模型变成全白），改为加载同名的单独 jpg 文件 */
+const texFile = {}; const fileTex = (url, srgb) => texFile[url] || (texFile[url] = new Promise(ok => tl.load(url, t => { t.flipY = false; if (srgb) t.encoding = T.sRGBEncoding; ok(t); }, undefined, () => ok(null))));
+async function externalTextures(g, n) {
+  const J = g.parser.json, img = ti => ti === undefined ? null : J.images[J.textures[ti].source].name, mats = new Set();
+  g.scene.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => mats.add(m)); });
+  await Promise.all([...mats].map(async m => { const d = (J.materials || []).find(x => x.name === m.name); if (!d) return; const pbr = d.pbrMetallicRoughness || {}, bc = img(pbr.baseColorTexture && pbr.baseColorTexture.index), nm = img(d.normalTexture && d.normalTexture.index);
+    if (bc) { const t = await fileTex(BASE + n + '/tex/' + bc + '.jpg', true); if (t) m.map = t; }
+    if (nm) { const t = await fileTex(BASE + n + '/tex/' + nm + '.jpg', false); if (t) m.normalMap = t; }
+    m.needsUpdate = true; }));
+  return g;
+}
+const loadGLB = n => cache[n] || (cache[n] = new Promise((ok, no) => gl.load(BASE + n + '/' + n + '.glb', ok, undefined, no)).then(g => externalTextures(g, n)));
 const coatTex = k => texC[k] || (texC[k] = new Promise((ok, no) => tl.load(BASE + 'dog_collie/textures/dog_coat_' + k + '_basecolor.jpg', t => { t.flipY = false; t.encoding = T.sRGBEncoding; ok(t); }, undefined, no)));
 const stats = { loadMs: 0, glbMs: {}, fps: [], stress: null };
 
@@ -86,12 +97,27 @@ function instance(gltf) { const s = T.SkeletonUtils.clone(gltf.scene); s.travers
 function play(inst, name, fade) { const c = T.AnimationClip.findByName(inst.clips, name); if (!c) return; const a = inst.acts[name] || (inst.acts[name] = inst.mx.clipAction(c)); Object.values(inst.acts).forEach(x => { if (x !== a) x.fadeOut(fade || 0.25); }); a.reset().fadeIn(fade || 0.25).play(); inst.clip = name; }
 function setAcc(s, map) { s.traverse(o => { if (o.name in map) o.visible = !!map[o.name]; }); }
 async function setCoat(inst, k) { const t = await coatTex(k); inst.s.traverse(o => { if (o.isMesh) { const ms = [].concat(o.material).map(m => { if (m.name !== 'dog_coat') return m; if (!m.userData.own) { m = m.clone(); m.userData.own = 1; } m.map = t; m.needsUpdate = true; return m; }); o.material = Array.isArray(o.material) ? ms : ms[0]; } }); setAcc(inst.s, ACC[k] || ACC.other); }
-async function show() {
+/* 出错时直接显示在屏幕上（手机上看不到控制台），截图发给 Claude 就能定位 */
+function showErr(msg) { let e = $('err'); if (!e) { e = document.createElement('div'); e.id = 'err'; e.style.cssText = 'position:fixed;left:10px;right:10px;bottom:150px;z-index:8;padding:10px 12px;border-radius:10px;background:#7a1a10;color:#fff;border:1px solid #ffb08a;font:12px/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;max-height:40vh;overflow:auto'; e.onclick = () => e.remove(); document.body.appendChild(e); } e.textContent = (e.textContent ? e.textContent + '\n' : '出错了（请截图发给 Claude，点这里关闭）：\n') + msg; }
+addEventListener('error', e => showErr((e.message || '') + ' @' + (e.filename || '').split('/').pop() + ':' + (e.lineno || '')));
+addEventListener('unhandledrejection', e => showErr('Promise: ' + ((e.reason && (e.reason.stack || e.reason.message)) || e.reason)));
+$('cv').addEventListener('webglcontextlost', () => showErr('WebGL 上下文丢失（手机显存不足或后台切换），请刷新页面'));
+T.DefaultLoadingManager.onError = url => showErr('文件加载失败：' + url);
+{ const ow = console.warn.bind(console), oe = console.error.bind(console); console.warn = (...a) => { const s = a.join(' '); if (/GLTFLoader|THREE\.WebGLProgram|shader/i.test(s)) showErr('警告：' + s.slice(0, 600)); ow(...a); }; console.error = (...a) => { showErr('错误：' + a.join(' ').slice(0, 600)); oe(...a); }; }
+/* 连续快速切换时，只保留最后一次选择的角色（以前加载慢时，旧角色会留在场上） */
+let showTok = 0;
+async function show() { try { await show0(); } catch (e) { showErr('加载角色失败：' + (e.stack || e.message || e)); } }
+async function show0() {
+  const tok = ++showTok;
   if (stress) stopStress();
   if (cur) { scene.remove(cur.s); cur = null; }
-  const n = who === 'dog' ? 'dog_collie' : who, t0 = performance.now(), g = await loadGLB(n); if (!stats.glbMs[n]) stats.glbMs[n] = Math.round(performance.now() - t0);
-  cur = instance(g); cur.kind = who === 'dog' ? 'dog' : 'hero'; scene.add(cur.s);
-  if (cur.kind === 'dog') { await setCoat(cur, coat); Object.assign(orbit, { dist: 2.4, ty: 0.42 }); } else { setAcc(cur.s, { hat, bag: 1, scarf: 1 }); Object.assign(orbit, { dist: 4.2, ty: 0.9 }); }
+  const w = who, n = w === 'dog' ? 'dog_collie' : w, t0 = performance.now(), g = await loadGLB(n); if (!stats.glbMs[n]) stats.glbMs[n] = Math.round(performance.now() - t0);
+  if (tok !== showTok) return;
+  const inst = instance(g); inst.kind = w === 'dog' ? 'dog' : 'hero';
+  if (inst.kind === 'dog') await setCoat(inst, coat); else setAcc(inst.s, { hat, bag: 1, scarf: 1 });
+  if (tok !== showTok) return;
+  if (cur) scene.remove(cur.s);
+  cur = inst; scene.add(cur.s); Object.assign(orbit, cur.kind === 'dog' ? { dist: 2.4, ty: 0.42 } : { dist: 4.2, ty: 0.9 });
   play(cur, clip, 0.01); renderBottom();
 }
 function renderBottom() {
