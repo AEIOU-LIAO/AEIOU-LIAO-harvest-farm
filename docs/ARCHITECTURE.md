@@ -67,6 +67,20 @@ server/
 - 同一时刻只加载当前区域（加上家园的必要部分）；切换区域像现在串门一样，有过场、按需下载。
 - 每个区域有预算：同屏三角面 ≤ 30 万、绘制次数 ≤ 150、贴图显存 ≤ 150 MB（手机），由预览页 / 测试脚本检查。
 
+**V0.3 已实现**（`src/zones.js`）：
+- `Zones.enter(id)`：淡出 → 释放上一个区域（`disposeTree` 释放全部几何体、材质、贴图）→ 生成 / 加载新区域 → 淡入。家园在后台暂停渲染、不响应点击（`W3.useZone`）。
+- 区域对象接口：`{ scene, camera, update(dt), resize(w, h), dispose() }`；`Zones.BUILDERS[id]` 注册生成函数。
+- 野外生成：`Zones.generate(gen, seed)` 只依赖种子和 `content/biomes.jsonc`，不依赖 Three.js（以后服务器可以用同一个种子算刷怪点、掉落点，前后端一致）。
+- 世界地图（侧栏「地图」）：列出 live / planned 区域；`dev` 区域只在网址带 `?dev=1` 时显示。
+
+### 3.2.1 家园建造网格（V0.3）
+
+- `content/home.jsonc`：家园所有固定建筑、菜地、池塘、牧场、果园的位置和占地；`src/world3d.js` 和服务器都读它。
+- `CFG.homeOccupancy({ fields, pastLv, pondLv })`：2 米一格（65 × 66 格），标出被菜地 / 建筑 / 池塘 / 牧场 / 果园占用的格子；满级后仍有约 2500 格可以自由建造。
+- `CFG.canPlace(occ, items, item, lv)`：开放状态、等级、数量上限、越界、占用、重叠检查，返回中文原因。
+- 存档 `users.layout`（迁移 v5）：`{ v, seq, items: [{ id, type, gx, gz, rot, at }] }`；接口 `GET /api/home/layout`、`POST /api/home/place`、`POST /api/home/remove`（退一半）。扩建牧场 / 鱼塘、开新菜地后，被占用格子上的建筑自动收回并全额退款。
+- 建筑目录 `content/buildings.jsonc` 目前全部 `planned`，第 1 期上线摆放界面时改为 `live`。
+
 ### 3.3 资源管线与实体
 
 - 美术交付 → `tools/pack_art.py`：去掉内嵌图片、网格 gzip、贴图出手机版 1024 和高清 2048 → `art/<版本>/<资源>/`。

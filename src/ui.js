@@ -423,6 +423,17 @@ function openHelp() {
 }
 
 /* ---------------- 牧场：鱼塘 + 牧场（羊）+ 果园 + 牧羊犬 ---------------- */
+/* ---------------- V0.3 世界地图：家园 + 规划中的区域 ---------------- */
+function openWorldMap() {
+  const lv = S.me.lv, here = Zones.current;
+  const card = z => { const live = z.status === 'live' || z.status === 'dev', lock = lv < z.unlockLv, isHere = here === z.id;
+    const tags = [isHere ? '<span class="here">你在这里</span>' : '', z.status === 'dev' ? '<span class="dev">开发用</span>' : '', z.status === 'planned' ? `<span>${esc(z.season || '规划中')}</span>` : '', `<span>Lv.${z.unlockLv} 解锁</span>`].join('');
+    const btn = isHere ? '' : live ? `<button class="btn sm primary" data-zone="${z.id}" ${lock ? 'disabled' : ''}>${lock ? `需要 Lv.${z.unlockLv}` : '前往'}</button>` : '<button class="btn sm" disabled>未开放</button>';
+    return `<div class="zcard ${z.status === 'planned' ? 'planned' : 'live'}"><b>${esc(z.name)}</b><div class="zs">${tags}</div><small>${esc(z.desc || '')}</small>${btn}</div>`; };
+  openModal(`${H2('compass', '世界地图', '村外有村，山外有山。更多区域会随着赛季陆续开放')}<div class="zmap">${Zones.list().map(card).join('')}</div>`, {
+    wide: true, mount: () => qsa('[data-zone]').forEach(b => b.onclick = async () => { closeModal(true); await Zones.enter(b.dataset.zone); })
+  });
+}
 function openRanch(tab) {
   if (view.key !== 'home') { goHome(); }
   tab = tab || 'pond'; const R = S.me.ranch, now = NET.now(), lv = S.me.lv, gold = S.me.gold;

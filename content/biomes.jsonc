@@ -1,0 +1,13 @@
+// 生物群系：野外区域（名山猎场等）用「种子 + 生物群系」程序生成地形（借鉴沙盒游戏，见 docs/ARCHITECTURE.md 3.6）。
+// 按高度 h（0~1）从低到高匹配：h 小于 maxH 就是这个群系；moist 为湿度阈值（湿度低于它时用 dry 群系代替，比如干燥的草地变成灌木丛）。
+// col 地面颜色 · trees 每 100 平方米大约几棵树 · rocks 每 100 平方米大约几块石头 · tree 树的样式 · walk 能不能走（湖不能走）
+// 以后可以加 creatures（会刷出哪些动物）、resources（能采集什么）。
+[
+  {"id":"lake","name":"湖泊","maxH":0.30,"col":"#4a8ac0","trees":0,"rocks":0,"walk":false},
+  {"id":"shore","name":"湖滩","maxH":0.34,"col":"#d8c890","trees":0,"rocks":0.4,"walk":true},
+  {"id":"meadow","name":"草甸","maxH":0.52,"col":"#7cb850","trees":0.6,"rocks":0.2,"tree":"broadleaf","walk":true,"moist":0.35,"dry":"shrub"},
+  {"id":"shrub","name":"灌木丛","maxH":0.52,"col":"#9aa850","trees":0.3,"rocks":0.6,"tree":"bush","walk":true},
+  {"id":"forest","name":"森林","maxH":0.68,"col":"#4e8a3a","trees":4.5,"rocks":0.3,"tree":"pine","walk":true},
+  {"id":"rock","name":"山岩","maxH":0.84,"col":"#8a8478","trees":0.3,"rocks":2.5,"tree":"pine","walk":true},
+  {"id":"snow","name":"雪顶","maxH":1.01,"col":"#eef2f6","trees":0,"rocks":0.8,"walk":true}
+]

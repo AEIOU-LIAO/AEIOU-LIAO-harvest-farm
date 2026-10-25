@@ -1,8 +1,9 @@
 // 区域（场景）登记表。一个区域 = 一张独立地图，进入时才加载、离开时释放（见 docs/ARCHITECTURE.md 3.2）。
-// status：live 已上线 · planned 规划中（还没有内容，地图界面上显示为「未开放」）
+// status：live 已上线 · planned 规划中（还没有内容，地图界面上显示为「未开放」）· dev 开发用（只有网址带 ?dev=1 时显示）
 // unlockLv 解锁等级 · budget 手机性能预算（同屏三角面、绘制次数、贴图显存 MB）· assets 用到的美术资源（assets.jsonc 里的 id）
 [
   {"id":"home","name":"家园","status":"live","unlockLv":1,"desc":"你的农场：菜地、牧场、鱼塘、果园","budget":{"tris":300000,"calls":150,"texMB":150},"assets":[]},
+  {"id":"trial","name":"试炼野外","status":"dev","unlockLv":1,"desc":"开发用：验证区域切换和「种子 + 生物群系」程序生成","budget":{"tris":300000,"calls":150,"texMB":150},"assets":[],"gen":{"size":160,"seg":120,"seed":20261025,"height":26}},
   {"id":"mountain","name":"名山猎场","status":"planned","unlockLv":60,"desc":"深山里有鹿、野猪、狼和熊，带上猎犬去狩猎","season":"第 2 期"},
   {"id":"river","name":"河谷","status":"planned","unlockLv":150,"desc":"大河两岸，可以钓鱼、行船","season":"之后"},
   {"id":"desert","name":"大漠","status":"planned","unlockLv":400,"desc":"黄沙里埋着金字塔","season":"之后"},

@@ -408,13 +408,13 @@ function ranchBadge() { const R = S && S.me.ranch; if (!R) return 0; const now =
 const fishLeftC = (f, now) => CFG.fishLeft(f, now), sheepCyclesC = (s, now, R) => CFG.sheepCycles(s, now, R.herd);
 function renderSide() {
   if (!S) return; const b = S.badges;
-  const items = [['friends', 'users', '好友', b.requests], ['msg', 'mail', '消息', b.unread], ['orders', 'box', '订单'], ['market', 'tag', '集市'], ['rank', 'trophy', '排行'], ['ach', 'medal', '成就', b.ach], ['codex', 'book', '图鉴'], ['ranch', 'sheep', '牧场', ranchBadge()], ['dress', 'palette', '装扮']];
+  const items = [['map', 'compass', '地图'], ['friends', 'users', '好友', b.requests], ['msg', 'mail', '消息', b.unread], ['orders', 'box', '订单'], ['market', 'tag', '集市'], ['rank', 'trophy', '排行'], ['ach', 'medal', '成就', b.ach], ['codex', 'book', '图鉴'], ['ranch', 'sheep', '牧场', ranchBadge()], ['dress', 'palette', '装扮']];
   const html = items.map(([id, ic, tx, bd]) => `<button class="sbtn" data-s="${id}">${ICON(ic)}<em>${tx}</em>${bd ? `<i class="bd">${bd}</i>` : ''}</button>`).join('')
     + (S.events.length ? `<button class="sbtn ev" data-s="events">${ICON('party')}<em>活动</em></button>` : '');
   const el = $('side'); if (el._h !== html) { el._h = html; el.innerHTML = html; el.querySelectorAll('.sbtn').forEach(x => x.onclick = () => { ac(); sfx('click'); sideClick(x.dataset.s); }); }
   renderNewbie();
 }
-function sideClick(s) { ({ ranch: () => openRanch(), friends: () => openFriends(), msg: openMessages, orders: openOrders, market: () => openMarket(), rank: () => openRank(), ach: openAch, codex: openCodex, dress: () => openDress(), events: openEvents })[s](); }
+function sideClick(s) { ({ map: openWorldMap, ranch: () => openRanch(), friends: () => openFriends(), msg: openMessages, orders: openOrders, market: () => openMarket(), rank: () => openRank(), ach: openAch, codex: openCodex, dress: () => openDress(), events: openEvents })[s](); }
 function renderNewbie() {
   const el = $('newbie'); if (!S || !S.badges.newbieLeft) { el.style.display = 'none'; return; }
   const done = CFG.NEWBIE.length - S.badges.newbieLeft; el.style.display = '';
@@ -487,7 +487,7 @@ function expand(list, total, max, fn) { const out = []; if (!total) return out; 
 let R3 = { key: '', v: null };
 function ranch3d() { const R = ranchOfView(); if (!R) return { fish: [], sheep: [], trees: [], herd: { on: false }, lv: {} }; const now = NET.now(), tick = Math.floor(now / 1000);
   if (R3.r === R && R3.tick === tick) return R3.v; // 每秒重算一次
-  const ponds = 1 + Math.floor(((R.pondLv || 1) - 1) / 5), lvs = { pond: R.pondLv || 1, pasture: R.pastLv || 1, orchard: R.orchLv || 1, ponds: Math.min(6, ponds) };
+  const lvs = { pond: R.pondLv || 1, pasture: R.pastLv || 1, orchard: R.orchLv || 1, ponds: CFG.pondsOf(R.pondLv) };
   const v = { lv: lvs, fish: expand(R.fish, R.fishN !== undefined ? R.fishN : R.fish.length, 24 * lvs.ponds, f => { const d = CFG.FISH[f.t], left = CFG.fishLeft(f, now); return { t: f.t, k: d ? 1 - left / d.time : 1, ripe: left <= 0 }; }),
     sheep: expand(R.sheep, R.sheepN !== undefined ? R.sheepN : R.sheep.length, 360, s => ({ t: s.t, c: s.last ? CFG.sheepCycles(s, now, R.herd) : (s.cycles || 0) })),
     trees: expand(R.trees || [], R.treeN || 0, 160, r => { const d = CFG.TREES[r.t], g = CFG.treeGrowLeft(r, now); return { t: r.t, k: d ? 1 - g / d.grow : 1, c: CFG.treeCycles(r, now) }; }),

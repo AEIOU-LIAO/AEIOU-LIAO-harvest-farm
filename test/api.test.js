@@ -621,3 +621,33 @@ test('v3.3：声音设置分开保存（音乐 / 音效开关 + 音量），老�
     r = await t.call('POST', '/api/me/profile', { settings: { sound: true, music: true, mvol: 300 } }, a.token); assert.equal(r.ok, false);
   } finally { await t.close(); }
 });
+
+test('V0.3 家园自由建造：布局存档、摆放校验、拆除退款、扩建时自动收回', async () => {
+  const t = await start();
+  const B = n => CFG.BUILDINGS.find(b => b.id === n), saved = CFG.BUILDINGS.map(b => b.status);
+  try {
+    const a = await t.guest('建造'); await t.app.db.run('UPDATE users SET gold=9999999, lv=1 WHERE id=?', a.id);
+    let L = await t.call('GET', '/api/home/layout', null, a.token); assert.ok(L.ok !== false, L.error); assert.deepEqual(L.items, []); assert.equal(L.fields, 1); assert.equal(L.grid.W, 65); assert.equal(L.grid.H, 66);
+    let r = await t.call('POST', '/api/home/place', { type: 'fence', gx: 0, gz: 0 }, a.token); assert.equal(r.ok, false); assert.match(r.error, /还没有开放/);
+    B('fence').status = 'live'; B('watchtower').status = 'live';
+    const occ = CFG.homeOccupancy({ fields: 1, pastLv: 1, pondLv: 1 }), free = []; for (let j = 0; j < occ.H; j++) for (let i = 0; i < occ.W; i++) if (!occ.cells[j * occ.W + i]) free.push([i, j]);
+    const [fx, fz] = free[Math.floor(free.length / 2)];
+    const g0 = (await t.call('GET', '/api/state', null, a.token)).me.gold;
+    r = await t.call('POST', '/api/home/place', { type: 'fence', gx: fx, gz: fz }, a.token); assert.ok(r.ok, r.error); assert.equal(r.result.cost, 200);
+    assert.equal((await t.call('GET', '/api/state', null, a.token)).me.gold, g0 - 200);
+    r = await t.call('POST', '/api/home/place', { type: 'fence', gx: fx, gz: fz }, a.token); assert.match(r.error, /重叠/);
+    const fieldCell = [Math.floor((0 - occ.x0) / occ.cell), Math.floor((0 - occ.z0) / occ.cell)];
+    r = await t.call('POST', '/api/home/place', { type: 'fence', gx: fieldCell[0], gz: fieldCell[1] }, a.token); assert.match(r.error, /已经有东西/);
+    r = await t.call('POST', '/api/home/place', { type: 'fence', gx: occ.W, gz: 0 }, a.token); assert.match(r.error, /超出家园范围/);
+    r = await t.call('POST', '/api/home/place', { type: 'watchtower', gx: free[0][0], gz: free[0][1] }, a.token); assert.match(r.error, /Lv\.40/);
+    L = await t.call('GET', '/api/home/layout', null, a.token); assert.equal(L.items.length, 1); const id = L.items[0].id;
+    r = await t.call('POST', '/api/home/remove', { id }, a.token); assert.ok(r.ok, r.error); assert.equal(r.result.refund, 100);
+    assert.equal((await t.call('GET', '/api/home/layout', null, a.token)).items.length, 0);
+    // 扩建牧场：放在牧场右下角外面一格的栅栏，牧场扩大后被收回并全额退款
+    const P = CFG.HOME.pasture, [w1, d1] = CFG.pastSize(1), gx = Math.floor((P.x0 + w1 + 0.5 - occ.x0) / occ.cell) + 1, gz = Math.floor((P.z0 + d1 / 2 - occ.z0) / occ.cell);
+    r = await t.call('POST', '/api/home/place', { type: 'fence', gx, gz }, a.token); assert.ok(r.ok, r.error);
+    await t.app.db.run('UPDATE users SET lv=200 WHERE id=?', a.id); let ev = 0;
+    for (let k = 0; k < 8; k++) { r = await t.call('POST', '/api/ranch/upgrade', { kind: 'pasture' }, a.token); assert.ok(r.ok, r.error); ev += r.result.evicted; }
+    assert.equal(ev, 1); assert.equal((await t.call('GET', '/api/home/layout', null, a.token)).items.length, 0);
+  } finally { CFG.BUILDINGS.forEach((b, i) => { b.status = saved[i]; }); await t.close(); }
+});

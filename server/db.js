@@ -95,6 +95,8 @@ const MIGRATIONS = [
   ALTER TABLE users ADD COLUMN dog2_until INTEGER NOT NULL DEFAULT 0;`,
   // v4 鱼塘与牧场：鱼、羊、牧羊状态存成一段 JSON（数量少，跟着玩家一起读写）
   `ALTER TABLE users ADD COLUMN ranch TEXT NOT NULL DEFAULT '{}';`,
+  // v5 家园自由建造（V0.3）：玩家摆放的建筑布局存成一段 JSON：{ v, seq, items: [{ id, type, gx, gz, rot, at }] }
+  `ALTER TABLE users ADD COLUMN layout TEXT NOT NULL DEFAULT '{}';`,
 ];
 
 const BUSY = /SQLITE_BUSY|database is locked|SQLITE_LOCKED|BUSY_SNAPSHOT/i;

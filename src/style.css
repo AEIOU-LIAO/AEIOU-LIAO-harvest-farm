@@ -373,3 +373,18 @@ body.mopen #toasts{top:auto;bottom:16px}
   #modal .mygold{margin:2px 0 4px}
   #modal .tabs{margin-bottom:6px}#modal .tabs button{padding-top:5px;padding-bottom:5px}
 }
+/* V0.3 区域系统：过场、区域信息条；不在家园时隐藏家园的操作界面 */
+#zonefade{position:fixed;inset:0;z-index:40;background:#1a140c;opacity:0;pointer-events:none;transition:opacity .38s ease}
+#zonefade.on{opacity:1;pointer-events:auto}
+#zonebar{position:fixed;left:50%;top:max(10px,env(safe-area-inset-top));transform:translateX(-50%);z-index:12;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;max-width:94vw;padding:8px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--sh);color:var(--ink)}
+#zonebar b{color:#fff1cc;font-size:15px;letter-spacing:2px}#zonebar .zb-info{font-size:12px;color:var(--mut)}
+#zonebar .zb-budget{font:12px ui-monospace,Menlo,monospace;color:#9fe0a8}#zonebar .zb-budget.over{color:#ff9a8a}
+body.inzone #toolbar,body.inzone #side,body.inzone #friends,body.inzone #newbie,body.inzone #log,body.inzone #tip,body.inzone #titlebar,body.inzone #recenter,body.inzone #joy,body.inzone #jumpbtn,body.inzone #actbtn,body.inzone #actprompt,body.inzone #curtool{display:none!important}
+/* 世界地图 */
+.zmap{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.zcard{position:relative;padding:12px 14px;border-radius:14px;border:1px solid var(--line2);background:rgba(0,0,0,.22);display:flex;flex-direction:column;gap:6px}
+.zcard b{font-size:15px;color:#fff1cc}.zcard small{color:var(--mut);font-size:12.5px;line-height:1.5}
+.zcard.live{border-color:var(--gold);background:linear-gradient(160deg,rgba(232,184,74,.18),rgba(0,0,0,.2))}
+.zcard.planned{opacity:.78}.zcard.planned b::after{content:" 🔒";font-size:12px}
+.zcard .zs{display:flex;gap:6px;flex-wrap:wrap;font-size:11.5px}.zcard .zs span{padding:2px 8px;border-radius:8px;background:rgba(255,255,255,.07)}
+.zcard .zs .here{background:#3fae5a;color:#fff}.zcard .zs .dev{background:#5a6ad8;color:#fff}

@@ -8,7 +8,8 @@ const W3 = (() => {
   T.ColorManagement.legacyMode = false;
   const PITCH = 2.32, PLOT = 2.02, BED_H = 0.22, COLS3 = 6, ROWS3 = 4;
   // 农田一片一片地排：第 0 片在农场中间；之后的田在北边，每排 4 片
-  const fieldC = f => f === 0 ? [0, 0] : [(((f - 1) % 4) - 1.5) * 17, -32 - Math.floor((f - 1) / 4) * 13];
+  const fieldC = GAMECFG.fieldCenter; /* 菜地位置、建筑位置等家园布局来自 content/home.jsonc（服务器的建造网格也读它） */
+  const HOMEL = GAMECFG.HOME, ST = Object.fromEntries(HOMEL.structures.map(o => [o.id, o]));
   const plotXZ = i => { const f = Math.floor(i / 24), j = i % 24, [cx, cz] = fieldC(f); return [cx + ((j % COLS3) - 2.5) * PITCH, cz + (Math.floor(j / COLS3) - 1.5) * PITCH]; };
   const fieldAtXZ = (x, z) => { for (let f = 0; f < 20; f++) { const [cx, cz] = fieldC(f); if (Math.abs(x - cx) < 8 && Math.abs(z - cz) < 5.6) return f; } return -1; };
   let DETF = -1; /* 俯视拖到哪片田，哪片田也用精细模型 */
@@ -622,13 +623,13 @@ const W3 = (() => {
   function plotKey(P, o) { return [P.u, P.soil, P.c, P.c >= 0 ? CFG3.stageOf(P.p) : -1, P.pr ? '' + (P.pr.d | 0) + (P.pr.w | 0) + (P.pr.b | 0) : '', P.wet ? 1 : 0, o.mine ? 1 : 0, o.next ? 1 : 0, o.lite ? 1 : 0].join('|'); }
 
   /* ---------------- 鱼塘、牧场、果园（v3：规模随等级扩大） ---------------- */
-  const POND = { x: -5.5, z: 13.5 }, PONDS = [[-5.5, 13.5], [-17.5, 15], [-29, 14], [-6.5, 26], [-18.5, 27.5], [-30, 27]];
-  const PAST = { x0: 10.2, z0: 7.0, x1: 16.6, z1: 12.2, lv: 0 }; PAST.cx = (PAST.x0 + PAST.x1) / 2; PAST.cz = (PAST.z0 + PAST.z1) / 2;
-  const ORCH = { x0: -64, x1: -36, z0: -16, z1: 12 }; ORCH.cx = (ORCH.x0 + ORCH.x1) / 2; ORCH.cz = (ORCH.z0 + ORCH.z1) / 2;
+  const PONDS = HOMEL.ponds.list, POND = { x: PONDS[0][0], z: PONDS[0][1] };
+  const PAST = { x0: HOMEL.pasture.x0, z0: HOMEL.pasture.z0, x1: HOMEL.pasture.x0 + CFG3.pastSize(1)[0], z1: HOMEL.pasture.z0 + CFG3.pastSize(1)[1], lv: 0 }; PAST.cx = (PAST.x0 + PAST.x1) / 2; PAST.cz = (PAST.z0 + PAST.z1) / 2;
+  const ORCH = { x0: HOMEL.orchard.x0, x1: HOMEL.orchard.x1, z0: HOMEL.orchard.z0, z1: HOMEL.orchard.z1 }; ORCH.cx = (ORCH.x0 + ORCH.x1) / 2; ORCH.cz = (ORCH.z0 + ORCH.z1) / 2;
   const MEADOW = v3(0, 0, 0), HERD_T = { out: 24, graze: 70, back: 94, loop: 110 };
   const RANCH3 = { fish: [], sheep: [], fkey: '', skey: '', tkey: '', herd: { on: false, dog: '' }, ready: false, ponds: 1, pondObjs: [], pastG: null, inst: {}, trees: null };
   const PFENCE = []; let PASTOBST = [];
-  const pastSize = l => { const g = Math.pow((Math.min(100, Math.max(1, l)) - 1) / 99, 0.6); return [6.4 + 34 * g, 5.2 + 24 * g]; };
+  const pastSize = CFG3.pastSize;
   // 小鱼
   const FISH_GEO = {};
   function fishGeo() { if (FISH_GEO.body) return FISH_GEO;
@@ -968,6 +969,7 @@ const W3 = (() => {
     R.setSize(W, H, false);
   }
   function resize() {
+    if (ZONE && ZONE.resize) ZONE.resize(window.innerWidth, window.innerHeight);
     W = window.innerWidth; H = window.innerHeight; const mob = W < 820;
     const port = H > W * 1.15; Object.assign(safe, port ? { l: 46, r: 58, t: 120, b: 96 } : mob ? { l: 54, r: 64, t: 70, b: 92 } : { l: 84, r: 104, t: 84, b: 112 });
     applyQuality(); if (viewMode === 'walk') { cam.aspect = W / H; cam.updateProjectionMatrix(); } else fit();
@@ -1168,13 +1170,13 @@ const W3 = (() => {
     fenceLine(fg, -X, -Z, X, -Z, wm); fenceLine(fg, X, -Z, X, Z, wm); fenceLine(fg, -X, -Z, -X, Z, wm); fenceLine(fg, -X, Z, -1.6, Z, wm); fenceLine(fg, 1.6, Z, X, Z, wm);
     scene.add(merge(fg));
     // 建筑与装饰
-    OBST.length = 0; OBST.push([-13, -2.5, 3.3], [3.5, -15, 1.9], [11.2, -3.8, 0.9], [-10.5, 6.5, 0.35]);
-    const house = buildHouse(); house.position.set(-13, 0, -2.5); house.rotation.y = 0.15; scene.add(house); doorLamp.position.set(-13 + 0.6, 2.8, -2.5 + 2.6);
-    const wmill = buildWindmill(); wmill.position.set(3.5, 0, -15); wmill.rotation.y = -0.2; scene.add(wmill);
-    scene.add(buildPond(-5.5, 13.5)); scene.add(pondHit()); setPastureLv(1); buildOrchard(); RANCH3.ready = true;
-    const scare = buildScarecrow(); scare.position.set(-10.5, 0, 6.5); scene.add(scare);
-    const dh = buildDoghouse(); dh.position.set(11.2, 0, -3.8); dh.rotation.y = -0.6; scene.add(dh);
-    { const hk = new T.Mesh(new T.BoxGeometry(1.8, 1.6, 1.8), new T.MeshBasicMaterial({ visible: false })); hk.position.set(11.2, 0.8, -3.8); hk.userData.idx = -10; scene.add(hk); hitBoxes.push(hk); } // 点狗窝：领养 / 喂狗
+    OBST.length = 0; ['house', 'windmill', 'doghouse', 'scarecrow'].forEach(k => OBST.push([ST[k].x, ST[k].z, ST[k].obstacle]));
+    const house = buildHouse(); house.position.set(ST.house.x, 0, ST.house.z); house.rotation.y = ST.house.ry; scene.add(house); doorLamp.position.set(ST.house.x + 0.6, 2.8, ST.house.z + 2.6);
+    const wmill = buildWindmill(); wmill.position.set(ST.windmill.x, 0, ST.windmill.z); wmill.rotation.y = ST.windmill.ry; scene.add(wmill);
+    scene.add(buildPond(POND.x, POND.z)); scene.add(pondHit()); setPastureLv(1); buildOrchard(); RANCH3.ready = true;
+    const scare = buildScarecrow(); scare.position.set(ST.scarecrow.x, 0, ST.scarecrow.z); scare.rotation.y = ST.scarecrow.ry; scene.add(scare);
+    const dh = buildDoghouse(); dh.position.set(ST.doghouse.x, 0, ST.doghouse.z); dh.rotation.y = ST.doghouse.ry; scene.add(dh);
+    { const hk = new T.Mesh(new T.BoxGeometry(1.8, 1.6, 1.8), new T.MeshBasicMaterial({ visible: false })); hk.position.set(ST.doghouse.x, 0.8, ST.doghouse.z); hk.userData.idx = -10; scene.add(hk); hitBoxes.push(hk); } // 点狗窝：领养 / 喂狗
     // 狗狗模型计算量较大：画面出来后再生成，避免打开游戏时卡顿
     setTimeout(() => { const dog = buildDog('fuwang'); dog.position.set(10.4, 0, 1.2); dog.rotation.y = -2.9; dog.visible = false; scene.add(dog);
       setTimeout(() => { const dog2 = buildDog('ruibao'); dog2.position.set(10.6, 0, -1.4); dog2.rotation.y = -2.6; dog2.visible = false; scene.add(dog2); }, 60); }, 400);
@@ -1217,12 +1219,17 @@ const W3 = (() => {
   }
   function setEnv(h, rain) { envState.hour = h; envState.rain = rain; }
   const ray = new T.Raycaster(), ndc = new T.Vector2();
-  function pick(cx, cy) { if (!ready) return -1; const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); const h = ray.intersectObjects(hitBoxes, false).filter(x => (!x.object.userData.dog || (x.object.userData.dog.g.visible && anim.dogs.includes(x.object.userData.dog))) && (!x.object.parent || x.object.parent.visible !== false)); return h.length ? (h[0].object.userData.dog ? -20 - anim.dogs.indexOf(h[0].object.userData.dog) : h[0].object.userData.idx) : -1; }
-  function nearKennel() { return viewMode === 'walk' && Math.hypot(HERO.pos.x - 11.2, HERO.pos.z + 3.8) < 2.4; }
+  function pick(cx, cy) { if (!ready || ZONE) return -1; const r = canvasEl.getBoundingClientRect(); ndc.set((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam); const h = ray.intersectObjects(hitBoxes, false).filter(x => (!x.object.userData.dog || (x.object.userData.dog.g.visible && anim.dogs.includes(x.object.userData.dog))) && (!x.object.parent || x.object.parent.visible !== false)); return h.length ? (h[0].object.userData.dog ? -20 - anim.dogs.indexOf(h[0].object.userData.dog) : h[0].object.userData.idx) : -1; }
+  function nearKennel() { return viewMode === 'walk' && Math.hypot(HERO.pos.x - ST.doghouse.x, HERO.pos.z - ST.doghouse.z) < 2.4; }
   function screenOf(i, y) { const v = P0(i, y || 0.6).project(cam); return { x: (v.x * 0.5 + 0.5) * W, y: (-v.y * 0.5 + 0.5) * H }; }
   let simK = 1; const GAITS_REF = {}; // 调试用：加快动画时间
+  /* V0.3 区域系统：不在家园时，渲染器改画当前区域自己的场景和镜头（家园暂停，不响应点击） */
+  let ZONE = null;
+  function useZone(z) { ZONE = z || null; if (ZONE && ZONE.resize) ZONE.resize(W, H); }
   function render(dt) {
-    if (!ready) return; dt *= simK; tNow += dt; const t = tNow; perfTick(dt);
+    if (!ready) return; dt *= simK;
+    if (ZONE) { ZONE.update(dt); R.render(ZONE.scene, ZONE.camera); return; }
+    tNow += dt; const t = tNow; perfTick(dt);
     updateHero(dt); if (viewMode === 'walk') updateWalkCam(dt); else if (panGoal.v) { if (!panGoal.s) { panGoal.s = pan.clone(); panGoal.t0 = performance.now(); } const k = Math.min(1, (performance.now() - panGoal.t0) / 450), e = 1 - Math.pow(1 - k, 3); pan.copy(panGoal.s).lerp(panGoal.v, e); if (k >= 1) { panGoal.v = null; panGoal.s = null; } applyCam(); } updateRanch(dt, tNow);
     const E = envAt(envState.hour), rk = envState.rain;
     const grey = new T.Color('#8a96a8');
@@ -1240,11 +1247,11 @@ const W3 = (() => {
     if (anim.windmill) anim.windmill.rotation.z = -t * (0.5 + rk * 0.8);
     if (anim.water) { anim.water.normalMap.offset.set(t * 0.02, t * 0.013); }
     anim.clouds.forEach((c, i) => { c.position.x += dt * (0.6 + i * 0.1); if (c.position.x > 110) c.position.x = -110; });
-    anim.smoke.forEach(s => { const k = (t * 0.25 + s.userData.ph) % 1; s.position.copy(anim.house.smokeAt).applyMatrix4(new T.Matrix4().makeRotationY(0.15)).add(v3(-13, 0, -2.5)); s.position.y += k * 3; s.position.x += Math.sin(k * 4 + s.userData.ph * 6) * 0.3 + k * 0.6; s.scale.setScalar(0.5 + k * 1.4); s.material.opacity = 0.45 * (1 - k) * (1 - nightK * 0.5); });
+    anim.smoke.forEach(s => { const k = (t * 0.25 + s.userData.ph) % 1; s.position.copy(anim.house.smokeAt).applyMatrix4(new T.Matrix4().makeRotationY(ST.house.ry)).add(v3(ST.house.x, 0, ST.house.z)); s.position.y += k * 3; s.position.x += Math.sin(k * 4 + s.userData.ph * 6) * 0.3 + k * 0.6; s.scale.setScalar(0.5 + k * 1.4); s.material.opacity = 0.45 * (1 - k) * (1 - nightK * 0.5); });
     anim.chickens.forEach(c => { c.pk -= dt; const m = c.m; if (c.pk > 0) { m.rotation.z = Math.sin(t * 12) * 0.05; return; } const dx = c.tx - m.position.x, dz = c.tz - m.position.z, d = Math.hypot(dx, dz); if (d < 0.1) { if (Math.random() < 0.5) c.pk = 1 + Math.random() * 2.5; else { c.tx = c.home.x + (Math.random() - 0.5) * 5; c.tz = c.home.z + (Math.random() - 0.5) * 3; } } else { const s = Math.min(d, dt * 0.9); m.position.x += dx / d * s; m.position.z += dz / d * s; m.rotation.y = Math.atan2(-dz, dx); m.position.y = Math.abs(Math.sin(t * 10)) * 0.04; } });
     anim.butterflies.forEach(b => { const p = b.ph; b.g.position.set(Math.sin(t * 0.3 + p) * 9, 1.2 + Math.sin(t * 1.3 + p) * 0.4, Math.cos(t * 0.23 + p * 2) * 6.5); b.g.rotation.y = t * 0.3 + p; const f = Math.sin(t * 18 + p) * 1.1; b.lp.rotation.y = f; b.rp.rotation.y = -f; });
     // ===== 狗狗动画：行为 + 移动控制 + 脚踏实地的步态 =====
-    const KEN = { x: 11.2, z: -3.8 };
+    const KEN = { x: ST.doghouse.x, z: ST.doghouse.z };
     const wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
     // 朝目标移动：有加速、减速、转向速度限制（不会原地瞬间转身、也不会急停滑行）
     const moveDog = (dg, tx, tz, vmax, stop) => { const p = dg.g.position, dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
@@ -1377,6 +1384,6 @@ const W3 = (() => {
     return ICONS[key];
   }
   function zoomBy(f) { if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * f)); return; } zoom = Math.max(0.6, Math.min(2.6, zoom * f)); applyCam(); }
-  return { get __scene() { return scene; }, zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, hits: hitBoxes.length, dogs: anim.dogs.length, objs: (() => { let n = 0, v = 0; scene.traverse(o => { if (o.isMesh || o.isSprite) { n++; let vis = true, q = o; while (q) { if (!q.visible) { vis = false; break; } q = q.parent; } if (vis) v++; } }); return n + '/' + v; })(), parts: parts.length, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, setPets, dogInfo: k => { const d = anim.dogs[k]; return d ? { did: d.did, name: d.name, kind: d.kind } : null; }, pondSplash, setField: f => { ACTF = Math.max(0, f | 0); pan.set(0, 0, 0); panGoal.v = null; if (viewMode !== 'walk') fit(); }, panBy, panTo, resetView, lookAt: k => { const p = SPOT[k] && SPOT[k](); if (p) panTo(p[0], p[1]); }, get panned() { return pan.length() > 1 || zoom > 1.35; }, worldBox, get pan() { return pan.toArray().map(v => +v.toFixed(2)); }, get zoom() { return zoom; }, get field() { return ACTF; }, fieldCenter: fieldC, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ leg: RANCH3.leg, follow: RANCH3.follow, A: RANCH3.A && RANCH3.A.toArray().map(v => +v.toFixed(1)), phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, dbgDogCam: (k, yaw, pitch, dist) => { const dg = anim.dogs[k]; if (!dg) return null; const c = dg.g.position, cam2 = new T.PerspectiveCamera(32, W / H, 0.05, 80), d = dist || 2.2, a = dg.g.rotation.y + (yaw || 0); cam2.position.set(c.x + Math.cos(a) * d * Math.cos(pitch || 0.2), 0.35 + Math.sin(pitch || 0.2) * d, c.z - Math.sin(a) * d * Math.cos(pitch || 0.2)); cam2.lookAt(c.x, 0.3, c.z); R.render(scene, cam2); return R.domElement.toDataURL('image/png'); }, dbgPose: (k, p) => { const d = anim.dogs[k]; if (d) d.force = p || null; }, dogGround: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const v = new T.Vector3(); let lo = 9; const body = dg.torso.children[0], P = body.geometry.attributes.position; for (let i = 0; i < P.count; i += 2) { v.fromBufferAttribute(P, i).applyMatrix4(body.matrixWorld); if (v.y < lo) lo = v.y; }
+  return { useZone, get zone() { return ZONE; }, get renderer() { return R; }, get __scene() { return scene; }, zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, hits: hitBoxes.length, dogs: anim.dogs.length, objs: (() => { let n = 0, v = 0; scene.traverse(o => { if (o.isMesh || o.isSprite) { n++; let vis = true, q = o; while (q) { if (!q.visible) { vis = false; break; } q = q.parent; } if (vis) v++; } }); return n + '/' + v; })(), parts: parts.length, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, setPets, dogInfo: k => { const d = anim.dogs[k]; return d ? { did: d.did, name: d.name, kind: d.kind } : null; }, pondSplash, setField: f => { ACTF = Math.max(0, f | 0); pan.set(0, 0, 0); panGoal.v = null; if (viewMode !== 'walk') fit(); }, panBy, panTo, resetView, lookAt: k => { const p = SPOT[k] && SPOT[k](); if (p) panTo(p[0], p[1]); }, get panned() { return pan.length() > 1 || zoom > 1.35; }, worldBox, get pan() { return pan.toArray().map(v => +v.toFixed(2)); }, get zoom() { return zoom; }, get field() { return ACTF; }, fieldCenter: fieldC, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ leg: RANCH3.leg, follow: RANCH3.follow, A: RANCH3.A && RANCH3.A.toArray().map(v => +v.toFixed(1)), phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, dbgDogCam: (k, yaw, pitch, dist) => { const dg = anim.dogs[k]; if (!dg) return null; const c = dg.g.position, cam2 = new T.PerspectiveCamera(32, W / H, 0.05, 80), d = dist || 2.2, a = dg.g.rotation.y + (yaw || 0); cam2.position.set(c.x + Math.cos(a) * d * Math.cos(pitch || 0.2), 0.35 + Math.sin(pitch || 0.2) * d, c.z - Math.sin(a) * d * Math.cos(pitch || 0.2)); cam2.lookAt(c.x, 0.3, c.z); R.render(scene, cam2); return R.domElement.toDataURL('image/png'); }, dbgPose: (k, p) => { const d = anim.dogs[k]; if (d) d.force = p || null; }, dogGround: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const v = new T.Vector3(); let lo = 9; const body = dg.torso.children[0], P = body.geometry.attributes.position; for (let i = 0; i < P.count; i += 2) { v.fromBufferAttribute(P, i).applyMatrix4(body.matrixWorld); if (v.y < lo) lo = v.y; }
     const feet = dg.legs.map(l => { let m = 9; l.children.forEach(c => { const Q = c.geometry.attributes.position; for (let i = 0; i < Q.count; i++) { v.fromBufferAttribute(Q, i).applyMatrix4(c.matrixWorld); if (v.y < m) m = v.y; } }); return +m.toFixed(3); }); return { body: +lo.toFixed(3), feet, vis: dg.legs.map(l => l.visible), x: dg.g.position.x, z: dg.g.position.z, ry: dg.g.rotation.y }; }, heroModelRot: () => HERO.g ? HERO.g.rotation.y : NaN, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
 })();

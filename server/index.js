@@ -23,7 +23,7 @@ async function createApp(opts) {
 
   // ---- 静态页面 ----
   const pages = { '/': 'index.html', '/index.html': 'index.html', '/admin': 'admin.html', '/admin.html': 'admin.html', '/vendor/three.min.js': 'vendor/three.min.js', '/vendor/three-addons.js': 'vendor/three-addons.js', '/shared/content.js': 'shared/content.js', '/lib/assets3.js': 'lib/assets3.js', '/art-preview': 'art-preview.html', '/art-preview.html': 'art-preview.html' }; const pcache = {};
-  const secHeaders = () => ({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" });
+  const secHeaders = () => ({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" });
   function serveStatic(req, res, p) {
     const rel = pages[p] || p.slice(1), f = path.join(ROOT, rel); let st; try { st = fs.statSync(f); } catch (e) { res.writeHead(404); return res.end('Not found'); }
     let c = pcache[f]; if (!c || c.m !== st.mtimeMs) { const raw = fs.readFileSync(f); c = pcache[f] = { m: st.mtimeMs, raw, gz: zlib.gzipSync(raw) }; }

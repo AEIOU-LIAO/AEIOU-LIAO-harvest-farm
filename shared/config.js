@@ -156,11 +156,42 @@
   const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
   // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
   function ranchItem(item) { const m = /^(fs|wl|fr)(\d+)$/.exec(item || ''); if (!m) return null; const d = ({ fs: FISH, wl: SHEEP, fr: TREES })[m[1]][+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : m[1] === 'wl' ? { kind: 'wool', id: d.id, name: d.woolName, price: d.sell } : { kind: 'fruit', id: d.id, name: d.fruit, price: d.sell }; }
-  const VERSION = '3.4.0'; // 每次发布改这里；设置页和 /api/health 会显示
-  const ZONES = CONTENT.ZONES, ASSETS = CONTENT.ASSETS;
-  const CFG = { ZONES, ASSETS, COLLIES, PETS_MAX, VERSION, COLS, ROWS, NPLOTS, FIELDS_MAX, MAX_PLOTS, fieldNeedLv, fieldCost, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
+  const VERSION = '3.5.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const ZONES = CONTENT.ZONES, ASSETS = CONTENT.ASSETS, HOME = CONTENT.HOME, BUILDINGS = CONTENT.BUILDINGS, BIOMES = CONTENT.BIOMES;
+
+  /* ===== V0.3 家园布局与建造网格（3D 画面和服务器共用 content/home.jsonc） ===== */
+  const fieldCenter = f => { const F = HOME.fields; return f === 0 ? [0, 0] : [(((f - 1) % F.cols) - (F.cols - 1) / 2) * F.dx, F.z0 - Math.floor((f - 1) / F.cols) * F.dz]; };
+  const pastSize = l => { const P = HOME.pasture, g = Math.pow((Math.min(100, Math.max(1, l)) - 1) / 99, P.pow); return [P.base[0] + P.grow[0] * g, P.base[1] + P.grow[1] * g]; };
+  const pondsOf = pondLv => Math.min(HOME.ponds.list.length, 1 + Math.floor(((pondLv || 1) - 1) / HOME.ponds.perLv));
+  const OCC = { free: 0, field: 1, structure: 2, pond: 3, pasture: 4, orchard: 5, built: 9 };
+  function gridSpec() { const G = HOME.grid; return { cell: G.cell, x0: G.x0, z0: G.z0, W: Math.round((G.x1 - G.x0) / G.cell), H: Math.round((G.z1 - G.z0) / G.cell) }; }
+  /* 家园哪些格子已经被占用：s = { fields: 已开辟的菜地片数, pastLv: 牧场等级, pondLv: 鱼塘等级 } */
+  function homeOccupancy(s) {
+    s = s || {}; const g = gridSpec(), cells = new Uint8Array(g.W * g.H);
+    const mark = (x0, z0, x1, z1, code) => { const a = Math.max(0, Math.floor((x0 - g.x0) / g.cell)), b = Math.min(g.W - 1, Math.ceil((x1 - g.x0) / g.cell) - 1), c = Math.max(0, Math.floor((z0 - g.z0) / g.cell)), d = Math.min(g.H - 1, Math.ceil((z1 - g.z0) / g.cell) - 1); for (let j = c; j <= d; j++) for (let i = a; i <= b; i++) if (!cells[j * g.W + i]) cells[j * g.W + i] = code; };
+    for (let f = 0; f < Math.max(1, s.fields || 1); f++) { const [x, z] = fieldCenter(f), F = HOME.fields; mark(x - F.w / 2, z - F.d / 2, x + F.w / 2, z + F.d / 2, OCC.field); }
+    HOME.structures.forEach(o => mark(o.x - o.w / 2, o.z - o.d / 2, o.x + o.w / 2, o.z + o.d / 2, OCC.structure));
+    HOME.ponds.list.slice(0, pondsOf(s.pondLv)).forEach(([x, z]) => mark(x - HOME.ponds.w / 2, z - HOME.ponds.d / 2, x + HOME.ponds.w / 2, z + HOME.ponds.d / 2, OCC.pond));
+    { const P = HOME.pasture, [w, d] = pastSize(s.pastLv || 1); mark(P.x0, P.z0, P.x0 + w, P.z0 + d, OCC.pasture); }
+    { const O = HOME.orchard, cx = (O.x0 + O.x1) / 2, cz = (O.z0 + O.z1) / 2; for (let j = 0; j < g.H; j++) for (let i = 0; i < g.W; i++) { const x = g.x0 + (i + 0.5) * g.cell, z = g.z0 + (j + 0.5) * g.cell; if (Math.hypot(x - cx, z - cz) <= O.r && !cells[j * g.W + i]) cells[j * g.W + i] = OCC.orchard; } }
+    return Object.assign(g, { cells });
+  }
+  /* 一个建筑实例占的格子：it = { type, gx, gz, rot }（rot 0~3，每次转 90°，奇数时宽高互换） */
+  function footprint(it) { const b = BUILDINGS.find(x => x.id === it.type); if (!b) return null; const odd = (it.rot | 0) % 2 === 1, w = odd ? b.d : b.w, d = odd ? b.w : b.d, out = []; for (let j = 0; j < d; j++) for (let i = 0; i < w; i++) out.push([it.gx + i, it.gz + j]); return out; }
+  /* 能不能摆：返回空字符串表示可以，否则返回原因（中文，直接显示给玩家） */
+  function canPlace(occ, items, it, lv) {
+    const b = BUILDINGS.find(x => x.id === it.type); if (!b) return '没有这种建筑';
+    if (b.status !== 'live') return b.name + '还没有开放';
+    if (lv !== undefined && lv < b.lv) return `需要 Lv.${b.lv}`;
+    if (b.max && items.filter(x => x.type === it.type).length >= b.max) return `${b.name}最多只能建 ${b.max} 个`;
+    const used = new Set(); items.forEach(x => (footprint(x) || []).forEach(([i, j]) => used.add(j * occ.W + i)));
+    for (const [i, j] of footprint(it)) { if (i < 0 || j < 0 || i >= occ.W || j >= occ.H) return '超出家园范围'; const k = j * occ.W + i; if (occ.cells[k]) return '这里已经有东西了'; if (used.has(k)) return '和别的建筑重叠了'; }
+    return '';
+  }
+  const CFG = { HOME, BUILDINGS, BIOMES, OCC, fieldCenter, pastSize, pondsOf, gridSpec, homeOccupancy, footprint, canPlace };
+  Object.assign(CFG, { ZONES, ASSETS, COLLIES, PETS_MAX, VERSION, COLS, ROWS, NPLOTS, FIELDS_MAX, MAX_PLOTS, fieldNeedLv, fieldCost, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
     FISH, SHEEP, TREES, RANCH, pondCap, pastureCap, pondCapOf, pastureCapOf, orchardCapOf, ranchUpCost, ranchNeedLv, herdOf, sheepCycles, treeCycles, treeGrowLeft, fishLeft, ranchItem,
-    expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots };
+    expNeed, dogExpNeed, plotCost, plotNeedLv, redCost, stageOf, hash32, rng, setTz, dayKey, dayStart, weekKey, weekEnd, rainUntil, dayBonus, plotDur, plotSpeed, probCount, remainSec, advancePlot, stealCapPct, orderSlots });
   if (typeof module !== 'undefined' && module.exports) module.exports = CFG; else root.GAMECFG = CFG;
 })(typeof window !== 'undefined' ? window : globalThis);

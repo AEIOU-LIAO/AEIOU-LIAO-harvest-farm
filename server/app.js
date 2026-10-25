@@ -145,6 +145,10 @@ async function createCore(opts) {
   R('POST', '/api/ranch/fish/buy', { auth: 1 }, async (c) => own(c.uid, await game.buyFish(c.uid, U.int(c.body.type, '鱼苗', 0, 99), c.body.n)));
   R('POST', '/api/ranch/fish/collect', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.collectFish(c.uid, o), o); });
   R('POST', '/api/ranch/sheep/buy', { auth: 1 }, async (c) => own(c.uid, await game.buySheep(c.uid, U.int(c.body.type, '羊', 0, 99), c.body.n)));
+  // V0.3 家园自由建造（建筑目录里状态为 live 的才能摆放；目前全部 planned，第 1 期开放）
+  R('GET', '/api/home/layout', { auth: 1 }, (c) => game.homeLayout(c.uid));
+  R('POST', '/api/home/place', { auth: 1 }, async (c) => own(c.uid, await game.homePlace(c.uid, { type: c.body.type, gx: U.int(c.body.gx, '位置', -1000, 1000), gz: U.int(c.body.gz, '位置', -1000, 1000), rot: U.int(c.body.rot || 0, '朝向', 0, 3) })));
+  R('POST', '/api/home/remove', { auth: 1 }, async (c) => own(c.uid, await game.homeRemove(c.uid, U.int(c.body.id, '建筑', 1, 1e9))));
   R('POST', '/api/ranch/upgrade', { auth: 1 }, async (c) => own(c.uid, await game.ranchUpgrade(c.uid, String(c.body.kind || ''))));
   R('POST', '/api/ranch/tree/buy', { auth: 1 }, async (c) => own(c.uid, await game.buyTree(c.uid, U.int(c.body.type, '树苗', 0, 99), c.body.n)));
   R('POST', '/api/ranch/fruit', { auth: 1 }, async (c) => { const o = {}; return own(c.uid, await game.pickFruit(c.uid, o), o); });

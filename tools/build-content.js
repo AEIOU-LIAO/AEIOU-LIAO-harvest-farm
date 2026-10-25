@@ -43,6 +43,9 @@ const TABLES = [
   { file: 'ranch', key: 'RANCH', kind: 'object' },
   { file: 'misc', key: 'MISC', kind: 'object' },
   { file: 'zones', key: 'ZONES', kind: 'keyed', fields: ['name', 'status'] },
+  { file: 'home', key: 'HOME', kind: 'object', check: h => { ['grid', 'structures', 'fields', 'ponds', 'pasture', 'orchard'].forEach(k => { if (!h[k]) fail('home 缺少 ' + k); }); uniq(h.structures.map(x => x.id), 'home.structures.id'); if (h.ponds.list.length !== 6) fail('home.ponds.list 应该有 6 个池塘'); } },
+  { file: 'biomes', key: 'BIOMES', kind: 'keyed', fields: ['name', 'maxH', 'col', 'trees', 'rocks', 'walk'], check: a => { const ids = new Set(a.map(b => b.id)); a.forEach(b => { if (b.dry && !ids.has(b.dry)) fail(`群系 ${b.id} 的 dry 引用了不存在的群系 ${b.dry}`); }); } },
+  { file: 'buildings', key: 'BUILDINGS', kind: 'keyed', fields: ['name', 'kind', 'w', 'd', 'price', 'lv', 'status'], check: a => a.forEach(b => { if (!['live', 'planned'].includes(b.status)) fail(`建筑 ${b.id} 的状态只能是 live / planned`); if (!(b.w >= 1 && b.d >= 1)) fail(`建筑 ${b.id} 的占地至少 1 × 1`); }) },
   { file: 'assets', key: 'ASSETS', kind: 'keyed', fields: ['kind', 'name', 'stage'] },
 ];
 
@@ -77,7 +80,7 @@ function load(d) {
   // 交叉检查
   const assetIds = new Set(C.ASSETS.map(a => a.id));
   C.ZONES.forEach(z => (z.assets || []).forEach(a => { if (!assetIds.has(a)) fail(`区域 ${z.id} 引用了不存在的资源 ${a}`); }));
-  C.ZONES.forEach(z => { if (!['live', 'planned'].includes(z.status)) fail(`区域 ${z.id} 的状态只能是 live / planned`); });
+  C.ZONES.forEach(z => { if (!['live', 'planned', 'dev'].includes(z.status)) fail(`区域 ${z.id} 的状态只能是 live / planned / dev`); });
   return C;
 }
 

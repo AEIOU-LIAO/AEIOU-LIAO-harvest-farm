@@ -361,7 +361,7 @@ class Game {
     for (let j = 0; j < NPLOTS; j++) { const i = f * NPLOTS + j; vals.push('(?,?,?,?)'); args.push(uid, i, 1, now); fresh.push({ idx: i, u: 1, soil: 0, c: -1, p: 0, t: now, sea: 0, y: 0, y0: 0, stolen: 0, pr: { d: 0, w: 0, b: 0 }, ev: [], ra: 0, cycle: 0 }); }
     this.db.w('INSERT INTO plots (user_id,idx,u,t) VALUES ' + vals.join(','), ...args);
     const C = this.C(); if (C && C.plots[uid]) fresh.forEach(P => C.plots[uid].push(structuredClone(P)));
-    await this.addExp(uid, 200 * f, out); return { field: f, cost, plots: NPLOTS };
+    await this.addExp(uid, 200 * f, out); const evicted = await this.homeEvict(uid); return { field: f, cost, plots: NPLOTS, evicted };
   }
   // 土地升级：普通 → 红土地 → 黑土地 → 金土地（接口名沿用 red）
   // 土地升级：to = 目标等级（不传就升一级）。从当前等级一级一级升到目标，每一级的费用、等级要求和原来一样
@@ -423,12 +423,39 @@ class Game {
       sheep: R.sheep.map(s => { const c = CFG.sheepCycles(s, now, R.herd); return { t: s.t, n: s.n, last: s.last, acc: s.acc, pend: s.pend || 0, cycles: c, wool: Math.floor(c) * s.n * SHEEP_W(s.t) + (s.pend || 0), full: c >= CFG.RANCH.woolMax }; }), sheepN: sum(R.sheep),
       trees: R.trees.map(r => ({ t: r.t, n: r.n, at: r.at, last: r.last, acc: r.acc, cycles: CFG.treeCycles(r, now), grow: CFG.treeGrowLeft(r, now) })), treeN: sum(R.trees) };
   }
+  /* ===== V0.3 家园自由建造：布局存档（建筑目录 content/buildings.jsonc，网格 content/home.jsonc） ===== */
+  layoutOf(u) { let L = {}; try { L = JSON.parse(u.layout || '{}') || {}; } catch (e) { L = {}; } if (!Array.isArray(L.items)) L.items = []; L.v = 1; L.seq = L.seq | 0; return L; }
+  saveLayout(uid, L) { const s = JSON.stringify(L); this.db.w('UPDATE users SET layout=? WHERE id=?', s, uid); this.pu(uid, x => x.layout = s); }
+  async homeState(uid) { const [u, plots] = await all([this.user(uid), this.plots(uid)]), R = this.ranchOf(u); return { u, fields: Math.max(1, Math.ceil(plots.length / NPLOTS)), pastLv: R.pastLv || 1, pondLv: R.pondLv || 1 }; }
+  async homeLayout(uid) { const h = await this.homeState(uid), L = this.layoutOf(h.u); return { items: L.items, fields: h.fields, pastLv: h.pastLv, pondLv: h.pondLv, grid: CFG.gridSpec() }; }
+  async homePlace(uid, it) {
+    it = { type: String(it.type || ''), gx: it.gx | 0, gz: it.gz | 0, rot: ((it.rot | 0) % 4 + 4) % 4 };
+    const h = await this.homeState(uid), L = this.layoutOf(h.u), occ = CFG.homeOccupancy(h), why = CFG.canPlace(occ, L.items, it, h.u.lv);
+    if (why) throw conflict(why, 'cant_place');
+    const b = CFG.BUILDINGS.find(x => x.id === it.type); this.addGold(uid, -b.price, 'build:' + b.id);
+    const item = Object.assign({ id: ++L.seq }, it, { at: this.now() }); L.items.push(item); this.saveLayout(uid, L); return { item, name: b.name, cost: b.price };
+  }
+  async homeRemove(uid, id) {
+    const u = await this.user(uid), L = this.layoutOf(u), i = L.items.findIndex(x => x.id === (id | 0)); if (i < 0) throw notFound('没有这个建筑');
+    const it = L.items.splice(i, 1)[0], b = CFG.BUILDINGS.find(x => x.id === it.type), refund = b ? Math.floor(b.price * 0.5) : 0;
+    if (refund) this.addGold(uid, refund, 'unbuild:' + it.type); this.saveLayout(uid, L); return { id: it.id, refund, name: b ? b.name : it.type };
+  }
+  /* 扩建牧场 / 鱼塘、开辟新菜地后，被新占用的格子上的建筑自动收回并全额退款（不会出现建筑和菜地叠在一起） */
+  async homeEvict(uid) {
+    const h = await this.homeState(uid), L = this.layoutOf(h.u); if (!L.items.length) return 0;
+    const occ = CFG.homeOccupancy(h), keep = [], gone = [];
+    L.items.forEach(it => { const fp = CFG.footprint(it); (!fp || fp.some(([i, j]) => i < 0 || j < 0 || i >= occ.W || j >= occ.H || occ.cells[j * occ.W + i]) ? gone : keep).push(it); });
+    if (!gone.length) return 0;
+    gone.forEach(it => { const b = CFG.BUILDINGS.find(x => x.id === it.type); if (b && b.price) this.addGold(uid, b.price, 'evict:' + it.type); });
+    L.items = keep; this.saveLayout(uid, L); return gone.length;
+  }
   async ranchUpgrade(uid, kind) {
     if (!['pond', 'pasture', 'orchard'].includes(kind)) throw bad('不能扩建这个'); const u = await this.user(uid), R = this.ranchOf(u), key = { pond: 'pondLv', pasture: 'pastLv', orchard: 'orchLv' }[kind], l = R[key];
     const name = { pond: '鱼塘', pasture: '牧场', orchard: '果园' }[kind];
     if (l >= CFG.RANCH.maxLv) throw conflict(`${name}已经是最高级了`, 'max'); const need = CFG.ranchNeedLv(l + 1); if (u.lv < need) throw bad(`${name}扩建到 ${l + 1} 级需要玩家 Lv.${need}`, 'locked');
     this.addGold(uid, -CFG.ranchUpCost(kind, l), 'up:' + kind); R[key] = l + 1; this.saveRanch(uid, R); await this.addExp(uid, 20 + l * 5, {});
-    const cap = { pond: CFG.pondCapOf, pasture: CFG.pastureCapOf, orchard: CFG.orchardCapOf }[kind](l + 1); return { kind, lv: l + 1, cap, name };
+    const evicted = kind === 'orchard' ? 0 : await this.homeEvict(uid);
+    const cap = { pond: CFG.pondCapOf, pasture: CFG.pastureCapOf, orchard: CFG.orchardCapOf }[kind](l + 1); return { kind, lv: l + 1, cap, name, evicted };
   }
   async buyFish(uid, type, n) {
     const d = CFG.FISH[type]; if (!d) throw bad('没有这种鱼苗'); n = U.int(n || 1, '数量', 1, 5000);
