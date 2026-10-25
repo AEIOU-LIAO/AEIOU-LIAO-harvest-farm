@@ -6,7 +6,7 @@ const d = __dirname, root = path.join(d, '..'), r = f => fs.readFileSync(path.jo
 const api = (process.env.API_BASE || '').replace(/[^\w:/.\-]/g, '');
 require('../tools/build-content').build(); // 先从 content/*.jsonc 生成 shared/content.js（并校验）
 const tpl = r('template.html'); let out = tpl;
-const parts = { '/*CSS*/': r('style.css'), '/*CONTENT*/': fs.readFileSync(path.join(root, 'shared/content.js'), 'utf8'), '/*CONFIG*/': fs.readFileSync(path.join(root, 'shared/config.js'), 'utf8'), '/*NET*/': r('net.js'), '/*ICONS*/': r('icons.js'), '/*AVATAR*/': r('avatar2d.js'), '/*MC*/': r('mcubes.js'), '/*WORLD*/': r('world3d.js'), '/*ZONES*/': r('zones.js'), '/*GAME*/': r('game.js'), '/*UI*/': r('ui.js'), '/*API_BASE*/': api };
+const parts = { '/*CSS*/': r('style.css'), '/*CONTENT*/': fs.readFileSync(path.join(root, 'shared/content.js'), 'utf8'), '/*CONFIG*/': fs.readFileSync(path.join(root, 'shared/config.js'), 'utf8'), '/*NET*/': r('net.js'), '/*ICONS*/': r('icons.js'), '/*AVATAR*/': r('avatar2d.js'), '/*MC*/': r('mcubes.js'), '/*WORLD*/': r('world3d.js'), '/*ZONES*/': r('zones.js'), '/*GAME*/': r('game.js'), '/*UI*/': r('ui.js'), '/*HOMEBUILD*/': r('homebuild.js'), '/*API_BASE*/': api };
 // 构建时间（北京时间），显示在设置页，用来确认线上是不是最新版本
 const bt = new Date(Date.now() + 8 * 3600e3).toISOString().replace('T', ' ').slice(0, 16);
 parts['/*CONFIG*/'] = `var HF_BUILT = '${bt}';\n` + parts['/*CONFIG*/'];

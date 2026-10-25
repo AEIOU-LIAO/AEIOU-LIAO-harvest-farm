@@ -10,7 +10,8 @@
     { "id": "house", "name": "房子", "x": -13, "z": -2.5, "ry": 0.15, "w": 7, "d": 7, "obstacle": 3.3 },
     { "id": "windmill", "name": "风车", "x": 3.5, "z": -15, "ry": -0.2, "w": 4, "d": 4, "obstacle": 1.9 },
     { "id": "doghouse", "name": "狗窝", "x": 11.2, "z": -3.8, "ry": -0.6, "w": 2, "d": 2, "obstacle": 0.9 },
-    { "id": "scarecrow", "name": "稻草人", "x": -10.5, "z": 6.5, "ry": 0, "w": 1, "d": 1, "obstacle": 0.35 }
+    { "id": "scarecrow", "name": "稻草人", "x": -10.5, "z": 6.5, "ry": 0, "w": 1, "d": 1, "obstacle": 0.35 },
+    { "id": "yard", "name": "院子篱笆", "x": 0, "z": 0, "ry": 0, "w": 16.8, "d": 12.4, "obstacle": 0 }
   ],
 
   // 菜地：第 1 片在原点，之后每排 cols 片，横向间隔 dx、纵向从 z0 开始每排间隔 dz；每片占地 w × d

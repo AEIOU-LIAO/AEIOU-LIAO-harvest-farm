@@ -68,7 +68,7 @@ module.exports = {
       return v;
     });
     const dogs = this.dogsOf(o).filter(d => d.own).map(d => ({ id: d.id, name: d.name, lv: d.lv, fed: d.fed }));
-    return { owner: Object.assign(this.publicUser(o), { dog: dogs.some(d => d.fed), dogLv: o.dog_lv, dogs, pets: this.petsOf(o).map(p => ({ id: p.id, name: p.name, coat: p.coat, fed: p.fed })), ranch: this.ranchView(o) }), plots: list, steal, help, soon };
+    return { owner: Object.assign(this.publicUser(o), { dog: dogs.some(d => d.fed), dogLv: o.dog_lv, dogs, pets: this.petsOf(o).map(p => ({ id: p.id, name: p.name, coat: p.coat, fed: p.fed })), ranch: this.ranchView(o), layout: this.layoutOf(o).items }), plots: list, steal, help, soon };
   },
   // 定时刷新别人农场用：只读，不记访客、不发消息
   async peekFarm(uid, owner) { const [o, plots, mine] = await all([this.canSee(uid, owner), this.plots(owner), this.myStealsMap(uid, owner)]); return this.viewOf(o, plots, mine); },

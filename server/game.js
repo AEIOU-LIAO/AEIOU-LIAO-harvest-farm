@@ -64,7 +64,7 @@ class Game {
     return Object.assign(this.publicUser(u), {
       gold: u.gold, exp: u.exp, expNeed: CFG.expNeed(u.lv), seed: u.seed, username: u.username || '', guest: !u.username, role: u.role, migrated: !!u.migrated,
       dog: { own: !!u.dog_own, lv: u.dog_lv, exp: u.dog_exp, need: CFG.dogExpNeed(u.dog_lv), until: u.dog_until },
-      dogs: this.dogsOf(u), pets: this.petsOf(u), ranch: this.ranchView(u),
+      dogs: this.dogsOf(u), pets: this.petsOf(u), ranch: this.ranchView(u), layout: this.layoutOf(u).items,
       checkin: { last: u.checkin_last, streak: u.checkin_streak }, settings: J(u.settings) || {}, created_at: u.created_at,
       stats: { harvest: u.harvest_total, steal: u.steal_total, help: u.help_total, plant: u.plant_total, earned: u.earned_total, golden: u.golden_total, order: u.order_total, stolenFrom: u.stolen_from_total },
     });

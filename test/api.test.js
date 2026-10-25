@@ -628,7 +628,7 @@ test('V0.3 家园自由建造：布局存档、摆放校验、拆除退款、扩
   try {
     const a = await t.guest('建造'); await t.app.db.run('UPDATE users SET gold=9999999, lv=1 WHERE id=?', a.id);
     let L = await t.call('GET', '/api/home/layout', null, a.token); assert.ok(L.ok !== false, L.error); assert.deepEqual(L.items, []); assert.equal(L.fields, 1); assert.equal(L.grid.W, 65); assert.equal(L.grid.H, 66);
-    let r = await t.call('POST', '/api/home/place', { type: 'fence', gx: 0, gz: 0 }, a.token); assert.equal(r.ok, false); assert.match(r.error, /还没有开放/);
+    let r = await t.call('POST', '/api/home/place', { type: 'greatwall', gx: 0, gz: 0 }, a.token); assert.equal(r.ok, false); assert.match(r.error, /还没有开放/);
     B('fence').status = 'live'; B('watchtower').status = 'live';
     const occ = CFG.homeOccupancy({ fields: 1, pastLv: 1, pondLv: 1 }), free = []; for (let j = 0; j < occ.H; j++) for (let i = 0; i < occ.W; i++) if (!occ.cells[j * occ.W + i]) free.push([i, j]);
     const [fx, fz] = free[Math.floor(free.length / 2)];
@@ -650,4 +650,23 @@ test('V0.3 家园自由建造：布局存档、摆放校验、拆除退款、扩
     for (let k = 0; k < 8; k++) { r = await t.call('POST', '/api/ranch/upgrade', { kind: 'pasture' }, a.token); assert.ok(r.ok, r.error); ev += r.result.evicted; }
     assert.equal(ev, 1); assert.equal((await t.call('GET', '/api/home/layout', null, a.token)).items.length, 0);
   } finally { CFG.BUILDINGS.forEach((b, i) => { b.status = saved[i]; }); await t.close(); }
+});
+
+test('第 1 期 家园自由建造：移动 / 旋转、存档里带布局、串门能看到别人的建筑', async () => {
+  const t = await start();
+  try {
+    const a = await t.guest('建造甲'), b = await t.guest('建造乙'); await t.app.db.run('UPDATE users SET gold=9999999, lv=30 WHERE id=?', a.id);
+    const occ = CFG.homeOccupancy({ fields: 1, pastLv: 1, pondLv: 1 }), free = []; for (let j = 0; j < occ.H - 3; j++) for (let i = 0; i < occ.W - 3; i++) { let ok = true; for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) if (occ.cells[(j + y) * occ.W + i + x]) ok = false; if (ok) free.push([i, j]); }
+    const [px, pz] = free[0];
+    let r = await t.call('POST', '/api/home/place', { type: 'pavilion', gx: px, gz: pz }, a.token); assert.ok(r.ok, r.error); assert.equal(r.state.me.layout.length, 1);
+    const id = r.result.item.id;
+    r = await t.call('POST', '/api/home/place', { type: 'lamp', gx: px + 1, gz: pz + 1 }, a.token); assert.match(r.error, /重叠/);
+    const [qx, qz] = free[free.length - 1], g0 = r.ok === false ? (await t.call('GET', '/api/state', null, a.token)).me.gold : 0;
+    r = await t.call('POST', '/api/home/move', { id, gx: qx, gz: qz, rot: 1 }, a.token); assert.ok(r.ok, r.error); assert.deepEqual([r.result.item.gx, r.result.item.gz, r.result.item.rot], [qx, qz, 1]); assert.equal(r.state.me.gold, g0, '移动免费');
+    r = await t.call('POST', '/api/home/place', { type: 'lamp', gx: px + 1, gz: pz + 1 }, a.token); assert.ok(r.ok, '原位置空出来了：' + r.error);
+    r = await t.call('POST', '/api/home/move', { id, gx: px, gz: pz, rot: 0 }, a.token); assert.match(r.error, /重叠/);
+    r = await t.call('POST', '/api/home/move', { id: 99999, gx: px, gz: pz }, a.token); assert.match(r.error, /没有这个建筑/);
+    r = await t.call('POST', '/api/home/move', { id, gx: px, gz: pz }, b.token); assert.match(r.error, /没有这个建筑/, '不能动别人的');
+    const v = await t.call('GET', '/api/farm/' + a.id, null, b.token); assert.ok(v.ok !== false, v.error); assert.equal(v.farm.owner.layout.length, 2);
+  } finally { await t.close(); }
 });

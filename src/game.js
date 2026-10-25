@@ -408,13 +408,13 @@ function ranchBadge() { const R = S && S.me.ranch; if (!R) return 0; const now =
 const fishLeftC = (f, now) => CFG.fishLeft(f, now), sheepCyclesC = (s, now, R) => CFG.sheepCycles(s, now, R.herd);
 function renderSide() {
   if (!S) return; const b = S.badges;
-  const items = [['map', 'compass', '地图'], ['friends', 'users', '好友', b.requests], ['msg', 'mail', '消息', b.unread], ['orders', 'box', '订单'], ['market', 'tag', '集市'], ['rank', 'trophy', '排行'], ['ach', 'medal', '成就', b.ach], ['codex', 'book', '图鉴'], ['ranch', 'sheep', '牧场', ranchBadge()], ['dress', 'palette', '装扮']];
+  const items = [['map', 'compass', '地图'], ['build', 'hammer', '建造'], ['friends', 'users', '好友', b.requests], ['msg', 'mail', '消息', b.unread], ['orders', 'box', '订单'], ['market', 'tag', '集市'], ['rank', 'trophy', '排行'], ['ach', 'medal', '成就', b.ach], ['codex', 'book', '图鉴'], ['ranch', 'sheep', '牧场', ranchBadge()], ['dress', 'palette', '装扮']];
   const html = items.map(([id, ic, tx, bd]) => `<button class="sbtn" data-s="${id}">${ICON(ic)}<em>${tx}</em>${bd ? `<i class="bd">${bd}</i>` : ''}</button>`).join('')
     + (S.events.length ? `<button class="sbtn ev" data-s="events">${ICON('party')}<em>活动</em></button>` : '');
   const el = $('side'); if (el._h !== html) { el._h = html; el.innerHTML = html; el.querySelectorAll('.sbtn').forEach(x => x.onclick = () => { ac(); sfx('click'); sideClick(x.dataset.s); }); }
   renderNewbie();
 }
-function sideClick(s) { ({ map: openWorldMap, ranch: () => openRanch(), friends: () => openFriends(), msg: openMessages, orders: openOrders, market: () => openMarket(), rank: () => openRank(), ach: openAch, codex: openCodex, dress: () => openDress(), events: openEvents })[s](); }
+function sideClick(s) { ({ map: openWorldMap, build: () => (BUILD.on ? closeBuild() : openBuild()), ranch: () => openRanch(), friends: () => openFriends(), msg: openMessages, orders: openOrders, market: () => openMarket(), rank: () => openRank(), ach: openAch, codex: openCodex, dress: () => openDress(), events: openEvents })[s](); }
 function renderNewbie() {
   const el = $('newbie'); if (!S || !S.badges.newbieLeft) { el.style.display = 'none'; return; }
   const done = CFG.NEWBIE.length - S.badges.newbieLeft; el.style.display = '';
@@ -514,7 +514,9 @@ function frame(now) {
   const home = view.key === 'home';
   W3.setTheme(themeOf(home ? (S ? S.me.theme : 'classic') : view.friend.theme)); W3.setDog(dogMode()); W3.setRanch(ranch3d()); W3.setPets(view.key === 'home' ? (S && S.me.pets || []) : ((view.friend && view.friend.pets) || [])); W3.setEnv(curHour(), rainK);
   { const pn = W3.mode !== 'walk' && W3.panned; if (pn !== document.body.classList.contains('panned')) document.body.classList.toggle('panned', pn); }
-  W3.setPlots(view.plots, home); W3.setHover(mouse.in || painting ? hoverIdx : -1); W3.render(dt);
+  if (BUILD.on && (!home || W3.mode === 'walk' || !S)) closeBuild();
+  W3.setLayout(home ? (S && S.me.layout) : (view.friend && view.friend.layout)); if (BUILD.on && (BUILD.tick = (BUILD.tick || 0) + 1) % 20 === 0) buildSync(); /* 金币、等级变化时刷新建造栏 */
+  W3.setPlots(view.plots, home); W3.setHover(!BUILD.on && (mouse.in || painting) ? hoverIdx : -1); W3.render(dt);
   updateTip(); updateWalkUi(); requestAnimationFrame(frame);
 }
 
@@ -594,20 +596,20 @@ const HOLD_MS = 420;
 cv.addEventListener('pointerdown', ev => { if (W3.mode === 'walk') return; if (ev.button !== 0 && ev.pointerType === 'mouse') return; if (touches.size > 1) { tdrag.on = false; clearTimeout(tdrag.hold); return; }
   Object.assign(tdrag, { on: true, id: ev.pointerId, x: ev.clientX, y: ev.clientY, sx: ev.clientX, sy: ev.clientY, moved: 0, t: ev.timeStamp, paint: false, pan: false }); ac(); startMusic();
   mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true; hoverIdx = W3.pick(ev.clientX, ev.clientY);
-  clearTimeout(tdrag.hold); tdrag.hold = setTimeout(() => { if (!tdrag.on || tdrag.pan || tdrag.moved >= 8 || touches.size > 1) return; const i = W3.pick(tdrag.sx, tdrag.sy); if (i < 0 || view.key !== 'home') return; cv.classList.add('painting'); try { navigator.vibrate && navigator.vibrate(18); } catch (e) { } }, HOLD_MS);
+  clearTimeout(tdrag.hold); tdrag.hold = setTimeout(() => { if (!tdrag.on || tdrag.pan || tdrag.moved >= 8 || touches.size > 1 || BUILD.on) return; const i = W3.pick(tdrag.sx, tdrag.sy); if (i < 0 || view.key !== 'home') return; cv.classList.add('painting'); try { navigator.vibrate && navigator.vibrate(18); } catch (e) { } }, HOLD_MS);
   try { cv.setPointerCapture(ev.pointerId); } catch (e) { } });
 cv.addEventListener('pointermove', ev => { if (W3.mode === 'walk') return; mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.in = true;
   if (touches.size > 1) { tdrag.on = false; clearTimeout(tdrag.hold); return; }
   if (tdrag.on && ev.pointerId === tdrag.id) { const dx = ev.clientX - tdrag.x, dy = ev.clientY - tdrag.y; tdrag.x = ev.clientX; tdrag.y = ev.clientY; tdrag.moved = Math.max(tdrag.moved, Math.hypot(ev.clientX - tdrag.sx, ev.clientY - tdrag.sy));
     if (!tdrag.paint && !tdrag.pan && tdrag.moved >= 8) { clearTimeout(tdrag.hold); const i0 = W3.pick(tdrag.sx, tdrag.sy);
-      if (ev.timeStamp - tdrag.t >= HOLD_MS && i0 >= 0 && view.key === 'home') { tdrag.paint = true; painting = true; lastPaint = -1; cv.classList.add('painting'); paintAt({ clientX: tdrag.sx, clientY: tdrag.sy }, true); }
+      if (!BUILD.on && ev.timeStamp - tdrag.t >= HOLD_MS && i0 >= 0 && view.key === 'home') { tdrag.paint = true; painting = true; lastPaint = -1; cv.classList.add('painting'); paintAt({ clientX: tdrag.sx, clientY: tdrag.sy }, true); }
       else { tdrag.pan = true; cv.classList.remove('painting'); cv.classList.add('panning'); } }
     if (tdrag.paint) { hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, false); }
     else if (tdrag.pan) { hoverIdx = -1; W3.panBy(dx, dy); }
   } else hoverIdx = W3.pick(ev.clientX, ev.clientY);
   updateCursor(); });
 cv.addEventListener('pointerup', ev => { if (W3.mode === 'walk') return; clearTimeout(tdrag.hold); cv.classList.remove('panning', 'painting');
-  if (tdrag.on && ev.pointerId === tdrag.id && !tdrag.paint && !tdrag.pan && tdrag.moved < 8 && touches.size < 2) { hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, true); }
+  if (tdrag.on && ev.pointerId === tdrag.id && !tdrag.paint && !tdrag.pan && tdrag.moved < 8 && touches.size < 2) { if (BUILD.on) buildTap(ev.clientX, ev.clientY); else { hoverIdx = W3.pick(ev.clientX, ev.clientY); paintAt(ev, true); } }
   tdrag.on = false; tdrag.paint = false; tdrag.pan = false; painting = false; lastPaint = -1;
   if (ev.pointerType !== 'mouse') { clearTimeout(tipTimer); tipTimer = setTimeout(() => { mouse.in = false; hoverIdx = -1; updateCursor(); }, 1600); } });
 cv.addEventListener('pointercancel', () => { painting = false; tdrag.on = false; tdrag.paint = false; clearTimeout(tdrag.hold); cv.classList.remove('panning', 'painting'); });
@@ -703,7 +705,7 @@ function bindGlobal() {
   $('log').onclick = () => openMessages();
   document.addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return; const k = e.key.toLowerCase();
-    if (k === 'escape') { closeModal(); tool = 'auto'; renderToolbar(); updateCursor(); }
+    if (k === 'escape') { closeBuild(); closeModal(); tool = 'auto'; renderToolbar(); updateCursor(); }
     else if ($('mback').classList.contains('show') || !S) return;
     else if (k === 'v') setViewMode(W3.mode === 'walk' ? 'top' : 'walk');
     else if (W3.mode === 'walk' && ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'].includes(k)) { e.preventDefault(); KEYS.add(k); keyInput(); }

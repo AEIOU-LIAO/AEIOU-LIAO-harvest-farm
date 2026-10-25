@@ -15,6 +15,13 @@ module.exports = {
     const b = CFG.BUILDINGS.find(x => x.id === it.type); this.addGold(uid, -b.price, 'build:' + b.id);
     const item = Object.assign({ id: ++L.seq }, it, { at: this.now() }); L.items.push(item); this.saveLayout(uid, L); return { item, name: b.name, cost: b.price };
   },
+  /* 移动 / 旋转已经建好的建筑（免费） */
+  async homeMove(uid, id, to) {
+    const h = await this.homeState(uid), L = this.layoutOf(h.u), it = L.items.find(x => x.id === (id | 0)); if (!it) throw notFound('没有这个建筑');
+    const nx = { type: it.type, gx: to.gx | 0, gz: to.gz | 0, rot: ((to.rot | 0) % 4 + 4) % 4 }, others = L.items.filter(x => x !== it);
+    const why = CFG.canPlace(CFG.homeOccupancy(h), others, nx, undefined, true); if (why) throw conflict(why, 'cant_place');
+    Object.assign(it, { gx: nx.gx, gz: nx.gz, rot: nx.rot }); this.saveLayout(uid, L); return { item: it };
+  },
   async homeRemove(uid, id) {
     const u = await this.user(uid), L = this.layoutOf(u), i = L.items.findIndex(x => x.id === (id | 0)); if (i < 0) throw notFound('没有这个建筑');
     const it = L.items.splice(i, 1)[0], b = CFG.BUILDINGS.find(x => x.id === it.type), refund = b ? Math.floor(b.price * 0.5) : 0;

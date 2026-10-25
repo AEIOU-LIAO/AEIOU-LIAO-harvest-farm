@@ -388,3 +388,15 @@ body.inzone #toolbar,body.inzone #side,body.inzone #friends,body.inzone #newbie,
 .zcard.planned{opacity:.78}.zcard.planned b::after{content:" 🔒";font-size:12px}
 .zcard .zs{display:flex;gap:6px;flex-wrap:wrap;font-size:11.5px}.zcard .zs span{padding:2px 8px;border-radius:8px;background:rgba(255,255,255,.07)}
 .zcard .zs .here{background:#3fae5a;color:#fff}.zcard .zs .dev{background:#5a6ad8;color:#fff}
+/* 第 1 期：家园自由建造 */
+body.building #toolbar,body.building #side,body.building #friends,body.building #newbie,body.building #tip,body.building #recenter,body.building #curtool,body.building #log{display:none!important}
+#buildbar{position:fixed;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:12;width:min(820px,calc(100vw - 16px));padding:8px 10px;border-radius:16px;background:var(--panel2);border:1px solid var(--line);box-shadow:var(--sh);color:var(--ink);display:flex;flex-direction:column;gap:6px}
+#buildbar .bb-top{display:flex;align-items:center;gap:8px}#buildbar .bb-msg{flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}
+#buildbar .bb-msg b{color:#fff1cc;font-size:14px}#buildbar .bb-msg em{font-style:normal;color:var(--mut)}#buildbar .bb-msg em.bad{color:#ff9a8a}#buildbar .bb-msg em.ok{color:#9fe0a8}
+#buildbar .bb-price{display:inline-flex;align-items:center;gap:3px;color:var(--gold)}#buildbar .bb-price .ico{width:14px;height:14px}
+#buildbar .bb-act{display:flex;gap:6px;flex-wrap:wrap}
+#buildbar .bb-list{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}#buildbar .bb-list::-webkit-scrollbar{display:none}
+.bcard{flex:none;width:84px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line2);color:var(--ink);font:inherit;cursor:pointer}
+.bcard img{width:52px;height:52px;object-fit:contain}.bcard b{font-size:12.5px;font-weight:600}.bcard small{font-size:11px;color:var(--mut);display:flex;align-items:center;gap:2px;white-space:nowrap}.bcard small .ico{width:12px;height:12px;color:var(--gold)}
+.bcard.on{border-color:var(--gold);background:rgba(230,196,122,.18)}.bcard.lock{opacity:.55}.bcard .bc-soon{width:52px;height:52px;display:flex;align-items:center;justify-content:center;color:var(--mut)}.bcard .bc-soon .ico{width:26px;height:26px}
+@media (max-height:480px){#buildbar{padding:6px 8px;gap:4px}.bcard{width:72px;padding:4px 3px}.bcard img,.bcard .bc-soon{width:40px;height:40px}}

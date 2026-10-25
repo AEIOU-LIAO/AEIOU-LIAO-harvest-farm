@@ -156,7 +156,7 @@
   const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
   // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
   function ranchItem(item) { const m = /^(fs|wl|fr)(\d+)$/.exec(item || ''); if (!m) return null; const d = ({ fs: FISH, wl: SHEEP, fr: TREES })[m[1]][+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : m[1] === 'wl' ? { kind: 'wool', id: d.id, name: d.woolName, price: d.sell } : { kind: 'fruit', id: d.id, name: d.fruit, price: d.sell }; }
-  const VERSION = '3.7.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const VERSION = '3.8.0'; // 每次发布改这里；设置页和 /api/health 会显示
   const ZONES = CONTENT.ZONES, ASSETS = CONTENT.ASSETS, HOME = CONTENT.HOME, BUILDINGS = CONTENT.BUILDINGS, BIOMES = CONTENT.BIOMES;
 
   /* ===== V0.3 家园布局与建造网格（3D 画面和服务器共用 content/home.jsonc） ===== */
@@ -179,11 +179,11 @@
   /* 一个建筑实例占的格子：it = { type, gx, gz, rot }（rot 0~3，每次转 90°，奇数时宽高互换） */
   function footprint(it) { const b = BUILDINGS.find(x => x.id === it.type); if (!b) return null; const odd = (it.rot | 0) % 2 === 1, w = odd ? b.d : b.w, d = odd ? b.w : b.d, out = []; for (let j = 0; j < d; j++) for (let i = 0; i < w; i++) out.push([it.gx + i, it.gz + j]); return out; }
   /* 能不能摆：返回空字符串表示可以，否则返回原因（中文，直接显示给玩家） */
-  function canPlace(occ, items, it, lv) {
+  function canPlace(occ, items, it, lv, moving) { /* moving：移动已有的建筑，不再检查开放状态、等级和数量 */
     const b = BUILDINGS.find(x => x.id === it.type); if (!b) return '没有这种建筑';
-    if (b.status !== 'live') return b.name + '还没有开放';
-    if (lv !== undefined && lv < b.lv) return `需要 Lv.${b.lv}`;
-    if (b.max && items.filter(x => x.type === it.type).length >= b.max) return `${b.name}最多只能建 ${b.max} 个`;
+    if (!moving && b.status !== 'live') return b.name + '还没有开放';
+    if (!moving && lv !== undefined && lv < b.lv) return `需要 Lv.${b.lv}`;
+    if (!moving && b.max && items.filter(x => x.type === it.type).length >= b.max) return `${b.name}最多只能建 ${b.max} 个`;
     const used = new Set(); items.forEach(x => (footprint(x) || []).forEach(([i, j]) => used.add(j * occ.W + i)));
     for (const [i, j] of footprint(it)) { if (i < 0 || j < 0 || i >= occ.W || j >= occ.H) return '超出家园范围'; const k = j * occ.W + i; if (occ.cells[k]) return '这里已经有东西了'; if (used.has(k)) return '和别的建筑重叠了'; }
     return '';

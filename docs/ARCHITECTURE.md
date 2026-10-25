@@ -79,7 +79,7 @@ server/
 - `CFG.homeOccupancy({ fields, pastLv, pondLv })`：2 米一格（65 × 66 格），标出被菜地 / 建筑 / 池塘 / 牧场 / 果园占用的格子；满级后仍有约 2500 格可以自由建造。
 - `CFG.canPlace(occ, items, item, lv)`：开放状态、等级、数量上限、越界、占用、重叠检查，返回中文原因。
 - 存档 `users.layout`（迁移 v5）：`{ v, seq, items: [{ id, type, gx, gz, rot, at }] }`；接口 `GET /api/home/layout`、`POST /api/home/place`、`POST /api/home/remove`（退一半）。扩建牧场 / 鱼塘、开新菜地后，被占用格子上的建筑自动收回并全额退款。
-- 建筑目录 `content/buildings.jsonc` 目前全部 `planned`，第 1 期上线摆放界面时改为 `live`。
+- 第 1 期（v3.8.0）上线：建筑目录 `content/buildings.jsonc` 9 种 `live`（`solid` 决定是否挡路：`seg` 线段 / 半径），瞭望塔、长城仍 `planned`。界面在 `src/homebuild.js`（建造栏、预览、选中 / 移动 / 拆除），3D 在 `world3d.js`（`setLayout` 摆放、`buildMode` 网格覆盖层、`setGhost` 绿 / 红预览、`cellAt` / `builtAt` 点选）。`POST /api/home/move` 免费移动 / 旋转；`/api/state` 的 `me.layout`、串门的 `owner.layout` 带布局。院子篱笆登记为固定建筑 `yard`，不能贴着篱笆建。
 
 ### 3.3 资源管线与实体
 

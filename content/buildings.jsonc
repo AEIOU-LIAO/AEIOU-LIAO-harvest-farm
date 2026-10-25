@@ -1,10 +1,17 @@
 // 家园可以自由摆放的建筑和装饰（第 1 期「家园自由建造」上线）。
-// w × d：占几个格子（每格 2 米，见 home.jsonc 的 grid.cell）· price 金币 · lv 解锁等级 · max 每个玩家最多几个（0 = 不限）
+// w × d：占几个格子（每格 2 米，见 home.jsonc 的 grid.cell）· price 金币（拆除退一半）· lv 解锁等级 · max 每个玩家最多几个（0 = 不限）
+// solid：人物能不能穿过 —— 0 可以走过去 · "seg" 像篱笆一样挡住（沿宽度方向的一条线）· 数字 = 圆形障碍的半径（米）
 // status：live 已开放 · planned 规划中（服务器拒绝摆放）
 [
-  {"id":"fence","name":"木栅栏","kind":"decor","w":1,"d":1,"price":200,"lv":1,"max":0,"status":"planned"},
-  {"id":"flowerbed","name":"花坛","kind":"decor","w":1,"d":1,"price":500,"lv":3,"max":0,"status":"planned"},
-  {"id":"lamp","name":"路灯","kind":"decor","w":1,"d":1,"price":800,"lv":5,"max":0,"status":"planned"},
-  {"id":"watchtower","name":"瞭望塔","kind":"defense","w":2,"d":2,"price":20000,"lv":40,"max":8,"status":"planned"},
-  {"id":"greatwall","name":"长城（世界奇观）","kind":"wonder","w":10,"d":2,"price":5000000,"lv":200,"max":1,"status":"planned"}
+  {"id":"stonepath","name":"石板路","kind":"decor","w":1,"d":1,"price":80,"lv":1,"max":0,"solid":0,"status":"live","desc":"铺一条小路"},
+  {"id":"fence","name":"木栅栏","kind":"decor","w":1,"d":1,"price":200,"lv":1,"max":0,"solid":"seg","status":"live","desc":"2 米一段，可以围出自己的院子"},
+  {"id":"haystack","name":"草垛","kind":"decor","w":1,"d":1,"price":300,"lv":2,"max":0,"solid":0.8,"status":"live","desc":"秋收的味道"},
+  {"id":"flowerbed","name":"花坛","kind":"decor","w":1,"d":1,"price":500,"lv":3,"max":0,"solid":0,"status":"live","desc":"一年四季开花"},
+  {"id":"bench","name":"长椅","kind":"decor","w":1,"d":1,"price":600,"lv":4,"max":0,"solid":0.5,"status":"live","desc":"坐下来歇歇脚"},
+  {"id":"lamp","name":"路灯","kind":"decor","w":1,"d":1,"price":800,"lv":5,"max":0,"solid":0.25,"status":"live","desc":"天黑自动亮"},
+  {"id":"pinetree","name":"小松树","kind":"decor","w":1,"d":1,"price":1000,"lv":6,"max":0,"solid":0.45,"status":"live","desc":"四季常青"},
+  {"id":"well","name":"水井","kind":"decor","w":2,"d":2,"price":3000,"lv":10,"max":4,"solid":1.2,"status":"live","desc":"石砌老井"},
+  {"id":"pavilion","name":"凉亭","kind":"decor","w":3,"d":3,"price":12000,"lv":20,"max":2,"solid":0,"status":"live","desc":"红柱青瓦，可以走进去"},
+  {"id":"watchtower","name":"瞭望塔","kind":"defense","w":2,"d":2,"price":20000,"lv":40,"max":8,"solid":1.2,"status":"planned","desc":"第 3 期兽潮防御时开放"},
+  {"id":"greatwall","name":"长城（世界奇观）","kind":"wonder","w":10,"d":2,"price":5000000,"lv":200,"max":1,"solid":0,"status":"planned","desc":"奇观系统上线时开放"}
 ]
