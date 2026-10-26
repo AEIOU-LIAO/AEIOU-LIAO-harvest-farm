@@ -28,15 +28,18 @@ const Town = (() => {
     { const r = rng(311), geo = new T.ConeGeometry(1, 1, 6, 1), m = new T.MeshStandardMaterial({ color: new T.Color('#7fa8a0'), roughness: 1, flatShading: true }), n = 46, im = new T.InstancedMesh(geo, m, n), o = new T.Object3D();
       for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2 + r() * 0.1, d = 150 + r() * 40, h = 25 + r() * 45; o.position.set(Math.cos(a) * d, h / 2 - 2, Math.sin(a) * d); o.scale.set(20 + r() * 25, h, 20 + r() * 25); o.rotation.y = r() * 6; o.updateMatrix(); im.setMatrixAt(i, o.matrix); }
       im.frustumCulled = false; scene.add(im); }
-    /* 树：程序拼的圆冠树（套件植物第三批到了以后换掉） */
-    const trees = { im: null };
-    function plantTrees(list) {
-      if (trees.im) { trees.im.forEach(x => { scene.remove(x); x.geometry.dispose(); }); }
-      const r = rng(77), crown = new T.IcosahedronGeometry(1, 1), trunk = new T.CylinderGeometry(0.16, 0.24, 1, 7).translate(0, 0.5, 0), cm = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 }), tm = new T.MeshStandardMaterial({ color: new T.Color('#7a5236'), roughness: 0.9 });
-      W3.snowify(cm); const n = list.length, ci = new T.InstancedMesh(crown, cm, n * 2), ti = new T.InstancedMesh(trunk, tm, n), o = new T.Object3D(), pal = ['#5fae4a', '#4f9a44', '#7cc05a', '#e8a6b8', '#f2c45a'].map(c => new T.Color(c));
-      list.forEach(([x, z2, s], i) => { s = s || 1; o.position.set(x, 0, z2); o.scale.set(s, 2.2 * s, s); o.rotation.set(0, 0, 0); o.updateMatrix(); ti.setMatrixAt(i, o.matrix); const c = pal[r() < 0.12 ? 3 + (r() < 0.5 ? 1 : 0) : Math.floor(r() * 3)];
-        for (let k = 0; k < 2; k++) { o.position.set(x + (k ? 0.5 : -0.3) * s, (2.6 + k * 0.9) * s, z2 + (k ? -0.3 : 0.3) * s); o.scale.setScalar((1.5 - k * 0.35) * s); o.rotation.set(r(), r() * 6, 0); o.updateMatrix(); ci.setMatrixAt(i * 2 + k, o.matrix); ci.setColorAt(i * 2 + k, c); } });
-      [ci, ti].forEach(m => { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; scene.add(m); }); trees.im = [ci, ti]; trees.list = list;
+    /* 树和花草（2026-10-27 换成美术第三批的套件植物）：
+       布局里的 trees [x, z, 缩放] 离镇中心近的用近景版（阔叶树 / 松树 / 垂柳轮换），外圈用远景版（≤ 300 面，只要剪影）；
+       另外按种子在空地上撒草丛、灌木、开花灌木，屋后栅栏边种几丛竹子。花草不投影（省一遍阴影），冬天开花灌木的花不画 */
+    let plants = [];
+    function makePlants(L) {
+      const r = rng(77), out = [], NEAR = ['kit_plant_tree_broad_a', 'kit_plant_tree_broad_b', 'kit_plant_tree_pine', 'kit_plant_tree_broad_a', 'kit_plant_tree_willow'];
+      (L.trees || []).forEach(([x, z2, sc]) => { const far = Math.hypot(x / 1.0, z2 / 0.75) > 46, k = Math.floor(r() * NEAR.length), n = NEAR[k] + (far ? '_far' : ''); out.push({ p: n, x, z: z2, r: Math.floor(r() * 360), s: +(sc || 1).toFixed(2) }); });
+      const free = (x, z2) => !(Math.abs(z2) < 4.5 && Math.abs(x) < 46) && !(Math.abs(x) < 10.5 && Math.abs(z2) < 10.5) && !items.some(it => Math.abs(it.x - x) < (it.a ? 4.5 : 1.2) && Math.abs(it.z - z2) < (it.a ? 4.5 : 1.2));
+      for (let i = 0, n = 0; i < 900 && n < 220; i++) { const x = (r() - 0.5) * 110, z2 = (r() - 0.5) * 84; if (!free(x, z2)) continue; n++; out.push({ p: 'kit_plant_grass', x: +x.toFixed(1), z: +z2.toFixed(1), r: Math.floor(r() * 360), s: +(0.8 + r() * 0.7).toFixed(2) }); }
+      for (let i = 0, n = 0; i < 400 && n < 22; i++) { const x = (r() - 0.5) * 96, z2 = (r() < 0.5 ? -1 : 1) * (5 + r() * 26); if (!free(x, z2)) continue; n++; out.push({ p: r() < 0.35 ? 'kit_plant_bush_flower' : r() < 0.5 ? 'kit_plant_bush_a' : 'kit_plant_bush_b', x: +x.toFixed(1), z: +z2.toFixed(1), r: Math.floor(r() * 360), s: +(0.8 + r() * 0.4).toFixed(2) }); }
+      [[-40.5, -15], [40.5, -15], [-40.5, 15], [40.5, 15], [-12.5, -15], [12.5, 15]].forEach(([x, z2]) => out.push({ p: 'kit_plant_bamboo', x, z: z2, r: Math.floor(r() * 360) }));
+      return out;
     }
     const cam = new T.PerspectiveCamera(50, 1, 0.1, 600);
     /* ---------- 套件 ---------- */
@@ -44,15 +47,16 @@ const Town = (() => {
     const ready = (async () => {
       lib = new Assets3({ manifest: GAMECFG.ASSETS }); kit = new Kit3.Kit(lib, { tint: (S0 && S0.tint) || null, onMat: m => W3.snowify(m) });   /* 冬天和家园一样积雪（共用家园的积雪着色器和季节） */
       const [, L] = await Promise.all([kit.load('1k'), fetch(LAYOUT_URL).then(r => r.json()), EDIT ? fetch('art/v9_kit/names.json').then(r => r.json()).then(j => { PNAMES = j; }).catch(() => { }) : null]);
-      if (dead) return; layout = L; items = (EDIT && loadDraft()) || L.items; plantTrees(L.trees || []); await rebuild();
+      if (dead) return; layout = L; items = (EDIT && loadDraft()) || L.items; plants = await Kit3.expand(makePlants(L)); plants.forEach(it => { it.id = -1; }); await rebuild();
       if (L.spawn && !EDIT) { hero.pos.set(L.spawn[0], 0, L.spawn[1]); hero.face = L.spawn[2] || 0; camYaw = hero.face + Math.PI; }
     })().catch(e => { console.warn('清河镇加载失败', e); say('小镇加载失败：' + e.message, 4000); });
     let rebuilding = null;
     async function rebuild() {
       const mine = rebuilding = {}; const list = await Kit3.expand(items); if (dead || mine !== rebuilding) return;
-      if (built) built.dispose(); built = kit.build(list); scene.add(built.group);
-      /* 挡路的盒子：去掉地面、台阶这种扁的，和头顶上的屋顶 */
-      boxes = built.boxes.filter(b => b.box.max.y - b.box.min.y > 0.5 && b.box.min.y < 1.6).map(b => [b.box.min.x - 0.25, b.box.min.z - 0.25, b.box.max.x + 0.25, b.box.max.z + 0.25]);
+      if (built) built.dispose(); built = kit[ed && ed.on ? 'build' : 'buildMerged'](list.concat(plants), {   /* 逛的时候用合并版（看不见的格子不画）；编辑时用实例版（能点选） */ noFlowers: W3.season === 'winter', noShadow: n => !/^kit_roof_(tile_slope|thatch_slope|pyramid|tile_hip)|^kit_canopy|^kit_porch_awning|^kit_plant_tree_(broad_a|broad_b|pine|willow)$|^kit_plant_bamboo$|^kit_stall_frame|^kit_column/.test(n),
+        detail: n => /^kit_prop_|^kit_plant_(grass|bush|reed|lotus|bamboo)|^kit_fence|^kit_rail_red_post|^kit_banner|^kit_sign/.test(n) }   /* 只有屋顶、布棚、雨棚、近景树、竹子、摊位架和柱子投影（阴影要把投影的东西再画一遍，墙和小东西的影子基本被屋顶的影子盖住）；道具、花草、栅栏离镜头 40 米外不画 */); scene.add(built.group);
+      /* 挡路的盒子：去掉地面、台阶这种扁的，和头顶上的屋顶；树只挡树干那一小块，草和灌木不挡 */
+      boxes = built.boxes.filter(b => !/^kit_plant_(grass|reed|lotus|bush)/.test(b.p) && b.box.max.y - b.box.min.y > 0.5 && b.box.min.y < 1.6).map(b => { if (/^kit_plant_(tree|bamboo)/.test(b.p)) { const c = b.box.getCenter(new T.Vector3()); return [c.x - 0.45, c.z - 0.45, c.x + 0.45, c.z + 0.45]; } return [b.box.min.x - 0.25, b.box.min.z - 0.25, b.box.max.x + 0.25, b.box.max.z + 0.25]; });
       findStalls(list); if (ed) ed.refresh();
     }
     const blocked = (x, z2) => { if (Math.abs(x) > LIM || Math.abs(z2) > LIM) return true; for (const b of boxes) if (x > b[0] && x < b[2] && z2 > b[1] && z2 < b[3]) return true; return false; };
@@ -195,7 +199,7 @@ const Town = (() => {
       bar.querySelector('[data-ex]').onclick = () => { const out = Object.assign({}, layout, { items: items.map(it => { const o = {}; ['a', 'p', 'x', 'y', 'z', 'r', 'tint'].forEach(k => { if (it[k] !== undefined && it[k] !== null && !(k === 'y' && !it[k]) && !(k === 'r' && !it[k])) o[k] = it[k]; }); return o; }), exported: new Date().toISOString() });
         const txt = JSON.stringify(out, null, 1); try { navigator.clipboard && navigator.clipboard.writeText(txt); } catch (e) { }
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' })); a.download = 'qinghe.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); say('已导出 qinghe.json（也复制到了剪贴板）', 3000); };
-      E.toggle = on => { E.on = on; panel.style.display = bar.style.display = on ? '' : 'none'; joy.style.display = on ? 'none' : ''; hero.g.visible = !on; ui.classList.toggle('editing', on);
+      E.toggle = on => { const was = E.on; E.on = on; if (was !== on) rebuild(); panel.style.display = bar.style.display = on ? '' : 'none'; joy.style.display = on ? 'none' : ''; hero.g.visible = !on; ui.classList.toggle('editing', on);
         if (on) { E.cam.tx = hero.pos.x; E.cam.tz = hero.pos.z; E.cam.yaw = camYaw; renderPanel(); renderSel(); } else { E.brush = null; E.sel = -1; E.ghostKey = ''; updateGhost(); renderSel(); } };
       E.update = () => { updateGhost(); const C = E.cam, cp = Math.cos(C.pitch); cam.position.set(C.tx + Math.sin(C.yaw) * cp * C.dist, Math.sin(C.pitch) * C.dist, C.tz + Math.cos(C.yaw) * cp * C.dist); cam.lookAt(C.tx, 0, C.tz); sun.position.set(C.tx + 40, 80, C.tz + 30); sun.target.position.set(C.tx, 0, C.tz); };
       $u('[data-edit]').onclick = () => E.toggle(!E.on);
@@ -224,10 +228,10 @@ const Town = (() => {
       hemi.intensity = 0.95 - night * 0.7; hemi.color.set('#fff6e8').lerp(new T.Color('#8fa8e0'), night * 0.6); sun.intensity = 2.0 * (1 - night * 0.85) * (1 - sn * 0.2); sun.color.set('#fff0d6').lerp(new T.Color('#ffb070'), dusk * 0.7);
       if (kit) kit.glow.forEach(m => { m.emissiveIntensity = night * 1.6; });
     }
-    let hudT = 0, tAcc = 0;
+    let hudT = 0, tAcc = 0, cullT = 0;
     return {
       scene, get camera() { return cam; },
-      update(dt) { tAcc += dt; dt = Math.min(dt, 0.05); if (ed && ed.on) ed.update(); else updateHero(dt); marketTick(); hudT -= dt; if (hudT <= 0) { hudT = 0.5; env(); const inf = $u('.tw-info'); if (inf && built) inf.textContent = EDIT ? `${items.length} 件 · ${Math.round(built.tris / 1000)}k 面` : ''; } },
+      update(dt) { tAcc += dt; dt = Math.min(dt, 0.05); if (ed && ed.on) ed.update(); else updateHero(dt); marketTick(); cullT -= dt; if (cullT <= 0 && built && built.cull) { cullT = 0.25; built.cull(cam.position, 40); } hudT -= dt; if (hudT <= 0) { hudT = 0.5; env(); const inf = $u('.tw-info'); if (inf && built) inf.textContent = EDIT ? `${items.length} 件 · ${Math.round(built.tris / 1000)}k 面` : ''; } },
       resize(w, h) { cam.aspect = w / h; cam.updateProjectionMatrix(); },
       dispose() { dead = true; document.removeEventListener('keydown', kd, true); document.removeEventListener('keyup', ku, true); canvas.removeEventListener('pointerdown', cvDown); canvas.removeEventListener('pointermove', cvMove); canvas.removeEventListener('pointerup', cvUp); canvas.removeEventListener('pointercancel', cvUp); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', ctx);
         ui.remove(); document.body.classList.remove('hunting'); if (hero.rig && heroLib) Entity3.release(heroLib, hero.rig, true); if (built) built.dispose(); if (ed && ed.ghost) ed.ghost.dispose(); Zones.disposeTree(scene); },
