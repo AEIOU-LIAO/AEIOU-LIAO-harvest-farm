@@ -782,3 +782,22 @@ test('第 2 期 名山猎场：进山拿种子、前后端野兽位置一致、�
     r = await t.call('POST', '/api/wh/sell', { item: 'hm3', n: 1 }, a.token); assert.ok(r.ok, r.error); assert.equal(r.state.inv.hm3, 1);
   } finally { await t.close(); }
 });
+
+/* 2026-10-27：线上清河镇「加载失败」——部署包只复制了 art/ 下的 glb/gz/jpg/png，没有布局和拼装清单的 json。
+   这里直接跑一遍部署打包，检查小镇需要的每个文件都在 dist/ 里 */
+test('部署包：清河镇用到的布局、拼装清单、套件模型和贴图都在 dist/', () => {
+  const fs = require('fs'), path = require('path'), root = path.join(__dirname, '..'), dist = path.join(root, 'dist');
+  require('child_process').execFileSync(process.execPath, [path.join(root, 'deploy/edgeone-dist.js')], { stdio: 'pipe' });
+  const has = f => fs.existsSync(path.join(dist, f));
+  const L = JSON.parse(fs.readFileSync(path.join(root, 'art/town/qinghe.json'), 'utf8'));
+  const need = ['art/town/qinghe.json', 'art/v9_kit/names.json', 'art/v9_kit/kit/kit.glb', 'art/v9_kit/kit/kit.glb.gz'];
+  new Set(L.items.filter(it => it.a).map(it => it.a).concat(L.assemblies || [])).forEach(a => need.push('art/v9_kit/assemblies/' + a + '.json'));
+  /* 贴图：按打包时写进材质 extras 的名字和扩展名 */
+  const b = fs.readFileSync(path.join(root, 'art/v9_kit/kit/kit.glb')), J = JSON.parse(b.slice(20, 20 + b.readUInt32LE(12)).toString());
+  J.materials.forEach(m => { const ex = m.extras || {}; ['baseColorTexture', 'normalTexture', 'metallicRoughnessTexture', 'emissiveTexture'].forEach(k => { if (ex[k]) ['tex', 'tex2k'].forEach(d => need.push(`art/v9_kit/kit/${d}/${ex[k]}.${ex[k + 'Ext'] || 'jpg'}`)); }); });
+  const miss = [...new Set(need)].filter(f => !has(f)); assert.deepEqual(miss, [], '部署包里缺：' + miss.join(', '));
+  /* 布局里的每个零件、每个组合用到的零件，kit.glb 里都要有 */
+  const names = new Set(J.scenes[J.scene || 0].nodes.map(i => J.nodes[i].name)), used = new Set(L.items.filter(it => it.p).map(it => it.p));
+  new Set(L.items.filter(it => it.a).map(it => it.a)).forEach(a => JSON.parse(fs.readFileSync(path.join(root, 'art/v9_kit/assemblies', a + '.json'), 'utf8')).parts.forEach(q => used.add(q.p)));
+  assert.deepEqual([...used].filter(n => !names.has(n)), [], '布局用到了 kit.glb 里没有的零件');
+});

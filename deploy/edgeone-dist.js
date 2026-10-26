@@ -5,5 +5,5 @@ require('../src/build.js'); require('./bundle-functions.js');
 fs.rmSync(out, { recursive: true, force: true }); fs.mkdirSync(path.join(out, 'vendor'), { recursive: true }); fs.mkdirSync(path.join(out, 'shared'), { recursive: true }); fs.mkdirSync(path.join(out, 'lib'), { recursive: true });
 for (const f of ['index.html', 'admin.html', 'art-preview.html', 'vendor/three.min.js', 'vendor/three-addons.js', 'vendor/THREE-LICENSE.txt', 'shared/content.js', 'lib/assets3.js', 'lib/entity3.js']) fs.copyFileSync(path.join(root, f), path.join(out, f));
 // 美术测试包（新角色预览页用）：只复制游戏用的 glb / jpg
-fs.cpSync(path.join(root, 'art'), path.join(out, 'art'), { recursive: true, filter: f => fs.statSync(f).isDirectory() || /\.(glb|gz|jpg|png)$/.test(f) });
+fs.cpSync(path.join(root, 'art'), path.join(out, 'art'), { recursive: true, filter: f => fs.statSync(f).isDirectory() || /\.(glb|gz|jpg|png|json)$/.test(f) });
 console.log('dist ready:', fs.readdirSync(out).join(', '));
