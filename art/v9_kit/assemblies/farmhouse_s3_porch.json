@@ -1,0 +1,369 @@
+{
+  "name": "farmhouse_s3_porch",
+  "desc": "三级瓦房带开放式门廊：2m宽木地板平台、方木柱、斗拱与横梁；靠门部分由主屋出檐遮蔽，不叠加穿插主屋的雨棚。",
+  "parts": [
+    {
+      "p": "kit_found_stone_2x2",
+      "x": -1,
+      "y": 0,
+      "z": -1,
+      "r": 0
+    },
+    {
+      "p": "kit_found_stone_2x2",
+      "x": 1,
+      "y": 0,
+      "z": -1,
+      "r": 0
+    },
+    {
+      "p": "kit_found_stone_2x2",
+      "x": -1,
+      "y": 0,
+      "z": 1,
+      "r": 0
+    },
+    {
+      "p": "kit_found_stone_2x2",
+      "x": 1,
+      "y": 0,
+      "z": 1,
+      "r": 0
+    },
+    {
+      "p": "kit_wall_plaster_door_2m_t",
+      "x": -1,
+      "y": 0.4,
+      "z": 2,
+      "r": 0,
+      "tint": "wall"
+    },
+    {
+      "p": "kit_wall_plaster_window_2m_t",
+      "x": 1,
+      "y": 0.4,
+      "z": 2,
+      "r": 0,
+      "tint": "wall"
+    },
+    {
+      "p": "kit_door_wood_single",
+      "x": -1,
+      "y": 0.4,
+      "z": 2,
+      "r": 0
+    },
+    {
+      "p": "kit_window_lattice",
+      "x": 1,
+      "y": 1.4,
+      "z": 2,
+      "r": 0
+    },
+    {
+      "p": "kit_wall_plaster_2m_t",
+      "x": -1,
+      "y": 0.4,
+      "z": -2,
+      "r": 180,
+      "tint": "wall"
+    },
+    {
+      "p": "kit_wall_plaster_2m_t",
+      "x": 1,
+      "y": 0.4,
+      "z": -2,
+      "r": 180,
+      "tint": "wall"
+    },
+    {
+      "p": "kit_wall_plaster_window_2m_t",
+      "x": 2,
+      "y": 0.4,
+      "z": -1,
+      "r": 90,
+      "tint": "wall"
+    },
+    {
+      "p": "kit_wall_plaster_2m_t",
+      "x": 2,
+      "y": 0.4,
+      "z": 1,
+      "r": 90,
+      "tint": "wall"
+    },
+    {
+      "p": "kit_wall_plaster_2m_t",
+      "x": -2,
+      "y": 0.4,
+      "z": -1,
+      "r": 270,
+      "tint": "wall"
+    },
+    {
+      "p": "kit_wall_plaster_2m_t",
+      "x": -2,
+      "y": 0.4,
+      "z": 1,
+      "r": 270,
+      "tint": "wall"
+    },
+    {
+      "p": "kit_wall_corner_post",
+      "x": 2,
+      "y": 0.4,
+      "z": 2,
+      "r": 0
+    },
+    {
+      "p": "kit_wall_corner_post",
+      "x": -2,
+      "y": 0.4,
+      "z": 2,
+      "r": 0
+    },
+    {
+      "p": "kit_wall_corner_post",
+      "x": 2,
+      "y": 0.4,
+      "z": -2,
+      "r": 0
+    },
+    {
+      "p": "kit_wall_corner_post",
+      "x": -2,
+      "y": 0.4,
+      "z": -2,
+      "r": 0
+    },
+    {
+      "p": "kit_wall_gable_4m_t",
+      "x": 2,
+      "y": 2.8,
+      "z": 0,
+      "r": 90,
+      "tint": "wall"
+    },
+    {
+      "p": "kit_wall_gable_4m_t",
+      "x": -2,
+      "y": 2.8,
+      "z": 0,
+      "r": 270,
+      "tint": "wall"
+    },
+    {
+      "p": "kit_roof_tile_slope_2m_t",
+      "x": -1,
+      "y": 2.8,
+      "z": 2,
+      "r": 0,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_slope_2m_t",
+      "x": 1,
+      "y": 2.8,
+      "z": 2,
+      "r": 0,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_slope_2m_t",
+      "x": -1,
+      "y": 2.8,
+      "z": -2,
+      "r": 180,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_slope_2m_t",
+      "x": 1,
+      "y": 2.8,
+      "z": -2,
+      "r": 180,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_eave_2m_t",
+      "x": -1,
+      "y": 2.8,
+      "z": 2,
+      "r": 0,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_eave_2m_t",
+      "x": 1,
+      "y": 2.8,
+      "z": 2,
+      "r": 0,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_eave_2m_t",
+      "x": -1,
+      "y": 2.8,
+      "z": -2,
+      "r": 180,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_eave_2m_t",
+      "x": 1,
+      "y": 2.8,
+      "z": -2,
+      "r": 180,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_ridge_2m_t",
+      "x": -1,
+      "y": 3.955,
+      "z": 0,
+      "r": 0,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_ridge_2m_t",
+      "x": 1,
+      "y": 3.955,
+      "z": 0,
+      "r": 0,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_ridge_end_t",
+      "x": -2.15,
+      "y": 3.955,
+      "z": 0,
+      "r": 0,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_ridge_end_t",
+      "x": 2.15,
+      "y": 3.955,
+      "z": 0,
+      "r": 180,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_prop_barrel_a",
+      "x": 2.6,
+      "y": 0,
+      "z": 2.6,
+      "r": 0
+    },
+    {
+      "p": "kit_prop_bench",
+      "x": -2.6,
+      "y": 0,
+      "z": 1,
+      "r": 90
+    },
+    {
+      "p": "kit_roof_tile_verge_2m_t",
+      "x": -2.08,
+      "y": 2.8,
+      "z": 2,
+      "r": 0,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_verge_2m_t",
+      "x": -2.08,
+      "y": 2.8,
+      "z": -2,
+      "r": 180,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_verge_2m_t",
+      "x": 2.08,
+      "y": 2.8,
+      "z": 2,
+      "r": 0,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_roof_tile_verge_2m_t",
+      "x": 2.08,
+      "y": 2.8,
+      "z": -2,
+      "r": 180,
+      "tint": "roof"
+    },
+    {
+      "p": "kit_window_lattice",
+      "x": 2,
+      "y": 1.4,
+      "z": -1,
+      "r": 90
+    },
+    {
+      "p": "kit_found_stone_2x2",
+      "x": -1,
+      "y": 0,
+      "z": 3,
+      "r": 0
+    },
+    {
+      "p": "kit_floor_wood_2x2",
+      "x": -1,
+      "y": 0.4,
+      "z": 3,
+      "r": 0
+    },
+    {
+      "p": "kit_step_stone_2m",
+      "x": -1,
+      "y": 0,
+      "z": 4.3,
+      "r": 0
+    },
+    {
+      "p": "kit_column_wood",
+      "x": -2,
+      "y": 0.52,
+      "z": 4,
+      "r": 0
+    },
+    {
+      "p": "kit_bracket",
+      "x": -2,
+      "y": 2.57,
+      "z": 4,
+      "r": 0
+    },
+    {
+      "p": "kit_column_wood",
+      "x": 0,
+      "y": 0.52,
+      "z": 4,
+      "r": 0
+    },
+    {
+      "p": "kit_bracket",
+      "x": 0,
+      "y": 2.57,
+      "z": 4,
+      "r": 0
+    },
+    {
+      "p": "kit_beam_2m",
+      "x": -1,
+      "y": 2.92,
+      "z": 4,
+      "r": 0
+    }
+  ],
+  "cam": [
+    -9,
+    6.5,
+    12,
+    0,
+    1.9,
+    0.8
+  ]
+}

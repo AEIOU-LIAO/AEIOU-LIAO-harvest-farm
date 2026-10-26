@@ -514,7 +514,7 @@ body.fishing #card,body.fishing #gold,body.fishing #rightbtns,body.fishing #sndp
   if (typeof module !== 'undefined' && module.exports) module.exports = CONTENT; else root.GAMECONTENT = CONTENT;
 })(typeof window !== 'undefined' ? window : globalThis);
 
-var HF_BUILT = '2026-10-26 20:29';
+var HF_BUILT = '2026-10-26 21:17';
 /* =====================================================
    丰收农场 · 前后端共用配置与规则
    服务端是权威；客户端只用它来显示与插值。
@@ -3732,8 +3732,8 @@ const W3 = (() => {
   async function kitDemo() {
     if (KIT.demo) return; KIT.demo = 1;
     try { const get = n => fetch('art/v9_kit/assemblies/' + n + '.json').then(r => r.json());
-      const [house, seams] = await Promise.all([get('style_house_4x4'), get('sample_seams')]);
-      await kitPlace(house, KIT_DEMO[0], KIT_DEMO[1], 0); await kitPlace(seams, KIT_DEMO[0] - 9, KIT_DEMO[1] + 1, 0); snowifyScene(); seasonCollect && seasonCollect();
+      const names = ['sample_house_4x4', 'farmhouse_s1_thatch', 'farmhouse_s3_porch'], list = await Promise.all(names.map(get));
+      for (let i = 0; i < list.length; i++) await kitPlace(list[i], KIT_DEMO[0] - i * 8, KIT_DEMO[1], 0); snowifyScene(); seasonCollect && seasonCollect();
     } catch (e) { console.warn('套件示范加载失败', e); }
   }
   function setPets(list) {

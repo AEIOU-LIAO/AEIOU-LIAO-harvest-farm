@@ -1,6 +1,6 @@
 {
-  "name": "style_house_4x4",
-  "desc": "Same fifteen authored parts, with the missing side lattice added and a front-left view to show the bench; dimensions unchanged.",
+  "name": "farmhouse_s1_thatch",
+  "desc": "一级茅草屋：使用同一套底座、墙、门窗；木墙围护、独立厚茅草束屋顶。",
   "parts": [
     {
       "p": "kit_found_stone_2x2",
@@ -68,20 +68,18 @@
       "r": 0
     },
     {
-      "p": "kit_wall_plaster_2m_t",
+      "p": "kit_wall_wood_2m",
       "x": -1,
       "y": 0.4,
       "z": -2,
-      "r": 180,
-      "tint": "wall"
+      "r": 180
     },
     {
-      "p": "kit_wall_plaster_2m_t",
+      "p": "kit_wall_wood_2m",
       "x": 1,
       "y": 0.4,
       "z": -2,
-      "r": 180,
-      "tint": "wall"
+      "r": 180
     },
     {
       "p": "kit_wall_plaster_window_2m_t",
@@ -92,28 +90,25 @@
       "tint": "wall"
     },
     {
-      "p": "kit_wall_plaster_2m_t",
+      "p": "kit_wall_wood_2m",
       "x": 2,
       "y": 0.4,
       "z": 1,
-      "r": 90,
-      "tint": "wall"
+      "r": 90
     },
     {
-      "p": "kit_wall_plaster_2m_t",
+      "p": "kit_wall_wood_2m",
       "x": -2,
       "y": 0.4,
       "z": -1,
-      "r": 270,
-      "tint": "wall"
+      "r": 270
     },
     {
-      "p": "kit_wall_plaster_2m_t",
+      "p": "kit_wall_wood_2m",
       "x": -2,
       "y": 0.4,
       "z": 1,
-      "r": 270,
-      "tint": "wall"
+      "r": 270
     },
     {
       "p": "kit_wall_corner_post",
@@ -160,100 +155,32 @@
       "tint": "wall"
     },
     {
-      "p": "kit_roof_tile_slope_2m_t",
+      "p": "kit_roof_thatch_slope_2m",
       "x": -1,
       "y": 2.8,
       "z": 2,
-      "r": 0,
-      "tint": "roof"
+      "r": 0
     },
     {
-      "p": "kit_roof_tile_slope_2m_t",
+      "p": "kit_roof_thatch_slope_2m",
       "x": 1,
       "y": 2.8,
       "z": 2,
-      "r": 0,
-      "tint": "roof"
+      "r": 0
     },
     {
-      "p": "kit_roof_tile_slope_2m_t",
+      "p": "kit_roof_thatch_slope_2m",
       "x": -1,
       "y": 2.8,
       "z": -2,
-      "r": 180,
-      "tint": "roof"
+      "r": 180
     },
     {
-      "p": "kit_roof_tile_slope_2m_t",
+      "p": "kit_roof_thatch_slope_2m",
       "x": 1,
       "y": 2.8,
       "z": -2,
-      "r": 180,
-      "tint": "roof"
-    },
-    {
-      "p": "kit_roof_tile_eave_2m_t",
-      "x": -1,
-      "y": 2.8,
-      "z": 2,
-      "r": 0,
-      "tint": "roof"
-    },
-    {
-      "p": "kit_roof_tile_eave_2m_t",
-      "x": 1,
-      "y": 2.8,
-      "z": 2,
-      "r": 0,
-      "tint": "roof"
-    },
-    {
-      "p": "kit_roof_tile_eave_2m_t",
-      "x": -1,
-      "y": 2.8,
-      "z": -2,
-      "r": 180,
-      "tint": "roof"
-    },
-    {
-      "p": "kit_roof_tile_eave_2m_t",
-      "x": 1,
-      "y": 2.8,
-      "z": -2,
-      "r": 180,
-      "tint": "roof"
-    },
-    {
-      "p": "kit_roof_tile_ridge_2m_t",
-      "x": -1,
-      "y": 3.955,
-      "z": 0,
-      "r": 0,
-      "tint": "roof"
-    },
-    {
-      "p": "kit_roof_tile_ridge_2m_t",
-      "x": 1,
-      "y": 3.955,
-      "z": 0,
-      "r": 0,
-      "tint": "roof"
-    },
-    {
-      "p": "kit_roof_tile_ridge_end_t",
-      "x": -2.15,
-      "y": 3.955,
-      "z": 0,
-      "r": 0,
-      "tint": "roof"
-    },
-    {
-      "p": "kit_roof_tile_ridge_end_t",
-      "x": 2.15,
-      "y": 3.955,
-      "z": 0,
-      "r": 180,
-      "tint": "roof"
+      "r": 180
     },
     {
       "p": "kit_prop_barrel_a",
