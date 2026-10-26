@@ -79,6 +79,15 @@ const Hunt = (() => {
     (async () => { try { lib = new Assets3({ manifest: GAMECFG.ASSETS }); const rig = await Entity3.spawn(lib, PREF.v3hero || 'v4_hero_boy', 'hero', { tier: '1k' }); if (dead) { Entity3.release(lib, rig, true); return; } rig.object.scale.setScalar(0.8); rig.play('idle', 0); hero.g.add(rig.object); hero.rig = rig; hero.g.remove(hero.cap); } catch (e) { console.warn('猎场主人模型加载失败，用简单模型', e); hero.cap.visible = true; } })();
     /* 野兽 */
     const cmat = CMAT(), beasts = S0.list.map(s => { const b = makeCreature(s, cmat); b.g.position.set(s.x, groundAt(s.x, s.z), s.z); b.g.rotation.y = Math.random() * 6.28; scene.add(b.g); return b; });
+    /* 2026-10-26 美术 v4_wildlife 第一批：鹿、野猪、狼、熊的骨骼模型（idle / walk / run）。占位模型先顶着，加载好就换掉；
+       模型头朝 +Z，这里的野兽朝 +X，所以外面套一层转 90°；尺寸按美术的真实肩高 × 1.2（镜头里看得清），不再跟占位模型的 size 走 */
+    const BEAST_K = 1.2, beastLib = { lib: null };
+    (async () => { try { beastLib.lib = beastLib.lib || new Assets3({ manifest: GAMECFG.ASSETS });
+        for (const b of beasts) { if (dead) return; const aid = 'v4w_' + b.c.id; if (!GAMECFG.ASSETS.some(a => a.id === aid)) continue;
+          const rig = await Entity3.spawn(beastLib.lib, aid, 'beast', { tier: '1k' }); if (dead || b.gone) { Entity3.release(beastLib.lib, rig, true); continue; }
+          const w = new T.Group(); w.rotation.y = Math.PI / 2; w.scale.setScalar(BEAST_K / b.c.size); w.add(rig.object); rig.play('idle', 0); if (rig.inst.mixer) rig.inst.mixer.setTime(Math.random() * 2);
+          b.g.add(w); b.rig = rig; b.rw = w; b.body.visible = false; b.legs.forEach(l => { l.visible = false; }); } }
+      catch (e) { console.warn('野兽模型加载失败，继续用简单模型', e); } })();
     const zzzTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.font = 'bold 40px sans-serif'; x.fillStyle = '#fff'; x.strokeStyle = '#3a5a9a'; x.lineWidth = 5; x.strokeText('Zz', 6, 46); x.fillText('Zz', 6, 46); const t = new T.CanvasTexture(c); return t; })();
     const zzzMat = new T.SpriteMaterial({ map: zzzTex, transparent: true, depthWrite: false });
     /* 子弹 */
@@ -156,7 +165,7 @@ const Hunt = (() => {
     function updateBeast(b, dt, t) {
       const p = b.g.position, c = b.c, dh = Math.hypot(hero.pos.x - p.x, hero.pos.z - p.z);
       if (dh > 90 && b.state !== 'chase') { b.g.visible = false; return; } b.g.visible = true;
-      if (b.state === 'sleep') { b.sleepT -= dt; b.g.rotation.x = Math.min(1.45, b.g.rotation.x + dt * 4); b.legs.forEach(l => { l.rotation.z = 0; }); if (b.zzz) b.zzz.position.y = 1.5 + Math.sin(t * 2) * 0.12;
+      if (b.state === 'sleep') { b.sleepT -= dt; b.g.rotation.x = Math.min(1.45, b.g.rotation.x + dt * 4); b.legs.forEach(l => { l.rotation.z = 0; }); if (b.zzz) b.zzz.position.y = 1.5 + Math.sin(t * 2) * 0.12; if (b.rig) { b.rig.play('sleep'); b.rig.pace(0, 1); b.rig.update(dt * 0.4); } /* 美术还没交 sleep：回退 idle、放慢，侧躺由上面的整体旋转做 */
         if (dh < H.captureDist) capture(b); else if (b.sleepT <= 0) { b.state = 'flee'; b.t = 4; b.hp = Math.ceil(c.hp / 2); b.g.rotation.x = 0; b.g.remove(b.zzz); b.zzz = null; say(`${c.name}醒了，跑掉了！`); } p.y = groundAt(p.x, p.z); return; }
       b.cool = Math.max(0, b.cool - dt); b.t -= dt;
       if (c.aggro && dh < c.aggro && b.state !== 'flee') { b.state = 'chase'; b.t = Math.max(b.t, 2); }
@@ -168,6 +177,7 @@ const Hunt = (() => {
       p.y = groundAt(p.x, p.z); b.ph += dt * b.v * 2.6; const sw = Math.min(0.7, b.v * 0.12);
       b.legs.forEach((l, k) => { l.rotation.z = Math.sin(b.ph + (k === 0 || k === 3 ? 0 : Math.PI)) * sw; }); b.body.position.y = Math.abs(Math.sin(b.ph)) * sw * 0.08;
       if (b.hit > 0) { b.hit -= dt; b.body.position.y += 0.08; }
+      if (b.rig) { const r = b.rig, v = b.v || 0; r.play(v > c.speed * 0.55 ? 'run' : v > 0.15 ? 'walk' : 'idle'); r.pace(v, BEAST_K); r.update(dt); b.rw.position.y = b.hit > 0 ? 0.08 / c.size : 0; }
     }
     function updateHero(dt) {
       const mag = Math.min(1, Math.hypot(input.x, input.z)), sy = Math.sin(camYaw), cy = Math.cos(camYaw), mx = input.x * cy + input.z * sy, mz = -input.x * sy + input.z * cy;
@@ -203,8 +213,8 @@ const Hunt = (() => {
         TR.water.position.y = TR.lakeY + Math.sin(tAcc * 0.8) * 0.05; hudT -= dt; if (hudT <= 0) { hudT = 0.2; hud(); } },
       resize(w, h) { cam.aspect = w / h; cam.updateProjectionMatrix(); },
       dispose() { dead = true; ended = true; document.removeEventListener('keydown', kd, true); document.removeEventListener('keyup', ku, true); canvas.removeEventListener('pointerdown', cvDown); canvas.removeEventListener('pointermove', cvMove); canvas.removeEventListener('pointerup', cvUp); canvas.removeEventListener('pointercancel', cvUp); canvas.removeEventListener('wheel', wheel);
-        ui.remove(); document.body.classList.remove('hunting'); if (hero.rig && lib) Entity3.release(lib, hero.rig, true); Zones.disposeTree(scene); Object.values(shotGeo).forEach(g => g.dispose()); zzzTex.dispose(); Object.keys(GEO).forEach(k => { GEO[k].body.dispose(); GEO[k].leg.dispose(); delete GEO[k]; }); },
-      debug: () => ({ hero: [hero.pos.x, hero.pos.z, hero.hp], caught: caught.slice(), beasts: beasts.map(b => [b.c.id, +b.g.position.x.toFixed(1), +b.g.position.z.toFixed(1), b.state, b.hp, !!b.gone]), weapon }),
+        ui.remove(); document.body.classList.remove('hunting'); if (hero.rig && lib) Entity3.release(lib, hero.rig, true); beasts.forEach(b => { if (b.rig && beastLib.lib) Entity3.release(beastLib.lib, b.rig, true); b.rig = null; }); Zones.disposeTree(scene); Object.values(shotGeo).forEach(g => g.dispose()); zzzTex.dispose(); Object.keys(GEO).forEach(k => { GEO[k].body.dispose(); GEO[k].leg.dispose(); delete GEO[k]; }); },
+      debug: () => ({ hero: [hero.pos.x, hero.pos.z, hero.hp], caught: caught.slice(), beasts: beasts.map(b => [b.c.id, +b.g.position.x.toFixed(1), +b.g.position.z.toFixed(1), b.state, b.hp, !!b.gone, b.rig ? b.rig.real : null]), weapon }),
       fire, finish, tp(x, z2) { hero.pos.set(x, 0, z2); }, face(a) { hero.face = a; camYaw = a + Math.PI; },
     };
   }
