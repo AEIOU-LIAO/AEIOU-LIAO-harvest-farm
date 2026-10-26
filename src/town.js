@@ -53,7 +53,7 @@ const Town = (() => {
       if (built) built.dispose(); built = kit.build(list); scene.add(built.group);
       /* 挡路的盒子：去掉地面、台阶这种扁的，和头顶上的屋顶 */
       boxes = built.boxes.filter(b => b.box.max.y - b.box.min.y > 0.5 && b.box.min.y < 1.6).map(b => [b.box.min.x - 0.25, b.box.min.z - 0.25, b.box.max.x + 0.25, b.box.max.z + 0.25]);
-      if (ed) ed.refresh();
+      findStalls(list); if (ed) ed.refresh();
     }
     const blocked = (x, z2) => { if (Math.abs(x) > LIM || Math.abs(z2) > LIM) return true; for (const b of boxes) if (x > b[0] && x < b[2] && z2 > b[1] && z2 < b[3]) return true; return false; };
 
@@ -68,7 +68,7 @@ const Town = (() => {
     /* ---------- 界面 ---------- */
     const ui = document.createElement('div'); ui.id = 'huntui'; ui.className = 'townui'; ui.innerHTML = `
       <div class="hu-top"><b>${esc(z.name)}</b><span class="tw-info"></span>${EDIT ? `<button class="btn sm" data-edit>${ICON('hammer')}编辑</button>` : ''}<button class="btn sm primary" data-home>${ICON('home')}回家</button></div>
-      <div class="hu-msg"></div><div class="hu-joy"><i></i></div>`;
+      <div class="hu-msg"></div><div class="hu-joy"><i></i></div><div class="hu-right"><button class="hu-fire tw-act" data-act style="display:none">${ICON('tag')}<span></span></button></div>`;
     document.body.appendChild(ui); document.body.classList.add('hunting');
     const $u = s => ui.querySelector(s), joy = $u('.hu-joy'), knob = joy.querySelector('i');
     let msgT = 0; const say = (t, ms) => { const m = $u('.hu-msg'); m.textContent = t; m.classList.add('on'); clearTimeout(msgT); msgT = setTimeout(() => m.classList.remove('on'), ms || 1800); };
@@ -90,10 +90,55 @@ const Town = (() => {
     canvas.addEventListener('pointerdown', cvDown); canvas.addEventListener('pointermove', cvMove); canvas.addEventListener('pointerup', cvUp); canvas.addEventListener('pointercancel', cvUp); canvas.addEventListener('wheel', wheel, { passive: true }); canvas.addEventListener('contextmenu', ctx);
     const KM = { w: [0, -1], arrowup: [0, -1], s: [0, 1], arrowdown: [0, 1], a: [-1, 0], arrowleft: [-1, 0], d: [1, 0], arrowright: [1, 0] };
     const keyIn = () => { if (jid !== -1) return; let x = 0, z2 = 0; keys.forEach(k => { const v = KM[k]; if (v) { x += v[0]; z2 += v[1]; } }); const l = Math.hypot(x, z2) || 1; input.x = x / l; input.z = z2 / l; input.run = keys.has('shift'); };
-    const kd = e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return; const k = e.key.toLowerCase(); if (ed && ed.on) { if (ed.key(e, k)) e.preventDefault(); return; } if (KM[k] || k === 'shift') { e.preventDefault(); keys.add(k); keyIn(); } };
+    const kd = e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || document.body.classList.contains('mopen')) return; const k = e.key.toLowerCase(); if (!(ed && ed.on) && (k === 'e' || k === 'f' || k === ' ' || k === 'enter')) { e.preventDefault(); if (!e.repeat) act(); return; } if (ed && ed.on) { if (ed.key(e, k)) e.preventDefault(); return; } if (KM[k] || k === 'shift') { e.preventDefault(); keys.add(k); keyIn(); } };
     const ku = e => { const k = e.key.toLowerCase(); if (keys.delete(k)) keyIn(); };
     document.addEventListener('keydown', kd, true); document.addEventListener('keyup', ku, true);
-    say('欢迎来到清河镇', 2200);
+    say('欢迎来到清河镇 · 广场上的摊位可以买卖作物', 2600);
+
+    /* ---------- 集市（2026-10-27）----------
+       布局里每一个摊位架子（kit_stall_frame_2x2，不管是组合里的还是编辑器单独摆的）都是一个摊位：
+       第一个是「我的摊位」（上架 / 下架自己的作物），其余的摆出其他玩家正在卖的东西（集市里最新上架的几件），走到摊位前点「看看」就打开集市。
+       摊位上方飘一块牌子：谁在卖、卖什么、单价。进镇时拉一次集市（一次请求），关掉集市面板后再拉一次刷新牌子 */
+    const MK = { stalls: [], data: null, signs: [], near: -1, dirty: false, loading: false };
+    function findStalls(list) {
+      const v = new T.Vector3(), q = new T.Quaternion(), sc = new T.Vector3(), f = new T.Vector3();
+      MK.stalls = list.filter(it => it.p === 'kit_stall_frame_2x2').map(it => { it.m.decompose(v, q, sc); f.set(0, 0, 1).applyQuaternion(q); return { x: v.x, z: v.z, fx: f.x, fz: f.z, sx: v.x + f.x * 1.7, sz: v.z + f.z * 1.7 }; })
+        .sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z) || a.x - b.x);
+      if (MK.data) paintSigns(); else refreshMarket();   /* 编辑器里改布局时不用重新拉集市 */
+    }
+    async function refreshMarket() {
+      if (MK.loading || dead || !MK.stalls.length) return; MK.loading = true;
+      try { MK.data = await NET.get('/api/market'); } catch (e) { MK.data = null; } MK.loading = false; if (!dead) paintSigns();
+    }
+    function signTex(lines, mine) {
+      const c = document.createElement('canvas'); c.width = 512; c.height = 160; const x = c.getContext('2d');
+      x.fillStyle = mine ? 'rgba(122,58,24,.92)' : 'rgba(40,52,44,.88)'; x.strokeStyle = '#f2cf7a'; x.lineWidth = 6; const r = 26;
+      x.beginPath(); x.moveTo(r, 4); x.arcTo(508, 4, 508, 156, r); x.arcTo(508, 156, 4, 156, r); x.arcTo(4, 156, 4, 4, r); x.arcTo(4, 4, 508, 4, r); x.closePath(); x.fill(); x.stroke();
+      x.textAlign = 'center'; x.fillStyle = '#fff3d2'; x.font = 'bold 46px sans-serif'; x.fillText(lines[0], 256, 66); x.fillStyle = '#f6d98a'; x.font = '36px sans-serif'; x.fillText(lines[1] || '', 256, 124);
+      const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; return t;
+    }
+    function paintSigns() {
+      MK.signs.forEach(s => { scene.remove(s); s.material.map.dispose(); s.material.dispose(); }); MK.signs = [];
+      const d = MK.data, others = d ? d.list.slice() : [], mine = d ? d.mine.filter(x => x.status === 'open') : [];
+      MK.stalls.forEach((st, i) => {
+        let lines, kind;
+        if (i === 0) { kind = { sell: true }; lines = ['我的摊位', mine.length ? `在卖 ${mine.length} 件 · ${itemName(mine[0].item)}${mine.length > 1 ? ' 等' : ''}` : '空着 · 来摆摊吧']; }
+        else { const it = others[i - 1]; kind = { item: it ? it.item : '' }; lines = it ? [`${it.seller.name}的摊位`, `${itemName(it.item)} ×${it.qty} · 单价 ${it.price}`] : ['空摊位', '等人来摆摊']; }
+        st.kind = kind; const sp = new T.Sprite(new T.SpriteMaterial({ map: signTex(lines, i === 0), depthWrite: false, transparent: true }));
+        sp.scale.set(2.6, 0.81, 1); sp.position.set(st.x, 3.35, st.z); sp.renderOrder = 5; scene.add(sp); MK.signs.push(sp); });
+    }
+    const actBtn = $u('[data-act]');
+    function act() {
+      const st = MK.stalls[MK.near]; if (!st || typeof openMarket !== 'function') return; sfx('open'); MK.dirty = true;
+      if (st.kind && st.kind.sell) openMarket('sell'); else openMarket('buy', st.kind && st.kind.item || undefined);
+    }
+    actBtn.addEventListener('pointerdown', e => { e.preventDefault(); act(); });
+    function marketTick() {
+      let best = -1, bd = 2.3; MK.stalls.forEach((st, i) => { const d = Math.hypot(hero.pos.x - st.sx, hero.pos.z - st.sz); if (d < bd) { bd = d; best = i; } });
+      if (ed && ed.on) best = -1;
+      if (best !== MK.near) { MK.near = best; actBtn.style.display = best >= 0 ? '' : 'none'; if (best >= 0) actBtn.querySelector('span').textContent = MK.stalls[best].kind && MK.stalls[best].kind.sell ? '我的摊位' : '看看'; }
+      if (MK.dirty && !document.body.classList.contains('mopen')) { MK.dirty = false; refreshMarket(); }
+    }
 
     /* ---------- 场景编辑器 ---------- */
     const ed = EDIT ? makeEditor() : null;
@@ -182,11 +227,11 @@ const Town = (() => {
     let hudT = 0, tAcc = 0;
     return {
       scene, get camera() { return cam; },
-      update(dt) { tAcc += dt; dt = Math.min(dt, 0.05); if (ed && ed.on) ed.update(); else updateHero(dt); hudT -= dt; if (hudT <= 0) { hudT = 0.5; env(); const inf = $u('.tw-info'); if (inf && built) inf.textContent = EDIT ? `${items.length} 件 · ${Math.round(built.tris / 1000)}k 面` : ''; } },
+      update(dt) { tAcc += dt; dt = Math.min(dt, 0.05); if (ed && ed.on) ed.update(); else updateHero(dt); marketTick(); hudT -= dt; if (hudT <= 0) { hudT = 0.5; env(); const inf = $u('.tw-info'); if (inf && built) inf.textContent = EDIT ? `${items.length} 件 · ${Math.round(built.tris / 1000)}k 面` : ''; } },
       resize(w, h) { cam.aspect = w / h; cam.updateProjectionMatrix(); },
       dispose() { dead = true; document.removeEventListener('keydown', kd, true); document.removeEventListener('keyup', ku, true); canvas.removeEventListener('pointerdown', cvDown); canvas.removeEventListener('pointermove', cvMove); canvas.removeEventListener('pointerup', cvUp); canvas.removeEventListener('pointercancel', cvUp); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', ctx);
         ui.remove(); document.body.classList.remove('hunting'); if (hero.rig && heroLib) Entity3.release(heroLib, hero.rig, true); if (built) built.dispose(); if (ed && ed.ghost) ed.ghost.dispose(); Zones.disposeTree(scene); },
-      debug: () => ({ ready: !!built, items: items.length, tris: built ? built.tris : 0, miss: built ? built.miss : [], boxes: boxes.length, hero: [+hero.pos.x.toFixed(2), +hero.pos.z.toFixed(2)], edit: !!(ed && ed.on), sel: ed ? ed.sel : -1, blockedAt: (x, z2) => blocked(x, z2) }),
+      market: () => ({ stalls: MK.stalls.map(st => [+st.sx.toFixed(1), +st.sz.toFixed(1), st.kind]), near: MK.near, signs: MK.signs.length, loaded: !!MK.data }), act, debug: () => ({ ready: !!built, items: items.length, tris: built ? built.tris : 0, miss: built ? built.miss : [], boxes: boxes.length, hero: [+hero.pos.x.toFixed(2), +hero.pos.z.toFixed(2)], edit: !!(ed && ed.on), sel: ed ? ed.sel : -1, blockedAt: (x, z2) => blocked(x, z2) }),
       tp(x, z2, face) { hero.pos.set(x, 0, z2); if (face !== undefined) { hero.face = face; camYaw = face + Math.PI; } }, setInput(o) { Object.assign(input, o); },
       editor: ed, ready,
     };
