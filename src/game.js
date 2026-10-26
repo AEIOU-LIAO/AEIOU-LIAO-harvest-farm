@@ -661,18 +661,19 @@ function updateTip() {
 
 /* ============ 启动 ============ */
 /* V0.2 新角色模型（测试开关）：设置里打开，或网址带 ?v3=1。加载失败时保持原来的角色 */
+const HERO_DEFAULT = 'h2_heroine_01';   /* 2026-10-26 甲方：没选过角色的默认女主角 1 号 */
 async function applyNewChar(loud) {
-  const on = true, hid = PREF.v3hero || 'v4_hero_boy';   /* 2026-10-26：新角色固定开启，原始小人不再使用 */
+  const on = true, hid = PREF.v3hero || HERO_DEFAULT;   /* 2026-10-26：新角色固定开启，原始小人不再使用 */
   if (!W3.ready) { setTimeout(() => applyNewChar(loud), 500); return; }
   const info = W3.ncInfo(); if (W3.newChar && info.heroId === hid && !loud) return; if (applyNewChar.busy && !loud) return; applyNewChar.busy = true;
   if (loud && on) toast('正在加载新角色…');
   try { const ok = await W3.setNewChar(on, hid); applyNewChar.tries = 0; if (loud && ok) toast(`已换上：${(CFG.ASSETS.find(a => a.id === hid) || { name: '男主角' }).name}`); }
   catch (e) { console.warn('角色模型加载失败', e); if (loud) toast('角色模型加载失败，正在重试…', 'warn'); const n = applyNewChar.tries = (applyNewChar.tries || 0) + 1; setTimeout(() => applyNewChar(false), Math.min(30000, 3000 * n)); /* 网络不好时自动重试 */ }
-  finally { applyNewChar.busy = false; }
+  finally { applyNewChar.busy = false; const want = PREF.v3hero || HERO_DEFAULT; if (W3.ncInfo().hero && W3.ncInfo().heroId !== want) setTimeout(() => applyNewChar(false), 0); /* 加载期间存档到了、选的是别的角色：接着换 */ }
 }
 /* 选择自己的角色（男主角 / 14 位女主角），选了就自动打开「新角色模型」 */
 function openCharPick() {
-  const list = CFG.ASSETS.filter(a => a.kind === 'hero' && a.thumb), cur = PREF.v3hero || 'v4_hero_boy';
+  const list = CFG.ASSETS.filter(a => a.kind === 'hero' && a.thumb), cur = PREF.v3hero || HERO_DEFAULT;
   openModal(`${H2('user', '选择角色', `共 ${list.length} 位：男主角、${list.filter(a => /^hero_male_/.test(a.id)).length} 位男生、${list.filter(a => /^h2_heroine_/.test(a.id)).length} 位女生，都有走、跑、跳`)}<div class="charpick">${list.map(a => `<button class="cpick${a.id === cur ? ' on' : ''}" data-hid="${a.id}" title="${esc(a.desc || a.name)}"><img src="${a.thumb}" alt="" loading="lazy"><b>${esc(a.name)}</b></button>`).join('')}</div>`, {
     wide: true, mount: () => qsa('[data-hid]').forEach(b => b.onclick = async () => { sfx('click'); closeModal(true); await savePref({ v3hero: b.dataset.hid, v3char: true }); applyNewChar(true); })
   });
@@ -705,6 +706,7 @@ async function boot() {
   try { W3.init(cv); initWalkUi(); bootMark('w3'); } catch (e) { console.error('3D 初始化失败', e && (e.stack || e.message)); $('loading').querySelector('p').innerHTML = '你的浏览器不支持 3D 画面（WebGL），请换用最新版 Chrome、Edge 或 Safari'; return; }
   window.addEventListener('resize', () => W3.resize()); requestAnimationFrame(frame);
   try { PREF = Object.assign(PREF, JSON.parse(localStorage.getItem('hf_pref') || '{}')); } catch (e) { }
+  applyNewChar(false);   /* 2026-10-26：角色模型不等登录 / 存档，页面一打开就按本机记住的角色开始下载（登录页停留时网络是空闲的） */
   NET.onAuthLost(() => { if (started) { started = false; S = null; view = { key: 'home', friend: null, plots: blankPlots(), farm: null }; renderToolbar(); renderFriends(); toast('登录已失效，请重新登录', 'warn'); showLogin(); } });
   NET.onOnline(() => { if (started) poll(true); });
   for (let i = 0; i < 3; i++) {

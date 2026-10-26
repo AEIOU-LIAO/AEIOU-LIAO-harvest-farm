@@ -7,11 +7,12 @@
    ===================================================== */
 /* 按需加载脚本（V0.4）：区域、新角色用到的 three 扩展和资源模块不在首屏加载，第一次用到时按顺序加载，只加载一次 */
 const LAZY = {};
+/* 2026-10-26：几个脚本同时下载（async = false 保证按顺序执行），以前是一个下载完才开始下一个 */
 function needScripts(list) {
-  return list.reduce((p, src) => p.then(() => LAZY[src] || (LAZY[src] = new Promise((ok, no) => {
+  return Promise.all(list.map(src => LAZY[src] || (LAZY[src] = new Promise((ok, no) => {
     const s = document.createElement('script'); s.src = src + '?v=' + (typeof CFG !== 'undefined' ? CFG.VERSION : ''); s.async = false;
     s.onload = ok; s.onerror = () => { delete LAZY[src]; s.remove(); no(new Error('加载失败：' + src)); }; document.head.appendChild(s);
-  }))), Promise.resolve());
+  }))));
 }
 const LAZY_3D = ['vendor/three-addons.js'], LAZY_CHAR = ['vendor/three-addons.js', 'lib/assets3.js', 'lib/entity3.js'];
 const NET = (() => {

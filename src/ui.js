@@ -381,7 +381,7 @@ function openMenu() {
     ${row('昼夜', '', `<button class="btn sm" id="ttod">${({ auto: '跟随时间', day: '白天', dusk: '黄昏', night: '夜晚' })[PREF.tod] || '跟随时间'}</button>`)}
     ${row('季节画面', `只改画面；当季作物和产量加成按真实日期（现在是${CFG.seasonOf(NET.now()).full}）`, `<button class="btn sm" id="tsea">${({ auto: '跟随日期', spring: '春天', summer: '夏天', autumn: '秋天', winter: '冬天' })[PREF.sea] || '跟随日期'}</button>`)}
     ${row('飘雪 / 落叶 / 花瓣', PREF.wfx !== false ? '已开启' : '已关闭（手机卡顿时可以关掉）', `<button class="sw${PREF.wfx !== false ? ' on' : ''}" id="twfx" role="switch" aria-checked="${PREF.wfx !== false}"><i></i><span>${PREF.wfx !== false ? '开' : '关'}</span></button>`)}
-    ${row('我的角色', esc((CFG.ASSETS.find(a => a.id === (PREF.v3hero || 'v4_hero_boy')) || { name: '男主角' }).name), `<button class="btn sm" id="tv3">换角色</button>`)}
+    ${row('我的角色', esc((CFG.ASSETS.find(a => a.id === (PREF.v3hero || HERO_DEFAULT)) || { name: '女主角 1 号' }).name), `<button class="btn sm" id="tv3">换角色</button>`)}
     ${row('成熟 / 被偷提醒', '页面在后台时，用浏览器通知提醒你（默认关闭）', `<button class="btn sm ${PREF.notify ? 'primary' : ''}" id="tnotify">${PREF.notify ? '开启' : '关闭'}</button>`)}
     ${row('账号与数据', S.me.guest ? '游客账号只能在这个浏览器登录，建议绑定' : '已绑定账号：' + esc(S.me.username), '<button class="btn sm" id="tacc">管理</button>')}
     ${row('玩法与规则', '', '<button class="btn sm" id="thelp">查看</button>')}
