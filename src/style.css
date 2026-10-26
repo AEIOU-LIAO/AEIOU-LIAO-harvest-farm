@@ -454,3 +454,14 @@ body.fishing #card,body.fishing #gold,body.fishing #rightbtns,body.fishing #sndp
 .cpick{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line2);color:var(--ink);font:inherit;cursor:pointer}
 .cpick img{width:88px;height:88px;object-fit:cover;border-radius:10px;background:radial-gradient(circle at 50% 35%,#f4ead6,#cdb893)}.cpick b{font-size:12.5px;font-weight:600}.cpick.on{border-color:var(--gold);background:rgba(230,196,122,.18)}
 #gofarm{position:fixed;left:50%;top:calc(max(10px,env(safe-area-inset-top)) + 58px);transform:translateX(-50%);z-index:9;display:flex;align-items:center;gap:6px}body.inzone #gofarm{display:none!important}
+
+/* 清河镇 · 场景编辑器（?edit=1） */
+.townui .tw-info{font-size:12px;color:var(--mut)}
+.townui .tw-ed{position:absolute;left:max(10px,env(safe-area-inset-left));top:calc(max(8px,env(safe-area-inset-top)) + 52px);bottom:70px;width:210px;overflow:auto;padding:8px;border-radius:12px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--sh)}
+.townui .tw-h{font-size:12px;color:#fff1cc;margin:8px 2px 4px;letter-spacing:1px}
+.townui .tw-it{display:block;width:100%;text-align:left;padding:4px 8px;margin:2px 0;border-radius:8px;border:1px solid transparent;background:rgba(255,255,255,.06);color:var(--ink);font-size:12px;cursor:pointer}
+.townui .tw-it.on{border-color:var(--gold);background:rgba(255,210,90,.18)}
+.townui .tw-tip{font-size:11px;color:var(--mut);line-height:1.6;margin:4px 2px}
+.townui .tw-edbar{position:absolute;left:50%;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;max-width:94vw;padding:6px 10px;border-radius:12px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--sh)}
+.townui .tw-sel{font-size:12px;color:#ffe9b0;min-width:120px;text-align:center}
+@media (max-width:640px){.townui .tw-ed{width:150px;bottom:110px}}
