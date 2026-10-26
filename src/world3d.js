@@ -787,7 +787,10 @@ const W3 = (() => {
     [-0.6, -0.2, 0.2, 0.6].forEach(z => { const r = new T.Mesh(RIDGE_G, sm); r.position.set(0, BED_H, z); r.receiveShadow = true; r.castShadow = true; node.add(r); });
     if (P.pr && P.pr.w) { const g = new T.Group(), wm = mat('#6a9a2a', { vc: 1, ds: 1 }), r = CFG3.rng(i * 11 + 3); [[-0.7, -0.65], [0.72, 0.5], [-0.55, 0.72], [0.6, -0.6], [0.05, 0.78]].forEach(([x, z]) => { for (let j = 0; j < 5; j++) addLeaf(g, leafGeo(0.28 + r() * 0.15, 0.05, 0.9, 0.1, 'blade'), wm, x, BED_H, z, r() * 6, 0.4 + r() * 0.5); }); const wg = merge(g); wg.traverse(o => { o.userData.own = 1; }); node.add(wg); }
     if (P.c >= 0 && CFG3.CROPS[P.c]) {
-      const st = CFG3.stageOf(P.p), base = cropModel(P.c, st), m = base.clone(), SC = CROP_SC; m.scale.setScalar(SC); m.position.y = BED_H + 0.02; node.add(m); pl.crop = m; pl.cropH = (base.userData.h || 0.3) * SC;
+      const st = CFG3.stageOf(P.p), base = cropModel(P.c, st), m = base.clone();
+        /* 2026-10-26 甲方：放大后太挤。宽的作物（南瓜、白菜）按实际宽度限制，最宽占一块地的 85%（地块之间留出空隙，不伸到隔壁）；高秆作物本来就窄，照样放大到 CROP_SC，人能在下面歇脚。高度最多是宽度缩放的 1.3 倍，不会被拉得变形 */
+        if (base.userData.w0 === undefined) { const bb = new T.Box3().setFromObject(base), sz = bb.getSize(new T.Vector3()); base.userData.w0 = Math.max(0.05, sz.x, sz.z); }
+        const sxz = Math.min(CROP_SC, PITCH * 0.85 / base.userData.w0), sy = Math.min(CROP_SC, sxz * 1.3); m.scale.set(sxz, sy, sxz); m.position.y = BED_H + 0.02; node.add(m); pl.crop = m; pl.cropH = (base.userData.h || 0.3) * sy;
       const list = []; if (P.pr) { if (P.pr.d) list.push('d'); if (P.pr.w) list.push('w'); if (P.pr.b) list.push('b'); }
       if (o.mine) list.push('s');
       list.forEach((k, j) => { const s = new T.Sprite(BADGE[k]); s.scale.set(0.62, 0.62, 1); s.renderOrder = 10; s.userData.base = v3((j - (list.length - 1) / 2) * 0.66, BED_H + pl.cropH + 0.55, 0); s.position.copy(s.userData.base); node.add(s); pl.badges.push(s); });

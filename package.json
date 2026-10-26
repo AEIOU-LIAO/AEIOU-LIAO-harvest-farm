@@ -1,6 +1,6 @@
 {
   "name": "harvest-farm",
-  "version": "3.17.0",
+  "version": "3.17.1",
   "private": true,
   "description": "丰收农场：真实多人联网的网页农场偷菜游戏（零依赖：Node 22 + 内置 SQLite）",
   "engines": { "node": ">=18" },
