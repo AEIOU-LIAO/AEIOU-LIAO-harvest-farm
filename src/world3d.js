@@ -76,7 +76,7 @@ const W3 = (() => {
   const MC = new Map();
   /* 缓存键：贴图只取 uuid（以前 JSON.stringify 会把整张贴图转成 base64，生成人物要卡十几秒） */
   const keyOf = v => v && typeof v === 'object' ? (v.isTexture ? 'tex:' + v.uuid : v.isColor ? '#' + v.getHexString() : '{' + Object.keys(v).map(k => k + ':' + keyOf(v[k])).join(',') + '}') : String(v); /* toJSON 会在 replacer 之前调用，所以自己拼 */
-  function mat(col, o) { o = o || {}; const k = col + keyOf(o); let m = MC.get(k); if (!m) { m = new (o.phys ? T.MeshPhysicalMaterial : T.MeshStandardMaterial)(Object.assign({ color: new T.Color(col), roughness: 0.75, metalness: 0 }, o.p || {})); if (o.vc) m.vertexColors = true; if (o.ds) m.side = T.DoubleSide; MC.set(k, m); } return m; }
+  function mat(col, o) { o = o || {}; const k = col + keyOf(o); let m = MC.get(k); if (!m) { m = new (o.phys ? T.MeshPhysicalMaterial : T.MeshStandardMaterial)(Object.assign({ color: new T.Color(col), roughness: 0.75, metalness: 0 }, o.p || {})); if (o.vc) m.vertexColors = true; if (o.ds) m.side = T.DoubleSide; snowify(m); MC.set(k, m); } return m; }   /* 创建时就加好积雪着色器，之后不用再重编 */
   const v3 = (x, y, z) => new T.Vector3(x, y, z);
   function mesh(geo, m, x, y, z) { const o = new T.Mesh(geo, m); o.position.set(x || 0, y || 0, z || 0); o.castShadow = true; o.receiveShadow = true; return o; }
   function colorize(g, fn) { const p = g.attributes.position, c = new Float32Array(p.count * 3); for (let i = 0; i < p.count; i++) { const r = fn(p.getX(i), p.getY(i), p.getZ(i), i); c[i * 3] = r[0]; c[i * 3 + 1] = r[1]; c[i * 3 + 2] = r[2]; } g.setAttribute('color', new T.BufferAttribute(c, 3)); return g; }
@@ -592,7 +592,7 @@ const W3 = (() => {
     const r = CFG3.rng(4242), G = {};
     const vcol = (g, fn) => { g = g.index ? g.toNonIndexed() : g; return colorize(g, fn); };
     /* 草丛：5 片弯弯的草叶，每片 3 个三角面，根部暗、叶尖亮 */
-    { const parts = []; for (let b = 0; b < 5; b++) { const a = b / 5 * 6.28 + r() * 0.6, h = 0.32 + r() * 0.3, w = 0.035 + r() * 0.02, lean = 0.12 + r() * 0.18, ox = Math.cos(a) * 0.06, oz = Math.sin(a) * 0.06;
+    { const parts = []; for (let b = 0; b < 4; b++) { const a = b / 4 * 6.28 + r() * 0.6, h = 0.32 + r() * 0.3, w = 0.035 + r() * 0.02, lean = 0.12 + r() * 0.18, ox = Math.cos(a) * 0.06, oz = Math.sin(a) * 0.06;
         const P = [], C = [], pt = (u, side) => { const t = u, x = ox + Math.cos(a) * lean * t * t * h * 2 + side * w * (1 - t) * Math.cos(a + 1.57), y = h * t, z = oz + Math.sin(a) * lean * t * t * h * 2 + side * w * (1 - t) * Math.sin(a + 1.57); return [x, y, z]; };
         const v = [pt(0, -1), pt(0, 1), pt(0.5, -1), pt(0.5, 1), pt(1, 0)]; [[0, 1, 2], [2, 1, 3], [2, 3, 4]].forEach(tr => tr.forEach(i => { P.push(...v[i]); const l = [0.42, 0.42, 0.75, 0.75, 1.1][i]; C.push(l, l, l); }));
         const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(P, 3)); g.setAttribute('color', new T.Float32BufferAttribute(C, 3)); g.computeVertexNormals(); parts.push(g); }
@@ -662,7 +662,7 @@ const W3 = (() => {
         list.forEach((o, i) => { d.position.set(o.x, 0, o.z); d.rotation.set(o.tilt ? (r() - 0.5) * o.tilt : 0, o.ry, o.tilt ? (r() - 0.5) * o.tilt : 0); d.scale.setScalar(o.sc); if (kind === 'flower') d.position.y = 0.06 + r() * 0.12; d.updateMatrix(); im.setMatrixAt(i, d.matrix); if (o.c) im.setColorAt(i, o.c); else if (im.instanceColor || kind === 'tuft') im.setColorAt(i, col.setHSL(0.26, 0.45, 0.42));
           o.mi = i; o.im = im; o.m = d.matrix.clone(); o.cell = cellOf(o.x, o.z); rad = Math.max(rad, Math.hypot(o.x - cx, o.z - cz)); FLORA.recs.push(o); });
         /* 包围球用整块的范围（实例位置是世界坐标，网格本身在原点） */
-        geo.boundingSphere = new T.Sphere(new T.Vector3(cx, 0.5, cz), rad + 1.5); im.frustumCulled = true; im.castShadow = kind === 'bushBody'; im.receiveShadow = false;
+        geo.boundingSphere = new T.Sphere(new T.Vector3(cx, 0.5, cz), rad + 1.5); im.frustumCulled = true; im.castShadow = false; im.receiveShadow = false;   /* 花草不投影：阴影要把投影的东西再画一遍，花草数量多，划不来 */
         if (FL[kind]) im.userData.flowers = 1; if (kind === 'bushBody') im.userData.noFlowerHide = 1; scene.add(im); FLORA.chunks.push({ im, cx, cz, rad, small: !!SMALL[kind] }); }); });
   }
   /* 玩家在空地上建了东西：压在下面的花草隐藏 */
@@ -708,7 +708,7 @@ const W3 = (() => {
     const trunkG = () => { const g = new T.CylinderGeometry(0.22, 0.34, 2.6, 5); g.translate(0, 1.3, 0); return lum(g, 0.55, 0.6); };
     const GEO = {
       pine: { trunk: trunkG(), crown: (() => { const a = new T.ConeGeometry(2.4, 4.2, 7); a.translate(0, 3.8, 0); displace(a, 0.12, 0.8, 3); const b = new T.ConeGeometry(1.8, 3.4, 7); b.translate(0, 5.6, 0); displace(b, 0.1, 0.9, 4); const c = new T.ConeGeometry(1.1, 2.4, 8); c.translate(0, 7.2, 0); return join([lum(a, 0.6, 1.0), lum(b, 0.65, 1.05), lum(c, 0.7, 1.1)]); })(), col: '#2f6a32', tcol: '#6a4a2e' },
-      broad: { trunk: trunkG(), crown: (() => { const ps = []; [[0, 4.2, 0, 2.6], [1.3, 4.8, 0.6, 1.7], [-1.2, 4.6, -0.7, 1.8], [0.3, 5.8, -0.4, 1.6]].forEach(([x, y, z, s], i) => { const g = new T.IcosahedronGeometry(s, 1); displace(g, 0.18, 1.4, 11 + i); g.computeVertexNormals(); g.translate(x, y, z); ps.push(lum(g, 0.62, 1.08)); }); return join(ps); })(), col: '#4f9a3a', tcol: '#6a4a2e' },
+      broad: { trunk: trunkG(), crown: (() => { const ps = []; [[0, 4.2, 0, 2.6], [1.3, 4.8, 0.6, 1.7], [-1.2, 4.6, -0.7, 1.8], [0.3, 5.8, -0.4, 1.6]].forEach(([x, y, z, s], i) => { const g = new T.IcosahedronGeometry(s, 0); displace(g, 0.12, 1.4, 11 + i); g.computeVertexNormals(); g.translate(x, y, z); ps.push(lum(g, 0.62, 1.08)); }); return join(ps); })(), col: '#4f9a3a', tcol: '#6a4a2e' },
       bush: { trunk: null, crown: (() => { const g = new T.IcosahedronGeometry(1.3, 1); displace(g, 0.2, 1.6, 5); g.computeVertexNormals(); g.translate(0, 0.9, 0); g.scale(1, 0.75, 1); return lum(g, 0.65, 1.05); })(), col: '#4a9238', tcol: '' },
     };
     /* 分成 320 米一块：每块单独实例化，镜头看不到 / 离得太远的块不画（手机上同屏三角面控制在几十万以内） */
@@ -716,7 +716,7 @@ const W3 = (() => {
     Object.entries(tk).forEach(([k, list]) => { if (!list.length) return; const G = GEO[k], by = new Map();
       list.forEach(t => { const key = Math.floor(t[0] / CH) + ',' + Math.floor(t[2] / CH); (by.get(key) || by.set(key, []).get(key)).push(t); });
       by.forEach((arr, key) => { const [ci, cj] = key.split(',').map(Number), cx = (ci + 0.5) * CH, cz = (cj + 0.5) * CH;
-        const mk = (geo, col) => { const im = new T.InstancedMesh(geo, mat(col, { vc: 1, p: { roughness: 0.9 } }), arr.length); arr.forEach(([x, y, z, s, ry], i) => { d3.position.set(x, y - 0.1, z); d3.rotation.set(0, ry, 0); d3.scale.setScalar(s); d3.updateMatrix(); im.setMatrixAt(i, d3.matrix); }); im.castShadow = false; im.receiveShadow = false; im.frustumCulled = false; /* r149 的实例化网格按单棵树的包围球裁剪，会错把整块森林裁掉；改成按块的距离裁剪 */ scene.add(im); WILD.chunks.push({ im, cx, cz }); return im; };
+        const mk = (geo0, col) => { const geo = geo0.clone(); geo.boundingSphere = new T.Sphere(new T.Vector3(cx, 12, cz), 175); /* 2026-10-26 性能：每块森林单独一个包围球，镜头背后的整块森林不画 */ const im = new T.InstancedMesh(geo, mat(col, { vc: 1, p: { roughness: 0.9 } }), arr.length); arr.forEach(([x, y, z, s, ry], i) => { d3.position.set(x, y - 0.1, z); d3.rotation.set(0, ry, 0); d3.scale.setScalar(s); d3.updateMatrix(); im.setMatrixAt(i, d3.matrix); }); im.castShadow = false; im.receiveShadow = false; im.frustumCulled = true; /* r149 的实例化网格默认按单棵树的包围球裁剪会错把整块森林裁掉，所以上面换成整块的包围球；另外还按距离裁剪 */ scene.add(im); WILD.chunks.push({ im, cx, cz }); return im; };
         if (G.trunk) mk(G.trunk, G.tcol); mk(G.crown, G.col); }); });
     /* 草甸上的石头 */
     { const rg = new T.DodecahedronGeometry(1, 1); displace(rg, 0.15, 1.2, 9); rg.computeVertexNormals(); const n = 320, im = new T.InstancedMesh(rg, mat('#a8a294', { p: { roughness: 0.95, map: TX.stone } }), n); for (let i = 0; i < n; i++) { const a = r() * 6.28, dd = FARM_R + 25 + r() * (WORLD_R - FARM_R - 40), x = Math.cos(a) * dd, z = Math.sin(a) * dd, s = 0.4 + r() * 1.8; d3.position.set(x, terrainH(x, z) - 0.2 * s, z); d3.rotation.set(r(), r() * 6, r()); d3.scale.set(s, s * 0.6, s); d3.updateMatrix(); im.setMatrixAt(i, d3.matrix); im.frustumCulled = false; if (s > 1) { const key = Math.floor(x / 10) + ',' + Math.floor(z / 10); (WILD.hash.get(key) || WILD.hash.set(key, []).get(key)).push([x, z, s * 0.8]); } } scene.add(im); }
@@ -742,7 +742,7 @@ const W3 = (() => {
   let soilMats;
   function bedGeo() { const s = new T.Shape(), w = PITCH / 2 - 0.035, r = 0.06; /* 2026-10-26：地块之间不留缝，一片田连成一整块 */ s.moveTo(-w + r, -w); s.lineTo(w - r, -w); s.quadraticCurveTo(w, -w, w, -w + r); s.lineTo(w, w - r); s.quadraticCurveTo(w, w, w - r, w); s.lineTo(-w + r, w); s.quadraticCurveTo(-w, w, -w, w - r); s.lineTo(-w, -w + r); s.quadraticCurveTo(-w, -w, -w + r, -w); const g = new T.ExtrudeGeometry(s, { depth: BED_H - 0.04, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 1, curveSegments: 2 }); g.rotateX(-Math.PI / 2); const p = g.attributes.uv; for (let i = 0; i < p.count; i++) p.setXY(i, p.getX(i) / PLOT + 0.5, p.getY(i) / PLOT + 0.5); return g; }
   let BED_G, RIDGE_G, LOCK_G;
-  function soilMat(col) { const m = new T.MeshStandardMaterial({ color: new T.Color(col), map: TX.soil, normalMap: TX.soilN, roughness: 0.96 }); m.userData.snowK = 0.28; return m; }   /* 冬天菜地只盖薄薄一层雪，还认得出是地 */
+  function soilMat(col) { const m = new T.MeshStandardMaterial({ color: new T.Color(col), map: TX.soil, normalMap: TX.soilN, roughness: 0.96 }); m.userData.snowK = 0.28; snowify(m); return m; }   /* 冬天菜地只盖薄薄一层雪，还认得出是地 */
   function buildPlotsBase() {
     BED_G = bedGeo(); RIDGE_G = new T.CapsuleGeometry(0.075, PITCH - 0.45, 4, 10); RIDGE_G.rotateZ(Math.PI / 2); RIDGE_G.scale(1, 0.55, 1);
     soilMats = { 0: { n: soilMat('#5c4130'), wet: soilMat('#3a281c'), dry: soilMat('#8c7258') }, 1: { n: soilMat('#86402a'), wet: soilMat('#5a2618'), dry: soilMat('#a8644a') },
@@ -1148,7 +1148,7 @@ const W3 = (() => {
     const mob = W < 820, dpr = window.devicePixelRatio || 1;
     R.setPixelRatio(quality === 3 ? Math.min(dpr, mob ? 1.75 : 2) : quality === 2 ? Math.min(dpr, 1.25) : Math.min(dpr, 0.85));
     R.shadowMap.enabled = quality >= 2; if (sun) { sun.castShadow = quality >= 2; const sz = quality === 3 ? 2048 : 1024; if (sun.shadow.mapSize.x !== sz) { sun.shadow.mapSize.set(sz, sz); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } } }
-    if (grassMesh) grassMesh.visible = quality >= 2; scene && scene.traverse(o => { if (o.material && o.material.needsUpdate !== undefined && o.isMesh) o.material.needsUpdate = true; });
+    if (grassMesh) grassMesh.visible = quality >= 2; if (scene && perf.shadowOn !== R.shadowMap.enabled) { perf.shadowOn = R.shadowMap.enabled; scene.traverse(o => { if (o.isMesh && o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); }); }   /* 只有阴影开关变了才需要重编着色器 */
     R.setSize(W, H, false);
   }
   function resize() {
@@ -1157,7 +1157,14 @@ const W3 = (() => {
     const port = H > W * 1.15; Object.assign(safe, port ? { l: 46, r: 58, t: 120, b: 96 } : mob ? { l: 54, r: 64, t: 70, b: 92 } : { l: 84, r: 104, t: 84, b: 112 });
     applyQuality(); if (viewMode === 'walk') { cam.aspect = W / H; cam.updateProjectionMatrix(); } else fit();
   }
-  function perfTick(dt) { if (quality <= 1) return; perf.acc += dt; perf.n++; if (perf.acc > 2.5) { const avg = perf.acc / perf.n; perf.acc = 0; perf.n = 0; if (avg > 0.045) { quality--; applyQuality(); } } }
+  /* 自动画质（2026-10-26 改）：以前 2.5 秒平均超过 45 毫秒就降一级、永不恢复，而且每次降级所有材质重编着色器（本身又是一次大卡顿），容易一路降到最低，画面发糊。
+     现在：用真实时间、去掉偶发的长帧（编译、加载、切后台），连续 3 个窗口都慢才降一级；连续 4 个窗口都快就升回去（不超过初始画质）；刚调整过的下一个窗口不算 */
+  const QMAX = quality;
+  function perfTick() { const now = performance.now(), d = now - (perf.last || now); perf.last = now; if (d <= 0 || d > 250 || document.hidden) return; perf.f = perf.f || []; perf.f.push(d); perf.acc += d;
+    if (perf.acc < 2500) return; const f = perf.f.sort((a, b) => a - b), med = f[Math.floor(f.length / 2)]; perf.f = []; perf.acc = 0; if (perf.skip) { perf.skip--; return; }
+    if (med > 40) { perf.bad = (perf.bad || 0) + 1; perf.good = 0; } else if (med < 21) { perf.good = (perf.good || 0) + 1; perf.bad = 0; } else { perf.bad = perf.good = 0; }
+    if (perf.bad >= 3 && quality > 1) { quality--; perf.bad = 0; perf.skip = 1; applyQuality(); }
+    else if (perf.good >= 4 && quality < QMAX) { quality++; perf.good = 0; perf.skip = 1; applyQuality(); } }
   let theme = null;
   function setTheme(th) { if (!anim.house || !th) return; if (theme === th.roof + th.wall) return; theme = th.roof + th.wall; anim.house.roofM.color.set(th.roof); anim.house.wallM.color.set(th.wall).lerp(new T.Color('#ffffff'), 0.25); }
   /* =====================================================
@@ -1264,7 +1271,7 @@ const W3 = (() => {
   const NC = { on: false, lib: null, hero: null, heroId: '', dogs: {}, busy: null }, NC_DOGS = { fuwang: 'v4_dog_fuwang', ruibao: 'v4_dog_ruibao' };
   const NC_SCALE = { hero: 0.8, dog: 1.1 }; /* 原模型是 Q 版比例（人 1.25 m、狗 1.1 m）；新模型人 1.6 m、狗 0.78 m。人缩到和原来一样高，狗放大一点，免得在镜头里太小 */
   const NC_HERO_DEFAULT = 'v4_hero_boy', ncHeroOk = id => !!(GAMECFG.ASSETS.find(a => a.id === id && a.kind === 'hero'));
-  function ncAttachHero() { if (!HERO.g) return; const r = NC.hero; HERO.g.children.forEach(c => { if (c !== HERO.p.ring && (!r || c !== r.wrap)) c.visible = !r; }); if (r && r.wrap.parent !== HERO.g) HERO.g.add(r.wrap); }
+  function ncAttachHero() { if (!HERO.g) return; const r = NC.hero; HERO.g.children.forEach(c => { if (c !== HERO.p.ring && (!r || c !== r.wrap)) c.visible = false; });   /* 2026-10-26 甲方：不要原始小人。美术模型没加载好时只显示脚下的光圈 */ if (r && r.wrap.parent !== HERO.g) HERO.g.add(r.wrap); }
   function ncAttachDog(dg) { const r = NC.dogs[dg.did] || null; dg.torso.visible = !r; dg.rig = r; if (r) { if (r.wrap.parent !== dg.g) dg.g.add(r.wrap); r.wrap.scale.setScalar(NC_SCALE.dog / (dg.g.scale.x || 1)); } dg.tag.position.y = r ? 1.12 : 1.42; }
   function ncDrop(r) { if (!r) return; if (r.wrap.parent) r.wrap.parent.remove(r.wrap); Entity3.release(NC.lib, r.rig, true); }
   async function setNewChar(on, heroId) {
@@ -1406,7 +1413,7 @@ const W3 = (() => {
     { const n = 1600, g = new T.BufferGeometry(), p = new Float32Array(n * 6); for (let i = 0; i < n; i++) { const x = (Math.random() - 0.5) * 50, y = Math.random() * 30, z = (Math.random() - 0.5) * 50; p.set([x, y, z, x - 0.05, y - 0.6, z - 0.05], i * 6); } g.setAttribute('position', new T.BufferAttribute(p, 3)); anim.rain = new T.LineSegments(g, new T.LineBasicMaterial({ color: 0xc8dcff, transparent: true, opacity: 0.45 })); anim.rain.visible = false; scene.add(anim.rain); }
     window.addEventListener('wheel', e => { if (e.target !== canvasEl) return; if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * (e.deltaY > 0 ? 1.08 : 0.93))); return; } zoom = Math.max(0.6, Math.min(2.6, zoom * (e.deltaY > 0 ? 1.06 : 0.94))); applyCam(); }, { passive: true });
     setHero(null); snowifyScene();
-    resize(); ready = true;
+    resize(); try { R.compile(scene, cam); } catch (e) { } /* 加载画面还在时先把着色器编译好，进去以后不卡 */ ready = true;
   }
 
   /* ---------------- 每帧更新 ---------------- */

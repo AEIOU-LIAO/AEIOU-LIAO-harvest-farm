@@ -73,10 +73,10 @@ const Hunt = (() => {
     const cam = new T.PerspectiveCamera(55, 1, 0.1, 400);
     /* 主人 */
     const hero = { pos: new T.Vector3(S0.start[0], 0, S0.start[1]), face: Math.PI, spd: 0, ph: 0, hp: S0.heroHp || H.heroHp, inv: 0, g: new T.Group(), rig: null, kb: new T.Vector3() };
-    { const cap = new T.Mesh(new T.CapsuleGeometry(0.3, 0.8, 4, 10), new T.MeshStandardMaterial({ color: new T.Color('#4a8fd8').convertSRGBToLinear(), roughness: 0.7 })); cap.position.y = 0.7; cap.castShadow = true; hero.g.add(cap); hero.cap = cap; }
+    { const cap = new T.Mesh(new T.CapsuleGeometry(0.3, 0.8, 4, 10), new T.MeshStandardMaterial({ color: new T.Color('#4a8fd8').convertSRGBToLinear(), roughness: 0.7 })); cap.position.y = 0.7; cap.castShadow = true; cap.visible = false; /* 2026-10-26：不显示占位的胶囊，角色模型加载好再出现（加载失败才显示） */ hero.g.add(cap); hero.cap = cap; }
     const ring = new T.Mesh(new T.RingGeometry(0.42, 0.52, 28), new T.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.6, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; hero.g.add(ring); scene.add(hero.g);
     let lib = null, dead = false;
-    (async () => { try { lib = new Assets3({ manifest: GAMECFG.ASSETS }); const rig = await Entity3.spawn(lib, PREF.v3hero || 'v4_hero_boy', 'hero', { tier: '1k' }); if (dead) { Entity3.release(lib, rig, true); return; } rig.object.scale.setScalar(0.8); rig.play('idle', 0); hero.g.add(rig.object); hero.rig = rig; hero.g.remove(hero.cap); } catch (e) { console.warn('猎场主人模型加载失败，用简单模型', e); } })();
+    (async () => { try { lib = new Assets3({ manifest: GAMECFG.ASSETS }); const rig = await Entity3.spawn(lib, PREF.v3hero || 'v4_hero_boy', 'hero', { tier: '1k' }); if (dead) { Entity3.release(lib, rig, true); return; } rig.object.scale.setScalar(0.8); rig.play('idle', 0); hero.g.add(rig.object); hero.rig = rig; hero.g.remove(hero.cap); } catch (e) { console.warn('猎场主人模型加载失败，用简单模型', e); hero.cap.visible = true; } })();
     /* 野兽 */
     const cmat = CMAT(), beasts = S0.list.map(s => { const b = makeCreature(s, cmat); b.g.position.set(s.x, groundAt(s.x, s.z), s.z); b.g.rotation.y = Math.random() * 6.28; scene.add(b.g); return b; });
     const zzzTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.font = 'bold 40px sans-serif'; x.fillStyle = '#fff'; x.strokeStyle = '#3a5a9a'; x.lineWidth = 5; x.strokeText('Zz', 6, 46); x.fillText('Zz', 6, 46); const t = new T.CanvasTexture(c); return t; })();

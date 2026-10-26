@@ -662,12 +662,13 @@ function updateTip() {
 /* ============ 启动 ============ */
 /* V0.2 新角色模型（测试开关）：设置里打开，或网址带 ?v3=1。加载失败时保持原来的角色 */
 async function applyNewChar(loud) {
-  const on = !!PREF.v3char || /[?&]v3=1\b/.test(location.search), hid = PREF.v3hero || 'v4_hero_boy';
+  const on = true, hid = PREF.v3hero || 'v4_hero_boy';   /* 2026-10-26：新角色固定开启，原始小人不再使用 */
   if (!W3.ready) { setTimeout(() => applyNewChar(loud), 500); return; }
-  const info = W3.ncInfo(); if (((W3.newChar === on && (!on || info.heroId === hid)) || (on && applyNewChar.failed)) && !loud) return;
+  const info = W3.ncInfo(); if (W3.newChar && info.heroId === hid && !loud) return; if (applyNewChar.busy && !loud) return; applyNewChar.busy = true;
   if (loud && on) toast('正在加载新角色…');
-  try { const ok = await W3.setNewChar(on, hid); if (loud) toast(on ? (ok ? `新角色已换上：${(CFG.ASSETS.find(a => a.id === hid) || { name: '男主角' }).name}、福旺、睿宝` : '已取消') : '已换回原来的角色'); }
-  catch (e) { applyNewChar.failed = true; console.warn('新角色加载失败', e); if (loud) toast('新角色加载失败：' + (e.message || e), 'warn'); }
+  try { const ok = await W3.setNewChar(on, hid); applyNewChar.tries = 0; if (loud && ok) toast(`已换上：${(CFG.ASSETS.find(a => a.id === hid) || { name: '男主角' }).name}`); }
+  catch (e) { console.warn('角色模型加载失败', e); if (loud) toast('角色模型加载失败，正在重试…', 'warn'); const n = applyNewChar.tries = (applyNewChar.tries || 0) + 1; setTimeout(() => applyNewChar(false), Math.min(30000, 3000 * n)); /* 网络不好时自动重试 */ }
+  finally { applyNewChar.busy = false; }
 }
 /* 选择自己的角色（男主角 / 14 位女主角），选了就自动打开「新角色模型」 */
 function openCharPick() {
