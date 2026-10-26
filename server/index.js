@@ -27,7 +27,7 @@ async function createApp(opts) {
   function serveStatic(req, res, p) {
     const rel = pages[p] || p.slice(1), f = path.join(ROOT, rel); let st; try { st = fs.statSync(f); } catch (e) { res.writeHead(404); return res.end('Not found'); }
     let c = pcache[f]; if (!c || c.m !== st.mtimeMs) { const raw = fs.readFileSync(f); c = pcache[f] = { m: st.mtimeMs, raw, gz: zlib.gzipSync(raw) }; }
-    const gz = /\bgzip\b/.test(req.headers['accept-encoding'] || ''), js = /\.js$/.test(f), ext = path.extname(f), bin = { '.glb': 'model/gltf-binary', '.gz': 'application/octet-stream', '.jpg': 'image/jpeg', '.png': 'image/png' }[ext];
+    const gz = /\bgzip\b/.test(req.headers['accept-encoding'] || ''), js = /\.js$/.test(f), ext = path.extname(f), bin = { '.glb': 'model/gltf-binary', '.gz': 'application/octet-stream', '.jpg': 'image/jpeg', '.png': 'image/png', '.json': 'application/json; charset=utf-8' }[ext];
     res.writeHead(200, Object.assign(secHeaders(), { 'Content-Type': bin || (js ? 'application/javascript; charset=utf-8' : 'text/html; charset=utf-8'), 'Cache-Control': js || bin ? 'public, max-age=604800' : 'no-cache' }, gz && !bin ? { 'Content-Encoding': 'gzip' } : {}));
     res.end(req.method === 'HEAD' ? undefined : gz && !bin ? c.gz : c.raw);
   }
@@ -36,7 +36,7 @@ async function createApp(opts) {
   const server = http.createServer(async (req, res) => {
     try {
       const p = new URL(req.url, 'http://x').pathname;
-      if (!p.startsWith('/api/')) { if ((req.method === 'GET' || req.method === 'HEAD') && (pages[p] || /^\/art\/[\w\/.-]+\.(glb|gz|jpg|png)$/.test(p) && !p.includes('..'))) return serveStatic(req, res, p); res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found'); }
+      if (!p.startsWith('/api/')) { if ((req.method === 'GET' || req.method === 'HEAD') && (pages[p] || /^\/art\/[\w\/.-]+\.(glb|gz|jpg|png|json)$/.test(p) && !p.includes('..'))) return serveStatic(req, res, p); res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found'); }
       let body = ''; if (req.method === 'POST') { try { body = await readBody(req); } catch (e) { res.writeHead(413, { 'Content-Type': 'application/json' }); return res.end('{"ok":false,"error":"请求太大"}'); } }
       const ip = (opts.trustProxy && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress || '?';
       const secure = !!req.socket.encrypted || (opts.trustProxy && /https/.test(String(req.headers['x-forwarded-proto'] || '')));
