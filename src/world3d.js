@@ -1215,7 +1215,7 @@ const W3 = (() => {
     if (perf.bad >= 3 && quality > 1) { quality--; perf.bad = 0; perf.skip = 1; applyQuality(); }
     else if (perf.good >= 4 && quality < QMAX) { quality++; perf.good = 0; perf.skip = 1; applyQuality(); } }
   let theme = null;
-  function setTheme(th) { if (!anim.house || !th) return; if (theme === th.roof + th.wall) return; theme = th.roof + th.wall; anim.house.roofM.color.set(th.roof); anim.house.wallM.color.set(th.wall).lerp(new T.Color('#ffffff'), 0.25); }
+  function setTheme(th) { kitTheme(th); if (!anim.house || !th) return; if (theme === th.roof + th.wall) return; theme = th.roof + th.wall; anim.house.roofM.color.set(th.roof); anim.house.wallM.color.set(th.wall).lerp(new T.Color('#ffffff'), 0.25); }
   /* =====================================================
      漫游模式：可操控的 3D 人物（走 / 跑 / 跳），第三人称镜头跟随
      - 移动方向相对于镜头；田埂可以踩上去；房子、风车、树、池塘会挡路；篱笆挡路但能跳过去
@@ -1481,7 +1481,7 @@ const W3 = (() => {
   function buildBaseDogs() { if (dogsBuilt) return; dogsBuilt = 1; const dog = buildDog('fuwang'); dog.position.set(10.4, 0, 1.2); dog.rotation.y = -2.9; dog.visible = false; scene.add(dog);
     setTimeout(() => { const dog2 = buildDog('ruibao'); dog2.position.set(10.6, 0, -1.4); dog2.rotation.y = -2.6; dog2.visible = false; scene.add(dog2); dogsBuilt = 2; }, 60); }
   /* 游戏画面出来以后：先生成狗，再生成作物图标 */
-  function afterShown() { setTimeout(buildBaseDogs, 120); setTimeout(releaseIcons, 500); setTimeout(initCritters, 1500); setTimeout(loadArtBuildings, 2500); }
+  function afterShown() { setTimeout(buildBaseDogs, 120); setTimeout(releaseIcons, 500); setTimeout(initCritters, 1500); setTimeout(loadArtBuildings, 2500); if (/[?&]kit=1/.test(location.search)) setTimeout(kitDemo, 3000); }
   /* ---------- 美术建筑（v7_buildings，2026-10-26 起）：游戏画面出来以后在后台加载，加载好就把程序拼的模型藏起来换上；加载失败继续用程序模型 ----------
      农舍：roof / wall 两个材质接主题配色（setTheme），window_glow 接夜灯（anim.windows），炊烟从美术标的烟囱口冒；风车播 GLB 自带的 idle（6 秒一圈） */
   const ARTB = { lib: null, started: false, prog: {}, inst: {}, anims: [] };
@@ -1499,6 +1499,59 @@ const W3 = (() => {
       const w = await put('v7_windmill', ST.windmill, ARTB.prog.windmill); if (w) { anim.windmill = null; w.play('idle', 0); ARTB.anims.push(w); }
       await put('v7_doghouse', ST.doghouse, ARTB.prog.doghouse);
     } catch (e) { console.warn('美术建筑加载失败，继续用程序模型', e); }
+  }
+  /* ---------- v9 建筑套件拼装器（2026-10-26 起）----------
+     美术交一个 kit.glb（每个顶层节点一个零件，全部共用 kit_main / kit_glow 两个材质 + 一张图集，AO 在顶点色）；
+     程序按拼装清单 {p, x, y, z, r, tint} 摆零件。同一种零件不管用多少次只画一次（InstancedMesh），整个套件只有几十次绘制。
+     染色：只给图集里的染色区（白灰墙 plaster_t、瓦 tile_t、布 cloth_t）乘颜色，同一个零件上的石墙裙、木框不受影响；墙 / 瓦跟着主题配色走。
+     夜里 kit_glow（窗纸、灯笼）亮；冬天和别的东西一样积雪。?kit=1 在传送阵旁边摆示范小屋（美术样张验收用） */
+  const KIT = { parts: null, loading: null, placed: [], ims: [], mats: {}, tint: { wall: new T.Color('#f2ece0'), roof: new T.Color('#7d8c99'), cloth: new T.Color('#e8e4da') } };
+  function kitMat(src) {
+    if (KIT.mats[src.uuid]) return KIT.mats[src.uuid];
+    const m = src.clone(); m.vertexColors = true;
+    if (src.name === 'kit_glow') { m.emissive = new T.Color('#ffb860'); m.emissiveIntensity = 0; anim.windows.push(m); }
+    else m.onBeforeCompile = sh => {
+      sh.vertexShader = 'attribute vec3 kitTint;\nvarying vec3 vKitTint;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvKitTint = kitTint;');
+      sh.fragmentShader = 'varying vec3 vKitTint;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n{ vec2 pu = vUv * 2048.0; float tr = (pu.x < 1024.0 && (pu.y < 320.0 || (pu.y >= 1024.0 && pu.y < 1184.0) || (pu.y >= 1856.0 && pu.y < 1952.0))) ? 1.0 : 0.0; diffuseColor.rgb *= mix(vec3(1.0), vKitTint, tr); }'); };
+    m.customProgramCacheKey = () => 'kit-tint'; snowify(m); KIT.mats[src.uuid] = m; return m;
+  }
+  function kitLoad() {
+    if (KIT.loading) return KIT.loading;
+    return KIT.loading = (async () => {
+      await needScripts(LAZY_CHAR); const lib = ARTB.lib || (ARTB.lib = new Assets3({ manifest: GAMECFG.ASSETS }));
+      const e = await lib.load('v9_kit', '1k'), root = e.gltf.scene; root.updateMatrixWorld(true); const parts = {};
+      root.children.forEach(top => { const inv = new T.Matrix4().copy(top.matrixWorld).invert(), pieces = [];
+        top.traverse(o => { if (!o.isMesh) return; pieces.push({ geo: o.geometry, mat: kitMat(o.material), m: new T.Matrix4().multiplyMatrices(inv, o.matrixWorld) }); });
+        parts[top.name] = pieces; });
+      KIT.parts = parts; return parts; })().catch(err => { KIT.loading = null; throw err; });
+  }
+  /* 把所有已摆放的拼装重新生成实例（摆放变了就整体重建，零件数量少，很快） */
+  function kitRebuild() {
+    KIT.ims.forEach(im => { scene.remove(im); im.dispose(); }); KIT.ims = []; if (!KIT.parts) return;
+    const by = {}, M = new T.Matrix4(), Mp = new T.Matrix4(), Q = new T.Quaternion(), Y = v3(0, 1, 0), miss = new Set();
+    KIT.placed.forEach(pl => { const base = new T.Matrix4().compose(v3(pl.x, pl.y || 0, pl.z), Q.clone().setFromAxisAngle(Y, pl.ry || 0), v3(1, 1, 1));
+      pl.asm.parts.forEach(q => { if (!KIT.parts[q.p]) { miss.add(q.p); return; } Mp.compose(v3(q.x, q.y, q.z), new T.Quaternion().setFromAxisAngle(Y, (q.r || 0) * Math.PI / 180), v3(1, 1, 1));
+        M.multiplyMatrices(base, Mp); (by[q.p] = by[q.p] || []).push({ m: M.clone(), tint: q.tint ? KIT.tint[q.tint] || KIT.tint.wall : null }); }); });
+    const W = new T.Color(1, 1, 1);
+    Object.entries(by).forEach(([name, list]) => KIT.parts[name].forEach(pc => {
+      const im = new T.InstancedMesh(pc.geo, pc.mat, list.length), tint = new Float32Array(list.length * 3), c = new T.Matrix4();
+      list.forEach((it, i) => { c.multiplyMatrices(it.m, pc.m); im.setMatrixAt(i, c); (it.tint || W).toArray(tint, i * 3); });
+      pc.geo.setAttribute('kitTint', new T.InstancedBufferAttribute(tint, 3));
+      /* 不做视锥剔除：r149 的 InstancedMesh 只看单个零件的包围球，会把画面里的实例错剔掉；套件绘制次数少，不剔也便宜 */
+      im.frustumCulled = false;
+      im.castShadow = true; im.receiveShadow = true; im.userData.kit = name; scene.add(im); KIT.ims.push(im); }));
+    KIT.miss = [...miss];
+  }
+  async function kitPlace(asm, x, z, ry, y) { await kitLoad(); const pl = { asm, x, z, ry: ry || 0, y: y || terrainH(x, z) }; KIT.placed.push(pl); kitRebuild(); return KIT.placed.length - 1; }
+  function kitClear() { KIT.placed = []; kitRebuild(); }
+  function kitTheme(th) { if (!th || KIT.thKey === th.roof + th.wall) return; KIT.thKey = th.roof + th.wall; KIT.tint.roof.set(th.roof); KIT.tint.wall.set(th.wall).lerp(new T.Color('#ffffff'), 0.35); if (KIT.placed.length) kitRebuild(); }
+  function kitInfo() { let tris = 0, inst = 0; KIT.ims.forEach(im => { inst += im.count; tris += im.count * (im.geometry.index ? im.geometry.index.count : im.geometry.attributes.position.count) / 3; }); return { loaded: !!KIT.parts, parts: KIT.parts ? Object.keys(KIT.parts).length : 0, placed: KIT.placed.length, meshes: KIT.ims.length, instances: inst, tris: Math.round(tris), miss: KIT.miss || [] }; }
+  const KIT_DEMO = [PORTAL[0] - 12, PORTAL[1] + 2];
+  async function kitDemo() {
+    try { const get = n => fetch('art/v9_kit/assemblies/' + n + '.json').then(r => r.json());
+      const [house, seams] = await Promise.all([get('style_house_4x4'), get('sample_seams')]);
+      await kitPlace(house, KIT_DEMO[0], KIT_DEMO[1], 0); await kitPlace(seams, KIT_DEMO[0] - 9, KIT_DEMO[1] + 1, 0); snowifyScene(); seasonCollect && seasonCollect();
+    } catch (e) { console.warn('套件示范加载失败', e); }
   }
   function setPets(list) {
     if (!RANCH3.ready || dogsBuilt < 2) return; /* 宠物狗排在福旺、睿宝后面 */ const want = {}; (list || []).forEach((p, i) => { want[p.id] = p; const k = p.id + '|' + p.coat + '|' + p.name, cur = PETS3[p.id];
@@ -1866,5 +1919,5 @@ const W3 = (() => {
   }
   function zoomBy(f) { if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * f)); return; } zoom = Math.max(0.6, Math.min(2.6, zoom * f)); applyCam(); }
   return { useZone, get zone() { return ZONE; }, get renderer() { return R; }, get __scene() { return scene; }, zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, hits: hitBoxes.length, dogs: anim.dogs.length, objs: (() => { let n = 0, v = 0; scene.traverse(o => { if (o.isMesh || o.isSprite) { n++; let vis = true, q = o; while (q) { if (!q.visible) { vis = false; break; } q = q.parent; } if (vis) v++; } }); return n + '/' + v; })(), parts: parts.length, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, setPets, dogInfo: k => { const d = anim.dogs[k]; return d ? { did: d.did, name: d.name, kind: d.kind } : null; }, pondSplash, setField: f => { ACTF = Math.max(0, f | 0); pan.set(0, 0, 0); panGoal.v = null; if (viewMode !== 'walk') fit(); }, panBy, panTo, resetView, lookAt: k => { const p = SPOT[k] && SPOT[k](); if (p) panTo(p[0], p[1]); }, get panned() { return pan.length() > 1 || zoom > 1.35; }, worldBox, get pan() { return pan.toArray().map(v => +v.toFixed(2)); }, get zoom() { return zoom; }, get field() { return ACTF; }, fieldCenter: fieldC, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ leg: RANCH3.leg, follow: RANCH3.follow, A: RANCH3.A && RANCH3.A.toArray().map(v => +v.toFixed(1)), phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, dbgDogCam: (k, yaw, pitch, dist) => { const dg = anim.dogs[k]; if (!dg) return null; const c = dg.g.position, cam2 = new T.PerspectiveCamera(32, W / H, 0.05, 80), d = dist || 2.2, a = dg.g.rotation.y + (yaw || 0); cam2.position.set(c.x + Math.cos(a) * d * Math.cos(pitch || 0.2), 0.35 + Math.sin(pitch || 0.2) * d, c.z - Math.sin(a) * d * Math.cos(pitch || 0.2)); cam2.lookAt(c.x, 0.3, c.z); R.render(scene, cam2); return R.domElement.toDataURL('image/png'); }, dbgPose: (k, p) => { const d = anim.dogs[k]; if (d) d.force = p || null; }, dogGround: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const v = new T.Vector3(); let lo = 9; const body = dg.torso.children[0], P = body.geometry.attributes.position; for (let i = 0; i < P.count; i += 2) { v.fromBufferAttribute(P, i).applyMatrix4(body.matrixWorld); if (v.y < lo) lo = v.y; }
-    const feet = dg.legs.map(l => { let m = 9; l.children.forEach(c => { const Q = c.geometry.attributes.position; for (let i = 0; i < Q.count; i++) { v.fromBufferAttribute(Q, i).applyMatrix4(c.matrixWorld); if (v.y < m) m = v.y; } }); return +m.toFixed(3); }); return { body: +lo.toFixed(3), feet, vis: dg.legs.map(l => l.visible), x: dg.g.position.x, z: dg.g.position.z, ry: dg.g.rotation.y }; }, heroModelRot: () => HERO.g ? HERO.g.rotation.y : NaN, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, critInfo: () => CRIT.list.map(c => [c.kind, +c.g.position.x.toFixed(1), +c.g.position.z.toFixed(1), c.g.visible]), setSeason, get season() { return SEA.id; }, get edgeT() { return HERO.edgeT || 0; }, portalAt: () => PORTAL.slice(), setWeatherFx: on => { on = on !== false; if (SEA.fxOn === on) return; SEA.fxOn = on; const id = SEA.id; SEA.id = ''; setSeason(id); }, artInfo: () => ({ started: ARTB.started, loaded: Object.keys(ARTB.inst), anims: ARTB.anims.length }), dbgSnow: () => { try { snowifyScene(); const n = seasonCollect(); return 'ok ' + n + ' sk=' + SEA.sk; } catch (e) { return 'ERR ' + e.message; } }, floraInfo: () => ({ n: FLORA.recs.length, chunks: FLORA.chunks.length, hidden: FLORA.recs.filter(o => o.hidden).length, snow: +SNOWU.value.toFixed(2) }), releaseIcons, afterShown, setLayout, buildMode, setBuildState, setGhost, setBuildSel, cellAt, builtAt, centerCell, buildIcon, get buildOn() { return BM.on; }, setNewChar, get newChar() { return NC.on && !!NC.hero; }, ncBox: () => { const b = o => { const B = new T.Box3().setFromObject(o); return [+(B.max.y - B.min.y).toFixed(3), +B.min.y.toFixed(3)]; }, r = {}; if (HERO.g) { r.heroOld = b(HERO.g.children.find(c => c !== HERO.p.ring && (!NC.hero || c !== NC.hero.wrap))); if (NC.hero) r.heroNew = b(NC.hero.wrap); } const dg = anim.dogs.find(d => d.did === 'fuwang'); if (dg) { r.dogOld = b(dg.torso); if (dg.rig) r.dogNew = b(dg.rig.wrap); } return r; }, ncInfo: () => ({ tm: NC.tm, libTm: NC.lib && NC.lib.tm, readyAt: W3_READY_AT, on: NC.on, hero: !!NC.hero, heroId: NC.heroId, heroReal: NC.hero && NC.hero.rig.real, heroTs: NC.hero && NC.hero.rig.inst.actions[NC.hero.rig.real] ? +NC.hero.rig.inst.actions[NC.hero.rig.real].timeScale.toFixed(2) : null, heroState: NC.hero && NC.hero.rig.real, dogs: anim.dogs.filter(d => d.rig).map(d => ({ did: d.did, state: d.rig.rig.state, real: d.rig.rig.real, vis: d.g.visible })) }), setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
+    const feet = dg.legs.map(l => { let m = 9; l.children.forEach(c => { const Q = c.geometry.attributes.position; for (let i = 0; i < Q.count; i++) { v.fromBufferAttribute(Q, i).applyMatrix4(c.matrixWorld); if (v.y < m) m = v.y; } }); return +m.toFixed(3); }); return { body: +lo.toFixed(3), feet, vis: dg.legs.map(l => l.visible), x: dg.g.position.x, z: dg.g.position.z, ry: dg.g.rotation.y }; }, heroModelRot: () => HERO.g ? HERO.g.rotation.y : NaN, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, critInfo: () => CRIT.list.map(c => [c.kind, +c.g.position.x.toFixed(1), +c.g.position.z.toFixed(1), c.g.visible]), setSeason, get season() { return SEA.id; }, get edgeT() { return HERO.edgeT || 0; }, portalAt: () => PORTAL.slice(), setWeatherFx: on => { on = on !== false; if (SEA.fxOn === on) return; SEA.fxOn = on; const id = SEA.id; SEA.id = ''; setSeason(id); }, kitInfo, kitPlace, kitClear, kitDemo, kitDemoAt: () => KIT_DEMO.slice(), artInfo: () => ({ started: ARTB.started, loaded: Object.keys(ARTB.inst), anims: ARTB.anims.length }), dbgSnow: () => { try { snowifyScene(); const n = seasonCollect(); return 'ok ' + n + ' sk=' + SEA.sk; } catch (e) { return 'ERR ' + e.message; } }, floraInfo: () => ({ n: FLORA.recs.length, chunks: FLORA.chunks.length, hidden: FLORA.recs.filter(o => o.hidden).length, snow: +SNOWU.value.toFixed(2) }), releaseIcons, afterShown, setLayout, buildMode, setBuildState, setGhost, setBuildSel, cellAt, builtAt, centerCell, buildIcon, get buildOn() { return BM.on; }, setNewChar, get newChar() { return NC.on && !!NC.hero; }, ncBox: () => { const b = o => { const B = new T.Box3().setFromObject(o); return [+(B.max.y - B.min.y).toFixed(3), +B.min.y.toFixed(3)]; }, r = {}; if (HERO.g) { r.heroOld = b(HERO.g.children.find(c => c !== HERO.p.ring && (!NC.hero || c !== NC.hero.wrap))); if (NC.hero) r.heroNew = b(NC.hero.wrap); } const dg = anim.dogs.find(d => d.did === 'fuwang'); if (dg) { r.dogOld = b(dg.torso); if (dg.rig) r.dogNew = b(dg.rig.wrap); } return r; }, ncInfo: () => ({ tm: NC.tm, libTm: NC.lib && NC.lib.tm, readyAt: W3_READY_AT, on: NC.on, hero: !!NC.hero, heroId: NC.heroId, heroReal: NC.hero && NC.hero.rig.real, heroTs: NC.hero && NC.hero.rig.inst.actions[NC.hero.rig.real] ? +NC.hero.rig.inst.actions[NC.hero.rig.real].timeScale.toFixed(2) : null, heroState: NC.hero && NC.hero.rig.real, dogs: anim.dogs.filter(d => d.rig).map(d => ({ did: d.did, state: d.rig.rig.state, real: d.rig.rig.real, vis: d.g.visible })) }), setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
 })();

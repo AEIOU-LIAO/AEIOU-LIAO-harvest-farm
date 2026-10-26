@@ -48,4 +48,5 @@
   {"id":"v7_house_s2","kind":"building","name":"农舍（二级）","stage":"candidate","base":"art/v7_buildings/house_s2/","file":"house_s2","tiers":["1k"],"anims":[],"accessories":[],"note":"2026-10-26 美术 v7_buildings 样板：roof / wall 染色、window_glow 夜灯、base 本色、烘焙 AO；烟囱口 [1.35, 4.55, -2.03]"},
   {"id":"v7_windmill","kind":"building","name":"风车","stage":"candidate","base":"art/v7_buildings/windmill/","file":"windmill","tiers":["1k"],"anims":["idle"],"accessories":[],"note":"2026-10-26 美术 v7_buildings 样板：rotor 节点 idle 6 秒一圈，叶片最低离地 2.85 米"},
   {"id":"v7_doghouse","kind":"building","name":"狗窝","stage":"candidate","base":"art/v7_buildings/doghouse/","file":"doghouse","tiers":["1k"],"anims":[],"accessories":[],"note":"2026-10-26 美术 v7_buildings 样板：门洞 0.55 × 0.6 米，内部留空，碗在侧边"},
+  {"id":"v9_kit","kind":"kit","name":"v9 建筑套件","stage":"candidate","base":"art/v9_kit/kit/","file":"kit","tiers":["1k","2k"],"anims":[],"accessories":[],"note":"2026-10-26 美术 v9_kit 第一阶段 15 种零件样张（共享图集 kit_main / kit_glow，顶点色 AO）；程序按 assemblies/*.json 实例化拼装，?kit=1 打开预览"},
 ]
