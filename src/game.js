@@ -558,7 +558,8 @@ function pickSpecial(i) {
   const k = -20 - i, d = W3.dogInfo(k); if (d && W3.petDog(k)) { sfx('bark'); const L = DOG_PET_LINES[d.did] || [`${d.name}开心地蹭蹭你`, `${d.name}：汪！`, `${d.name}摇成了螺旋桨`]; toast(L[Math.random() * L.length | 0]); }
 }
 function petAction() { const k = W3.nearDog; if (k < 0) return null; const d = W3.dogInfo(k); return d ? { k, label: `摸摸${d.name}`, id: d.did, name: d.name } : null; }
-function doAct() { const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } if (!petAction() && W3.nearKennel() && view.key === 'home') { ac(); sfx('open'); openShop('dog'); return; } if (!petAction() && W3.nearZone() && view.key === 'home') { ac(); sfx('open'); if (W3.nearZone() === 'portal') openWorldMap(); else openRanch(W3.nearZone()); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || [`${p.name}开心地蹭蹭你`, `${p.name}：汪！`]; toast(L[Math.random() * L.length | 0]); } }
+function doAct() { if (view.key === 'home' && W3.nearZone() === 'portal') { ac(); sfx('open'); openWorldMap(); return; }   /* 传送阵优先：狗一直跟在身边，以前按钮被「摸摸狗」抢走，传送阵触发不了 */
+  const i = W3.near; if (i >= 0 && actionOf(i)) { ac(); clickPlot(i, true); return; } if (!petAction() && W3.nearKennel() && view.key === 'home') { ac(); sfx('open'); openShop('dog'); return; } if (!petAction() && W3.nearZone() && view.key === 'home') { ac(); sfx('open'); if (W3.nearZone() === 'portal') openWorldMap(); else openRanch(W3.nearZone()); return; } const p = petAction(); if (p && W3.petDog(p.k)) { ac(); sfx('bark'); const L = DOG_PET_LINES[p.id] || [`${p.name}开心地蹭蹭你`, `${p.name}：汪！`]; toast(L[Math.random() * L.length | 0]); } }
 /* 2026-10-26 世界变大了：漫游走远了（离农场 70 米以上）出现「回农场」按钮 */
 let farBtnT = 0;
 function updateFarBtn() { const now = performance.now(); if (now - farBtnT < 500) return; farBtnT = now; let b = $('gofarm'); const h = W3.heroInfo(), far = W3.mode === 'walk' && !BUILD.on && Math.hypot(h.x, h.z - 4) > 70;
@@ -577,7 +578,7 @@ function updateWalkUi() {
   updateFarBtn();
   /* 方案 C：走到家园边上，提示去传送阵（8 秒内不重复） */
   { const e = W3.edgeT, now = performance.now(); if (e && now - e < 300 && now - (updateWalkUi.edgeTip || 0) > 8000) { updateWalkUi.edgeTip = now; toast('前面是远山，只能看不能走。想去别的地方，到农场东南边的传送阵'); } }
-  if (W3.mode !== 'walk') return; const i = W3.near, pa = petAction(), a = actionOf(i) || (pa ? pa.label : '') || (W3.nearKennel() && view.key === 'home' ? (S.me.dogs || []).some(d => d.own) ? '宠物商店' : '领养狗狗' : '') || (view.key === 'home' && W3.nearZone() ? ({ pond: '打开鱼塘', pasture: '打开牧场', orchard: '打开果园', portal: '传送阵 · 去别的地方' })[W3.nearZone()] : ''), el = $('actbtn'), pr = $('actprompt');
+  if (W3.mode !== 'walk') return; const onPortal = view.key === 'home' && W3.nearZone() === 'portal', i = W3.near, pa = petAction(), a = (onPortal ? '传送阵 · 去别的地方' : '') || actionOf(i) || (pa ? pa.label : '') || (W3.nearKennel() && view.key === 'home' ? (S.me.dogs || []).some(d => d.own) ? '宠物商店' : '领养狗狗' : '') || (view.key === 'home' && W3.nearZone() ? ({ pond: '打开鱼塘', pasture: '打开牧场', orchard: '打开果园', portal: '传送阵 · 去别的地方' })[W3.nearZone()] : ''), el = $('actbtn'), pr = $('actprompt');
   el.classList.toggle('ready', !!a); el.querySelector('span').textContent = a || '操作';
   pr.style.display = a && !window.matchMedia('(pointer: coarse)').matches ? 'block' : 'none'; if (a) pr.innerHTML = `<kbd>F</kbd> ${esc(a)}`;
 }
