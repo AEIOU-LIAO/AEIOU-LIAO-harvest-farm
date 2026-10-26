@@ -1544,7 +1544,7 @@ const W3 = (() => {
   }
   async function kitPlace(asm, x, z, ry, y) { await kitLoad(); const pl = { asm, x, z, ry: ry || 0, y: y || terrainH(x, z) }; KIT.placed.push(pl); kitRebuild(); return KIT.placed.length - 1; }
   function kitClear() { KIT.placed = []; kitRebuild(); }
-  function kitTheme(th) { if (!th || KIT.thKey === th.roof + th.wall) return; KIT.thKey = th.roof + th.wall; KIT.tint.roof.set(th.roof); KIT.tint.wall.set(th.wall).lerp(new T.Color('#ffffff'), 0.35); if (KIT.placed.length) kitRebuild(); }
+  function kitTheme(th) { if (!th || KIT.thKey === th.roof + th.wall) return; KIT.thKey = th.roof + th.wall; KIT.tint.roof.set(th.roof); KIT.tint.wall.set(th.wall).lerp(new T.Color('#ffffff'), 0.1); if (KIT.placed.length) kitRebuild(); }
   function kitInfo() { let tris = 0, inst = 0; KIT.ims.forEach(im => { inst += im.count; tris += im.count * (im.geometry.index ? im.geometry.index.count : im.geometry.attributes.position.count) / 3; }); return { loaded: !!KIT.parts, parts: KIT.parts ? Object.keys(KIT.parts).length : 0, placed: KIT.placed.length, meshes: KIT.ims.length, instances: inst, tris: Math.round(tris), miss: KIT.miss || [] }; }
   const KIT_DEMO = [PORTAL[0] - 12, PORTAL[1] + 2];
   async function kitDemo() {
