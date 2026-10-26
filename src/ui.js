@@ -380,6 +380,7 @@ function openMenu() {
     ${row('音量', '分别调节音乐和音效', `<button class="btn sm" id="tvol">调节</button>`)}
     ${row('昼夜', '', `<button class="btn sm" id="ttod">${({ auto: '跟随时间', day: '白天', dusk: '黄昏', night: '夜晚' })[PREF.tod] || '跟随时间'}</button>`)}
     ${row('季节画面', `只改画面；当季作物和产量加成按真实日期（现在是${CFG.seasonOf(NET.now()).full}）`, `<button class="btn sm" id="tsea">${({ auto: '跟随日期', spring: '春天', summer: '夏天', autumn: '秋天', winter: '冬天' })[PREF.sea] || '跟随日期'}</button>`)}
+    ${row('性能信息', '屏幕上显示帧率、三角面、绘制次数（超过场景预算标红），只在这台设备上', `<button class="sw${PERF_ON ? ' on' : ''}" id="tperf" role="switch" aria-checked="${PERF_ON}"><i></i><span>${PERF_ON ? '开' : '关'}</span></button>`)}
     ${row('飘雪 / 落叶 / 花瓣', PREF.wfx !== false ? '已开启' : '已关闭（手机卡顿时可以关掉）', `<button class="sw${PREF.wfx !== false ? ' on' : ''}" id="twfx" role="switch" aria-checked="${PREF.wfx !== false}"><i></i><span>${PREF.wfx !== false ? '开' : '关'}</span></button>`)}
     ${row('我的角色', esc((CFG.ASSETS.find(a => a.id === (PREF.v3hero || HERO_DEFAULT)) || { name: '女主角 1 号' }).name), `<button class="btn sm" id="tv3">换角色</button>`)}
     ${row('成熟 / 被偷提醒', '页面在后台时，用浏览器通知提醒你（默认关闭）', `<button class="btn sm ${PREF.notify ? 'primary' : ''}" id="tnotify">${PREF.notify ? '开启' : '关闭'}</button>`)}
@@ -394,6 +395,7 @@ function openMenu() {
       $('ttod').onclick = () => { const o = ['auto', 'day', 'dusk', 'night']; savePref({ tod: o[(o.indexOf(PREF.tod) + 1) % 4] }); renderTitle(); openMenu(); };
       $('tnotify').onclick = async () => { if (!PREF.notify && 'Notification' in window) { const p = await Notification.requestPermission(); if (p !== 'granted') { toast('浏览器没有允许通知', 'warn'); return; } } else if (!('Notification' in window)) { toast('这个浏览器不支持通知', 'warn'); return; } savePref({ notify: !PREF.notify }); openMenu(); };
       $('tsea').onclick = async () => { const o = ['auto', 'spring', 'summer', 'autumn', 'winter']; await savePref({ sea: o[(o.indexOf(PREF.sea || 'auto') + 1) % 5] }); W3.setSeason(seasonLook().id); openMenu(); };
+      $('tperf').onclick = () => { PERF_ON = !PERF_ON; try { localStorage.setItem('hf_perf', PERF_ON ? '1' : '0'); } catch (e) { } openMenu(); };
       $('twfx').onclick = async () => { await savePref({ wfx: PREF.wfx === false }); W3.setWeatherFx(PREF.wfx !== false); openMenu(); };
       $('tv3').onclick = () => { closeModal(); openCharPick(); };
       $('tacc').onclick = openAccount; $('thelp').onclick = openHelp; $('tlogout').onclick = logout; $('tswitch').onclick = () => showLogin('quick', null, true);

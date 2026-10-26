@@ -1,10 +1,13 @@
 // 区域（场景）登记表。一个区域 = 一张独立地图，进入时才加载、离开时释放（见 docs/ARCHITECTURE.md 3.2）。
 // status：live 已上线 · planned 规划中（还没有内容，地图界面上显示为「未开放」）· dev 开发用（只有网址带 ?dev=1 时显示）
+// 2026-10-26 方案 C：每个区域是一个独立场景，独享手机性能预算；家园只做精细的农场，其他地方从家园东南边的传送阵（或世界地图）进。详见 docs/SCENES.md
 // unlockLv 解锁等级 · budget 手机性能预算（同屏三角面、绘制次数、贴图显存 MB）· assets 用到的美术资源（assets.jsonc 里的 id）
 [
-  {"id":"home","name":"家园","status":"live","unlockLv":1,"desc":"你的农场：菜地、牧场、鱼塘、果园","budget":{"tris":300000,"calls":150,"texMB":150},"assets":[]},
+  {"id":"home","name":"家园","status":"live","unlockLv":1,"desc":"你的农场：菜地、牧场、鱼塘、果园。四周的远山和森林只能看；想去别的地方，走到东南边的传送阵","budget":{"tris":300000,"calls":150,"texMB":150},"assets":[]},
   {"id":"trial","name":"试炼野外","status":"dev","unlockLv":1,"desc":"开发用：验证区域切换和「种子 + 生物群系」程序生成","budget":{"tris":300000,"calls":150,"texMB":150},"assets":[],"gen":{"size":160,"seg":120,"seed":20261025,"height":26}},
   {"id":"mountain","name":"名山猎场","status":"live","unlockLv":15,"desc":"深山里有梅花鹿、野猪、灰狼和黑熊。用弹弓、猎弓、麻醉枪把它们打晕，送去保护站换赏金和材料","budget":{"tris":300000,"calls":150,"texMB":150},"assets":["v3_hero_boy"]},
+  {"id":"lake","name":"镜湖钓场","status":"planned","unlockLv":8,"desc":"山脚下的一面湖：钓鱼、划船、湖心亭","season":"下一批"},
+  {"id":"town","name":"清河镇","status":"planned","unlockLv":10,"desc":"热闹的小镇：集市摆摊、商店、好友见面","season":"下一批"},
   {"id":"river","name":"河谷","status":"planned","unlockLv":150,"desc":"大河两岸，可以钓鱼、行船","season":"之后"},
   {"id":"desert","name":"大漠","status":"planned","unlockLv":400,"desc":"黄沙里埋着金字塔","season":"之后"},
   {"id":"snowridge","name":"雪岭","status":"planned","unlockLv":800,"desc":"长城蜿蜒在雪山之上","season":"之后"},
