@@ -1,6 +1,6 @@
 {
   "name": "farmhouse_s3_porch",
-  "desc": "按程序e483845确认值建成平顶雨棚：台基0.4、棚底2.3、棚顶2.38、净高1.9，短柱1.9；与新檐口最小约7cm间隙。",
+  "desc": "按程序e483845确认值建成平顶雨棚：台基0.4、棚底2.3、棚顶2.38、净高1.9，短柱1.9；与新檐口最小约7cm间隙。 第二批迁移：橙红纸灯、对称套框窗、金边花纹圆瓦当、柱顶斗拱、脊饰金线、干净瓦面与暖米石基。",
   "parts": [
     {
       "p": "kit_found_stone_2x2",
@@ -302,20 +302,6 @@
       "r": 0
     },
     {
-      "p": "kit_bracket",
-      "x": -1.85,
-      "y": 2.28,
-      "z": 2.05,
-      "r": 0
-    },
-    {
-      "p": "kit_bracket",
-      "x": 1.85,
-      "y": 2.28,
-      "z": 2.05,
-      "r": 0
-    },
-    {
       "p": "kit_prop_lantern",
       "x": -1.6,
       "y": 2.53,
@@ -363,6 +349,48 @@
       "y": 2.3,
       "z": 3.15,
       "r": 0
+    },
+    {
+      "p": "kit_bracket",
+      "x": 1.85,
+      "y": 2.28,
+      "z": 2.25,
+      "r": 0
+    },
+    {
+      "p": "kit_bracket",
+      "x": -1.85,
+      "y": 2.28,
+      "z": 2.25,
+      "r": 0
+    },
+    {
+      "p": "kit_bracket",
+      "x": 1.85,
+      "y": 2.28,
+      "z": -2.25,
+      "r": 180
+    },
+    {
+      "p": "kit_bracket",
+      "x": -1.85,
+      "y": 2.28,
+      "z": -2.25,
+      "r": 180
+    },
+    {
+      "p": "kit_bracket",
+      "x": -1.8,
+      "y": 1.9500000000000002,
+      "z": 4,
+      "r": 0
+    },
+    {
+      "p": "kit_bracket",
+      "x": -0.2,
+      "y": 1.9500000000000002,
+      "z": 4,
+      "r": 0
     }
   ],
   "cam": [
@@ -372,5 +400,37 @@
     0,
     1.9,
     0.8
+  ],
+  "bracket_mounts": [
+    {
+      "column_part_index": 14,
+      "bracket_part_index": 46,
+      "attachment": "corner head / underside of eave beam; rear0.15m enters post face, front projects clear of wall frame"
+    },
+    {
+      "column_part_index": 15,
+      "bracket_part_index": 47,
+      "attachment": "corner head / underside of eave beam; rear0.15m enters post face, front projects clear of wall frame"
+    },
+    {
+      "column_part_index": 16,
+      "bracket_part_index": 48,
+      "attachment": "corner head / underside of eave beam; rear0.15m enters post face, front projects clear of wall frame"
+    },
+    {
+      "column_part_index": 17,
+      "bracket_part_index": 49,
+      "attachment": "corner head / underside of eave beam; rear0.15m enters post face, front projects clear of wall frame"
+    },
+    {
+      "column_part_index": 43,
+      "bracket_part_index": 50,
+      "attachment": "porch column head, inset toward platform; bracket top equals canopy bottom2.3m"
+    },
+    {
+      "column_part_index": 44,
+      "bracket_part_index": 51,
+      "attachment": "porch column head, inset toward platform; bracket top equals canopy bottom2.3m"
+    }
   ]
 }

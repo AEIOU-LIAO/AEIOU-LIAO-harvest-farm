@@ -1,6 +1,6 @@
 {
   "name": "farmhouse_s1_thatch",
-  "desc": "一级茅草屋：使用同一套底座、墙、门窗；木墙围护、独立厚茅草束屋顶。",
+  "desc": "一级茅草屋：使用同一套底座、墙、门窗；木墙围护、独立厚茅草束屋顶。 第二批迁移：橙红纸灯、对称套框窗、金边花纹圆瓦当、柱顶斗拱、脊饰金线、干净瓦面与暖米石基。",
   "parts": [
     {
       "p": "kit_found_stone_2x2",
@@ -190,20 +190,6 @@
       "r": 90
     },
     {
-      "p": "kit_bracket",
-      "x": -1.85,
-      "y": 2.28,
-      "z": 2.05,
-      "r": 0
-    },
-    {
-      "p": "kit_bracket",
-      "x": 1.85,
-      "y": 2.28,
-      "z": 2.05,
-      "r": 0
-    },
-    {
       "p": "kit_prop_lantern",
       "x": -1.6,
       "y": 2.53,
@@ -272,6 +258,34 @@
       "y": 2.8,
       "z": -2,
       "r": 180
+    },
+    {
+      "p": "kit_bracket",
+      "x": 1.85,
+      "y": 2.28,
+      "z": 2.25,
+      "r": 0
+    },
+    {
+      "p": "kit_bracket",
+      "x": -1.85,
+      "y": 2.28,
+      "z": 2.25,
+      "r": 0
+    },
+    {
+      "p": "kit_bracket",
+      "x": 1.85,
+      "y": 2.28,
+      "z": -2.25,
+      "r": 180
+    },
+    {
+      "p": "kit_bracket",
+      "x": -1.85,
+      "y": 2.28,
+      "z": -2.25,
+      "r": 180
     }
   ],
   "cam": [
@@ -281,5 +295,27 @@
     0,
     1.9,
     0.2
+  ],
+  "bracket_mounts": [
+    {
+      "column_part_index": 15,
+      "bracket_part_index": 36,
+      "attachment": "corner head / underside of eave beam; rear0.15m enters post face, front projects clear of wall frame"
+    },
+    {
+      "column_part_index": 16,
+      "bracket_part_index": 37,
+      "attachment": "corner head / underside of eave beam; rear0.15m enters post face, front projects clear of wall frame"
+    },
+    {
+      "column_part_index": 17,
+      "bracket_part_index": 38,
+      "attachment": "corner head / underside of eave beam; rear0.15m enters post face, front projects clear of wall frame"
+    },
+    {
+      "column_part_index": 18,
+      "bracket_part_index": 39,
+      "attachment": "corner head / underside of eave beam; rear0.15m enters post face, front projects clear of wall frame"
+    }
   ]
 }

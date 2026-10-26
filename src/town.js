@@ -10,6 +10,8 @@ const Town = (() => {
   const T = THREE, EDIT = /[?&]edit=1\b/.test(location.search), DRAFT = 'hf_town_draft', LAYOUT_URL = 'art/town/qinghe.json';
   const rng = s => { let x = s >>> 0 || 1; return () => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return ((x >>> 0) % 100000) / 100000; }; };
   const snap = (v, s) => Math.round(v / s) * s;
+  const ASM_NAMES = { sample_house_4x4: '瓦房', farmhouse_s1_thatch: '茅草屋', farmhouse_s3_porch: '门廊瓦房', market_stall: '集市摊位（两个）', square_pavilion_with_red_rail: '红栏杆方亭', fence_gate: '栅栏门', dock_and_arch_bridge: '码头与拱桥' };
+  let PNAMES = {}; const pname = n => PNAMES[n] || n.replace(/^kit_/, ''), aname = n => ASM_NAMES[n] || n;
   const PART_GROUPS = [['地基地面', /^kit_(found|floor|step|path)/], ['墙', /^kit_wall/], ['柱梁', /^kit_(column|beam|bracket)/], ['屋顶', /^kit_roof/], ['门窗', /^kit_(door|window|shutter)/], ['门廊', /^kit_porch/], ['道具', /^kit_prop/], ['植物', /^kit_plant/], ['其他', /./]];
 
   function build(z, S0) {
@@ -17,11 +19,11 @@ const Town = (() => {
     scene.background = sky; scene.fog = new T.Fog(sky, 70, 260);
     const hemi = new T.HemisphereLight(0xfff6e8, 0x6a8a60, 0.95); scene.add(hemi);
     const sun = new T.DirectionalLight(0xfff0d6, 2.0); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -28, right: 28, top: 28, bottom: -28, near: 1, far: 220 }); sun.shadow.bias = -0.0004; scene.add(sun, sun.target);
-    const groundAt = () => 0, LIM = 62;
+    const groundAt = () => 0, LIM = 66;
     /* 地面：草地，镇中心偏暖的泥土色 */
     { const gg = new T.PlaneGeometry(260, 260, 64, 64); gg.rotateX(-Math.PI / 2); const P = gg.attributes.position, col = new Float32Array(P.count * 3), a = new T.Color('#86b95a'), b = new T.Color('#6fa24a'), d = new T.Color('#c9b27f'), c = new T.Color();
       for (let i = 0; i < P.count; i++) { const x = P.getX(i), z2 = P.getZ(i), n = (Math.sin(x * 0.13) * Math.cos(z2 * 0.11) + Math.sin(x * 0.05 + z2 * 0.07)) * 0.25 + 0.5; c.copy(a).lerp(b, n); const r = Math.hypot(x / 40, z2 / 16); if (r < 1) c.lerp(d, (1 - r) * 0.35); c.toArray(col, i * 3); }
-      gg.setAttribute('color', new T.BufferAttribute(col, 3)); const g = new T.Mesh(gg, new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 })); g.receiveShadow = true; g.userData.ground = 1; scene.add(g); var ground = g; }
+      gg.setAttribute('color', new T.BufferAttribute(col, 3)); const gm = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }); W3.snowify(gm, 1, 1); const g = new T.Mesh(gg, gm); g.receiveShadow = true; g.userData.ground = 1; scene.add(g); var ground = g; }
     /* 远山一圈（只看） */
     { const r = rng(311), geo = new T.ConeGeometry(1, 1, 6, 1), m = new T.MeshStandardMaterial({ color: new T.Color('#7fa8a0'), roughness: 1, flatShading: true }), n = 46, im = new T.InstancedMesh(geo, m, n), o = new T.Object3D();
       for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2 + r() * 0.1, d = 150 + r() * 40, h = 25 + r() * 45; o.position.set(Math.cos(a) * d, h / 2 - 2, Math.sin(a) * d); o.scale.set(20 + r() * 25, h, 20 + r() * 25); o.rotation.y = r() * 6; o.updateMatrix(); im.setMatrixAt(i, o.matrix); }
@@ -30,8 +32,8 @@ const Town = (() => {
     const trees = { im: null };
     function plantTrees(list) {
       if (trees.im) { trees.im.forEach(x => { scene.remove(x); x.geometry.dispose(); }); }
-      const r = rng(77), crown = new T.IcosahedronGeometry(1, 2), trunk = new T.CylinderGeometry(0.16, 0.24, 1, 7).translate(0, 0.5, 0), cm = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 }), tm = new T.MeshStandardMaterial({ color: new T.Color('#7a5236'), roughness: 0.9 });
-      const n = list.length, ci = new T.InstancedMesh(crown, cm, n * 2), ti = new T.InstancedMesh(trunk, tm, n), o = new T.Object3D(), pal = ['#5fae4a', '#4f9a44', '#7cc05a', '#e8a6b8', '#f2c45a'].map(c => new T.Color(c));
+      const r = rng(77), crown = new T.IcosahedronGeometry(1, 1), trunk = new T.CylinderGeometry(0.16, 0.24, 1, 7).translate(0, 0.5, 0), cm = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 }), tm = new T.MeshStandardMaterial({ color: new T.Color('#7a5236'), roughness: 0.9 });
+      W3.snowify(cm); const n = list.length, ci = new T.InstancedMesh(crown, cm, n * 2), ti = new T.InstancedMesh(trunk, tm, n), o = new T.Object3D(), pal = ['#5fae4a', '#4f9a44', '#7cc05a', '#e8a6b8', '#f2c45a'].map(c => new T.Color(c));
       list.forEach(([x, z2, s], i) => { s = s || 1; o.position.set(x, 0, z2); o.scale.set(s, 2.2 * s, s); o.rotation.set(0, 0, 0); o.updateMatrix(); ti.setMatrixAt(i, o.matrix); const c = pal[r() < 0.12 ? 3 + (r() < 0.5 ? 1 : 0) : Math.floor(r() * 3)];
         for (let k = 0; k < 2; k++) { o.position.set(x + (k ? 0.5 : -0.3) * s, (2.6 + k * 0.9) * s, z2 + (k ? -0.3 : 0.3) * s); o.scale.setScalar((1.5 - k * 0.35) * s); o.rotation.set(r(), r() * 6, 0); o.updateMatrix(); ci.setMatrixAt(i * 2 + k, o.matrix); ci.setColorAt(i * 2 + k, c); } });
       [ci, ti].forEach(m => { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; scene.add(m); }); trees.im = [ci, ti]; trees.list = list;
@@ -40,8 +42,8 @@ const Town = (() => {
     /* ---------- 套件 ---------- */
     let lib = null, kit = null, built = null, dead = false, layout = null, items = [], boxes = [];
     const ready = (async () => {
-      lib = new Assets3({ manifest: GAMECFG.ASSETS }); kit = new Kit3.Kit(lib, { tint: (S0 && S0.tint) || null });
-      const [, L] = await Promise.all([kit.load('1k'), fetch(LAYOUT_URL).then(r => r.json())]);
+      lib = new Assets3({ manifest: GAMECFG.ASSETS }); kit = new Kit3.Kit(lib, { tint: (S0 && S0.tint) || null, onMat: m => W3.snowify(m) });   /* 冬天和家园一样积雪（共用家园的积雪着色器和季节） */
+      const [, L] = await Promise.all([kit.load('1k'), fetch(LAYOUT_URL).then(r => r.json()), EDIT ? fetch('art/v9_kit/names.json').then(r => r.json()).then(j => { PNAMES = j; }).catch(() => { }) : null]);
       if (dead) return; layout = L; items = (EDIT && loadDraft()) || L.items; plantTrees(L.trees || []); await rebuild();
       if (L.spawn && !EDIT) { hero.pos.set(L.spawn[0], 0, L.spawn[1]); hero.face = L.spawn[2] || 0; camYaw = hero.face + Math.PI; }
     })().catch(e => { console.warn('清河镇加载失败', e); say('小镇加载失败：' + e.message, 4000); });
@@ -112,10 +114,10 @@ const Town = (() => {
         const asmNames = (layout && layout.assemblies) || [], names = kit ? kit.names() : [], groups = PART_GROUPS.map(([t, re]) => [t, []]);
         names.forEach(n => { const i = PART_GROUPS.findIndex(([, re]) => re.test(n)); groups[i][1].push(n); });
         const item = (k, v, label) => `<button class="tw-it${E.brush && E.brush[k] === v ? ' on' : ''}" data-${k}="${esc(v)}">${esc(label)}</button>`;
-        panel.innerHTML = `<div class="tw-h">组合（整栋）</div>${asmNames.map(n => item('a', n, n)).join('')}` + groups.filter(g => g[1].length).map(([t, l]) => `<div class="tw-h">${t}</div>${l.map(n => item('p', n, n.replace(/^kit_/, ''))).join('')}`).join('') + `<div class="tw-h">提示</div><p class="tw-tip">点地面摆放 · 点东西选中 · 拖动平移 · 右键或 Shift 拖动转镜头 · 滚轮缩放<br>R 转向 · 方向键挪动（Shift 2 米）· Delete 删除 · C 复制 · Ctrl+Z 撤销 · Esc 取消</p>`;
+        panel.innerHTML = `<div class="tw-h">组合（整栋）</div>${asmNames.map(n => item('a', n, aname(n))).join('')}` + groups.filter(g => g[1].length).map(([t, l]) => `<div class="tw-h">${t}</div>${l.map(n => item('p', n, pname(n))).join('')}`).join('') + `<div class="tw-h">提示</div><p class="tw-tip">点地面摆放 · 点东西选中 · 拖动平移 · 右键或 Shift 拖动转镜头 · 滚轮缩放<br>R 转向 · 方向键挪动（Shift 2 米）· Delete 删除 · C 复制 · Ctrl+Z 撤销 · Esc 取消</p>`;
         panel.querySelectorAll('[data-a],[data-p]').forEach(b => b.onclick = () => { const k = b.dataset.a ? 'a' : 'p', v = b.dataset[k]; E.brush = E.brush && E.brush[k] === v ? null : { [k]: v }; E.sel = -1; renderPanel(); renderSel(); E.ghostKey = ''; });
       }
-      function renderSel() { const it = items[E.sel]; bar.querySelector('.tw-sel').textContent = it ? `选中：${it.a || it.p.replace(/^kit_/, '')}（${it.x}, ${it.z}，${it.r || 0}°）` : E.brush ? `摆放：${E.brush.a || E.brush.p.replace(/^kit_/, '')}（${E.rot}°）` : `共 ${items.length} 件`;
+      function renderSel() { const it = items[E.sel]; bar.querySelector('.tw-sel').textContent = it ? `选中：${it.a ? aname(it.a) : pname(it.p)}（${it.x}, ${it.z}，${it.r || 0}°）` : E.brush ? `摆放：${E.brush.a ? aname(E.brush.a) : pname(E.brush.p)}（${E.rot}°）` : `共 ${items.length} 件`;
         if (E.selBox) { scene.remove(E.selBox); E.selBox.geometry.dispose(); E.selBox = null; }
         if (it && built) { const bx = new T.Box3(); built.boxes.forEach(b => { if (b.id === E.sel) bx.union(b.box); }); if (!bx.isEmpty()) { E.selBox = new T.Box3Helper(bx, 0xffd34a); E.selBox.material = selBoxMat; scene.add(E.selBox); } } }
       E.refresh = () => { renderSel(); };
@@ -173,8 +175,8 @@ const Town = (() => {
     /* 昼夜：跟家园一样按「昼夜」设置 / 真实时间；夜里窗纸、灯笼亮 */
     function env() {
       const h = curHour(), night = h < 5 || h > 20 ? 1 : h < 7 ? (7 - h) / 2 : h > 18 ? (h - 18) / 2 : 0, dusk = Math.max(0, 1 - Math.abs(h - 18.5) / 1.5);
-      sky.set('#bfe1f5').lerp(new T.Color('#f0b07a'), dusk * 0.6).lerp(new T.Color('#1c2a48'), night); scene.fog.color.copy(sky);
-      hemi.intensity = 0.95 - night * 0.6; sun.intensity = 2.0 * (1 - night * 0.85); sun.color.set('#fff0d6').lerp(new T.Color('#ffb070'), dusk * 0.7);
+      const sn = W3.snow || 0; sky.set('#bfe1f5').lerp(new T.Color('#e2e8ee'), sn * 0.6).lerp(new T.Color('#f0b07a'), dusk * 0.6).lerp(new T.Color('#1c2a48'), night); scene.fog.color.copy(sky);
+      hemi.intensity = 0.95 - night * 0.7; hemi.color.set('#fff6e8').lerp(new T.Color('#8fa8e0'), night * 0.6); sun.intensity = 2.0 * (1 - night * 0.85) * (1 - sn * 0.2); sun.color.set('#fff0d6').lerp(new T.Color('#ffb070'), dusk * 0.7);
       if (kit) kit.glow.forEach(m => { m.emissiveIntensity = night * 1.6; });
     }
     let hudT = 0, tAcc = 0;

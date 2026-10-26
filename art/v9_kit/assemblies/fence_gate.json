@@ -1,0 +1,49 @@
+{
+  "cam": [
+    6,
+    3.3,
+    7,
+    0,
+    0.6,
+    0
+  ],
+  "shadow": 8,
+  "parts": [
+    {
+      "p": "kit_fence_wood_gate",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "r": 0
+    },
+    {
+      "p": "kit_fence_wood_2m",
+      "x": -2,
+      "y": 0,
+      "z": 0,
+      "r": 0
+    },
+    {
+      "p": "kit_fence_wood_2m",
+      "x": 2,
+      "y": 0,
+      "z": 0,
+      "r": 0
+    },
+    {
+      "p": "kit_fence_wood_post",
+      "x": -3,
+      "y": 0,
+      "z": 0,
+      "r": 0
+    },
+    {
+      "p": "kit_fence_wood_post",
+      "x": 3,
+      "y": 0,
+      "z": 0,
+      "r": 0
+    }
+  ],
+  "name": "fence_gate"
+}

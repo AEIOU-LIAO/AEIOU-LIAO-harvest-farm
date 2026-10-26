@@ -22,14 +22,21 @@ def write(J, BIN):
 def pack(src, out_dir, mobile=0):
     J, BIN = read(src); name = os.path.splitext(os.path.basename(src))[0]
     os.makedirs(os.path.join(out_dir, 'tex'), exist_ok=True)
-    img_views = set()
+    img_views = set(); alpha_imgs = set()
     for im in J.get('images', []):
         bv = J['bufferViews'][im['bufferView']]; img_views.add(im['bufferView'])
         data = BIN[bv.get('byteOffset', 0):bv.get('byteOffset', 0) + bv['byteLength']]
         if not mobile: open(os.path.join(out_dir, 'tex', im['name'] + '.jpg'), 'wb').write(data); continue
         from PIL import Image
-        img = Image.open(io.BytesIO(data)).convert('RGB'); q = 92 if 'normal' in im['name'] else 85
+        src_img = Image.open(io.BytesIO(data)); q = 92 if 'normal' in im['name'] else 85
         os.makedirs(os.path.join(out_dir, 'tex2k'), exist_ok=True)
+        # 2026-10-27：带透明的贴图（套件图集的树叶 / 花瓣区）存 PNG，JPEG 会把透明丢掉，镂空的叶片变成方块
+        if src_img.mode in ('RGBA', 'LA') and src_img.getchannel('A').getextrema()[0] < 250:
+            alpha_imgs.add(im['name']); img = src_img.convert('RGBA')
+            img.save(os.path.join(out_dir, 'tex2k', im['name'] + '.png'), optimize=True)
+            small = img.resize((mobile, mobile), Image.LANCZOS) if img.width > mobile else img
+            small.save(os.path.join(out_dir, 'tex', im['name'] + '.png'), optimize=True); continue
+        img = src_img.convert('RGB')
         if im.get('mimeType') == 'image/jpeg': open(os.path.join(out_dir, 'tex2k', im['name'] + '.jpg'), 'wb').write(data)
         else: img.save(os.path.join(out_dir, 'tex2k', im['name'] + '.jpg'), quality=q, optimize=True)
         small = img.resize((mobile, mobile), Image.LANCZOS) if img.width > mobile else img
@@ -41,6 +48,7 @@ def pack(src, out_dir, mobile=0):
         for key, holder in [('baseColorTexture', pbr), ('metallicRoughnessTexture', pbr), ('normalTexture', m), ('occlusionTexture', m), ('emissiveTexture', m)]:
             if key in holder:
                 ex[key] = J['images'][J['textures'][holder[key]['index']]['source']]['name']
+                if ex[key] in alpha_imgs: ex[key + 'Ext'] = 'png'
                 if key == 'occlusionTexture' and 'strength' in holder[key]: ex['aoStrength'] = holder[key]['strength']
                 del holder[key]
     for k in ('images', 'textures', 'samplers'): J.pop(k, None)

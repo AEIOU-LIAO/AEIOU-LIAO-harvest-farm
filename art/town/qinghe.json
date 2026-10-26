@@ -2,101 +2,140 @@
 "name": "清河镇",
 "version": 1,
 "spawn": [
--40,
+-45,
 0,
 1.5708
 ],
 "assemblies": [
 "farmhouse_s3_porch",
 "sample_house_4x4",
-"farmhouse_s1_thatch"
+"farmhouse_s1_thatch",
+"market_stall",
+"square_pavilion_with_red_rail",
+"fence_gate",
+"dock_and_arch_bridge"
 ],
 "items": [
 {
 "p": "kit_path_stone_2x2_a",
-"x": -37,
+"x": -41,
 "z": -2,
 "r": 90
 },
 {
 "p": "kit_path_stone_2x2_c",
-"x": -37,
+"x": -41,
 "z": 0,
 "r": 90
 },
 {
 "p": "kit_path_stone_2x2_b",
-"x": -37,
+"x": -41,
 "z": 2,
 "r": 270
 },
 {
 "p": "kit_path_stone_2x2_c",
-"x": -35,
+"x": -39,
 "z": -2
 },
 {
 "p": "kit_path_stone_2x2_a",
-"x": -35,
+"x": -39,
 "z": 0,
 "r": 270
 },
 {
 "p": "kit_path_stone_2x2_c",
-"x": -35,
+"x": -39,
 "z": 2,
 "r": 180
 },
 {
 "p": "kit_path_stone_2x2_b",
-"x": -33,
+"x": -37,
 "z": -2,
 "r": 180
 },
 {
 "p": "kit_path_stone_2x2_a",
-"x": -33,
+"x": -37,
 "z": 0,
 "r": 180
 },
 {
 "p": "kit_path_stone_2x2_b",
-"x": -33,
+"x": -37,
 "z": 2,
 "r": 180
 },
 {
 "p": "kit_path_stone_2x2_c",
-"x": -31,
+"x": -35,
 "z": -2,
 "r": 180
 },
 {
 "p": "kit_path_stone_2x2_a",
-"x": -31,
+"x": -35,
 "z": 0,
 "r": 90
 },
 {
 "p": "kit_path_stone_2x2_b",
-"x": -31,
+"x": -35,
 "z": 2,
 "r": 270
 },
 {
 "p": "kit_path_stone_2x2_c",
-"x": -29,
+"x": -33,
 "z": -2,
 "r": 90
 },
 {
 "p": "kit_path_stone_2x2_b",
-"x": -29,
+"x": -33,
 "z": 0,
 "r": 90
 },
 {
 "p": "kit_path_stone_2x2_b",
+"x": -33,
+"z": 2,
+"r": 270
+},
+{
+"p": "kit_path_stone_2x2_b",
+"x": -31,
+"z": -2,
+"r": 90
+},
+{
+"p": "kit_path_stone_2x2_c",
+"x": -31,
+"z": 0,
+"r": 270
+},
+{
+"p": "kit_path_stone_2x2_b",
+"x": -31,
+"z": 2,
+"r": 180
+},
+{
+"p": "kit_path_stone_2x2_b",
+"x": -29,
+"z": -2
+},
+{
+"p": "kit_path_stone_2x2_b",
+"x": -29,
+"z": 0,
+"r": 180
+},
+{
+"p": "kit_path_stone_2x2_a",
 "x": -29,
 "z": 2,
 "r": 270
@@ -105,7 +144,7 @@
 "p": "kit_path_stone_2x2_b",
 "x": -27,
 "z": -2,
-"r": 90
+"r": 180
 },
 {
 "p": "kit_path_stone_2x2_c",
@@ -117,195 +156,160 @@
 "p": "kit_path_stone_2x2_b",
 "x": -27,
 "z": 2,
-"r": 180
+"r": 270
 },
 {
 "p": "kit_path_stone_2x2_b",
 "x": -25,
-"z": -2
-},
-{
-"p": "kit_path_stone_2x2_b",
-"x": -25,
-"z": 0,
-"r": 180
+"z": -2,
+"r": 90
 },
 {
 "p": "kit_path_stone_2x2_a",
 "x": -25,
-"z": 2,
-"r": 270
-},
-{
-"p": "kit_path_stone_2x2_b",
-"x": -23,
-"z": -2,
-"r": 180
+"z": 0,
+"r": 90
 },
 {
 "p": "kit_path_stone_2x2_c",
+"x": -25,
+"z": 2,
+"r": 90
+},
+{
+"p": "kit_path_stone_2x2_c",
+"x": -23,
+"z": -2,
+"r": 90
+},
+{
+"p": "kit_path_stone_2x2_a",
 "x": -23,
 "z": 0,
 "r": 270
 },
 {
-"p": "kit_path_stone_2x2_b",
+"p": "kit_path_stone_2x2_c",
 "x": -23,
 "z": 2,
-"r": 270
-},
-{
-"p": "kit_path_stone_2x2_b",
-"x": -21,
-"z": -2,
 "r": 90
 },
 {
 "p": "kit_path_stone_2x2_a",
 "x": -21,
-"z": 0,
-"r": 90
+"z": -2,
+"r": 270
 },
 {
 "p": "kit_path_stone_2x2_c",
 "x": -21,
-"z": 2,
-"r": 90
-},
-{
-"p": "kit_path_stone_2x2_c",
-"x": -19,
-"z": -2,
-"r": 90
-},
-{
-"p": "kit_path_stone_2x2_a",
-"x": -19,
-"z": 0,
-"r": 270
-},
-{
-"p": "kit_path_stone_2x2_c",
-"x": -19,
-"z": 2,
-"r": 90
-},
-{
-"p": "kit_path_stone_2x2_a",
-"x": -17,
-"z": -2,
-"r": 270
-},
-{
-"p": "kit_path_stone_2x2_c",
-"x": -17,
 "z": 0,
 "r": 270
 },
 {
 "p": "kit_path_stone_2x2_a",
-"x": -17,
+"x": -21,
 "z": 2,
 "r": 270
 },
 {
 "p": "kit_path_stone_2x2_b",
-"x": -15,
+"x": -19,
 "z": -2
 },
 {
 "p": "kit_path_stone_2x2_c",
-"x": -15,
+"x": -19,
 "z": 0,
 "r": 90
 },
 {
 "p": "kit_path_stone_2x2_a",
-"x": -15,
+"x": -19,
 "z": 2,
 "r": 270
 },
 {
 "p": "kit_path_stone_2x2_c",
-"x": -13,
+"x": -17,
 "z": -2,
 "r": 90
 },
 {
 "p": "kit_path_stone_2x2_b",
-"x": -13,
+"x": -17,
 "z": 0,
 "r": 90
 },
 {
 "p": "kit_path_stone_2x2_a",
-"x": -13,
+"x": -17,
 "z": 2,
 "r": 180
 },
 {
 "p": "kit_path_stone_2x2_c",
-"x": -11,
+"x": -15,
 "z": -2,
 "r": 180
 },
 {
 "p": "kit_path_stone_2x2_c",
-"x": -11,
+"x": -15,
 "z": 0
 },
 {
 "p": "kit_path_stone_2x2_b",
-"x": -11,
+"x": -15,
 "z": 2
 },
 {
 "p": "kit_path_stone_2x2_c",
-"x": -9,
+"x": -13,
 "z": -2,
 "r": 180
 },
 {
 "p": "kit_path_stone_2x2_b",
-"x": -9,
+"x": -13,
 "z": 0,
 "r": 270
 },
 {
 "p": "kit_path_stone_2x2_c",
-"x": -9,
+"x": -13,
 "z": 2
 },
 {
 "p": "kit_path_stone_2x2_b",
-"x": -7,
+"x": -11,
 "z": -2
 },
 {
 "p": "kit_path_stone_2x2_b",
-"x": -7,
+"x": -11,
 "z": 0
 },
 {
 "p": "kit_path_stone_2x2_b",
-"x": -7,
+"x": -11,
 "z": 2,
 "r": 180
 },
 {
 "p": "kit_path_stone_2x2_a",
-"x": 7,
+"x": -9,
 "z": -2,
 "r": 180
 },
 {
 "p": "kit_path_stone_2x2_c",
-"x": 7,
+"x": -9,
 "z": 0
 },
 {
 "p": "kit_path_stone_2x2_a",
-"x": 7,
+"x": -9,
 "z": 2
 },
 {
@@ -577,1112 +581,2087 @@
 "r": 180
 },
 {
-"p": "kit_floor_tile_2x2",
-"x": -7,
-"z": -7
+"p": "kit_path_stone_2x2_b",
+"x": 39,
+"z": -2
 },
 {
-"p": "kit_floor_tile_2x2",
-"x": -7,
-"z": -5
+"p": "kit_path_stone_2x2_c",
+"x": 39,
+"z": 0
 },
 {
-"p": "kit_floor_tile_2x2",
-"x": -7,
-"z": -3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -7,
-"z": -1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -7,
-"z": 1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -7,
-"z": 3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -7,
-"z": 5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -7,
-"z": 7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -5,
-"z": -7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -5,
-"z": -5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -5,
-"z": -3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -5,
-"z": -1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -5,
-"z": 1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -5,
-"z": 3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -5,
-"z": 5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -5,
-"z": 7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -3,
-"z": -7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -3,
-"z": -5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -3,
-"z": -3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -3,
-"z": -1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -3,
-"z": 1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -3,
-"z": 3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -3,
-"z": 5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -3,
-"z": 7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -1,
-"z": -7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -1,
-"z": -5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -1,
-"z": -3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -1,
-"z": -1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -1,
-"z": 1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -1,
-"z": 3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -1,
-"z": 5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": -1,
-"z": 7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 1,
-"z": -7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 1,
-"z": -5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 1,
-"z": -3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 1,
-"z": -1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 1,
-"z": 1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 1,
-"z": 3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 1,
-"z": 5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 1,
-"z": 7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 3,
-"z": -7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 3,
-"z": -5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 3,
-"z": -3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 3,
-"z": -1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 3,
-"z": 1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 3,
-"z": 3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 3,
-"z": 5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 3,
-"z": 7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 5,
-"z": -7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 5,
-"z": -5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 5,
-"z": -3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 5,
-"z": -1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 5,
-"z": 1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 5,
-"z": 3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 5,
-"z": 5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 5,
-"z": 7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 7,
-"z": -7
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 7,
-"z": -5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 7,
-"z": -3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 7,
-"z": -1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 7,
-"z": 1
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 7,
-"z": 3
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 7,
-"z": 5
-},
-{
-"p": "kit_floor_tile_2x2",
-"x": 7,
-"z": 7
-},
-{
-"p": "kit_found_stone_2x2",
-"x": -1,
-"z": -1
-},
-{
-"p": "kit_found_stone_2x2",
-"x": -1,
-"z": 1
-},
-{
-"p": "kit_found_stone_2x2",
-"x": 1,
-"z": -1
-},
-{
-"p": "kit_found_stone_2x2",
-"x": 1,
-"z": 1
-},
-{
-"p": "kit_column_red",
-"x": -1.75,
-"z": -1.75,
-"y": 0.4
-},
-{
-"p": "kit_column_red",
-"x": -1.75,
-"z": 1.75,
-"y": 0.4
-},
-{
-"p": "kit_column_red",
-"x": 1.75,
-"z": -1.75,
-"y": 0.4
-},
-{
-"p": "kit_column_red",
-"x": 1.75,
-"z": 1.75,
-"y": 0.4
-},
-{
-"p": "kit_roof_pyramid_4m_t",
-"x": 0,
-"z": 0,
-"y": 2.8,
-"tint": "roof"
-},
-{
-"p": "kit_step_stone_2m",
-"x": 0,
-"z": 2.3
-},
-{
-"p": "kit_step_stone_2m",
-"x": 2.3,
-"z": 0,
-"r": 90
-},
-{
-"p": "kit_step_stone_2m",
-"x": 0,
-"z": -2.3,
+"p": "kit_path_stone_2x2_c",
+"x": 39,
+"z": 2,
 "r": 180
 },
 {
-"p": "kit_step_stone_2m",
-"x": -2.3,
+"p": "kit_path_stone_2x2_a",
+"x": 41,
+"z": -2,
+"r": 270
+},
+{
+"p": "kit_path_stone_2x2_c",
+"x": 41,
 "z": 0,
 "r": 270
 },
 {
-"p": "kit_prop_bench",
-"x": -5.5,
-"z": -5.5,
-"r": 45
+"p": "kit_path_stone_2x2_c",
+"x": 41,
+"z": 2,
+"r": 90
 },
 {
-"p": "kit_prop_bench",
-"x": 5.5,
-"z": -5.5,
-"r": 315
+"p": "kit_floor_tile_2x2",
+"x": -9,
+"z": -9
 },
 {
-"p": "kit_prop_bench",
-"x": -5.5,
-"z": 5.5,
-"r": 135
+"p": "kit_floor_tile_2x2",
+"x": -9,
+"z": -7
 },
 {
-"p": "kit_prop_bench",
-"x": 5.5,
-"z": 5.5,
-"r": 225
+"p": "kit_floor_tile_2x2",
+"x": -9,
+"z": -5
 },
 {
-"p": "kit_prop_barrel_a",
+"p": "kit_floor_tile_2x2",
+"x": -9,
+"z": -3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -9,
+"z": -1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -9,
+"z": 1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -9,
+"z": 3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -9,
+"z": 5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -9,
+"z": 7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -9,
+"z": 9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -7,
+"z": -9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -7,
+"z": -7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -7,
+"z": -5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -7,
+"z": -3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -7,
+"z": -1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -7,
+"z": 1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -7,
+"z": 3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -7,
+"z": 5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -7,
+"z": 7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -7,
+"z": 9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -5,
+"z": -9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -5,
+"z": -7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -5,
+"z": -5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -5,
+"z": -3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -5,
+"z": -1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -5,
+"z": 1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -5,
+"z": 3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -5,
+"z": 5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -5,
+"z": 7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -5,
+"z": 9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -3,
+"z": -9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -3,
+"z": -7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -3,
+"z": -5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -3,
+"z": -3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -3,
+"z": -1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -3,
+"z": 1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -3,
+"z": 3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -3,
+"z": 5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -3,
+"z": 7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -3,
+"z": 9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -1,
+"z": -9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -1,
+"z": -7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -1,
+"z": -5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -1,
+"z": -3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -1,
+"z": -1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -1,
+"z": 1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -1,
+"z": 3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -1,
+"z": 5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -1,
+"z": 7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": -1,
+"z": 9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 1,
+"z": -9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 1,
+"z": -7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 1,
+"z": -5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 1,
+"z": -3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 1,
+"z": -1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 1,
+"z": 1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 1,
+"z": 3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 1,
+"z": 5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 1,
+"z": 7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 1,
+"z": 9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 3,
+"z": -9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 3,
+"z": -7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 3,
+"z": -5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 3,
+"z": -3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 3,
+"z": -1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 3,
+"z": 1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 3,
+"z": 3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 3,
+"z": 5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 3,
+"z": 7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 3,
+"z": 9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 5,
+"z": -9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 5,
+"z": -7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 5,
+"z": -5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 5,
+"z": -3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 5,
+"z": -1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 5,
+"z": 1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 5,
+"z": 3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 5,
+"z": 5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 5,
+"z": 7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 5,
+"z": 9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 7,
+"z": -9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 7,
+"z": -7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 7,
+"z": -5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 7,
+"z": -3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 7,
+"z": -1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 7,
+"z": 1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 7,
+"z": 3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 7,
+"z": 5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 7,
+"z": 7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 7,
+"z": 9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 9,
+"z": -9
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 9,
+"z": -7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 9,
+"z": -5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 9,
+"z": -3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 9,
+"z": -1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 9,
+"z": 1
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 9,
+"z": 3
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 9,
+"z": 5
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 9,
+"z": 7
+},
+{
+"p": "kit_floor_tile_2x2",
+"x": 9,
+"z": 9
+},
+{
+"a": "square_pavilion_with_red_rail",
+"x": 0,
+"z": 0
+},
+{
+"a": "market_stall",
+"x": -2,
+"z": -7.2
+},
+{
+"a": "market_stall",
+"x": 2,
+"z": 7.2,
+"r": 180
+},
+{
+"p": "kit_prop_crate_b",
+"x": -6.2,
+"z": -6.2
+},
+{
+"p": "kit_prop_crate_a",
 "x": -6.4,
-"z": -3.6,
+"z": -7.2,
+"r": 20
+},
+{
+"p": "kit_prop_sack",
+"x": -5.3,
+"z": -6.6000000000000005
+},
+{
+"p": "kit_prop_basket",
+"x": -5.4,
+"z": -5.6000000000000005
+},
+{
+"p": "kit_prop_jar_large",
+"x": 6.076,
+"z": -6.2
+},
+{
+"p": "kit_prop_jar_small",
+"x": 6.675999999999999,
+"z": -5.8
+},
+{
+"p": "kit_prop_crate_b",
+"x": 6.2,
+"z": 6.2,
 "r": 30
 },
 {
-"p": "kit_prop_barrel_a",
+"p": "kit_prop_crate_a",
 "x": 6.4,
-"z": 3.6
+"z": 7.2
+},
+{
+"p": "kit_prop_sack",
+"x": 5.3,
+"z": 6.6000000000000005
+},
+{
+"p": "kit_prop_basket",
+"x": 5.4,
+"z": 5.6000000000000005
+},
+{
+"p": "kit_prop_jar_large",
+"x": -6.076,
+"z": 6.2
+},
+{
+"p": "kit_prop_jar_small",
+"x": -6.675999999999999,
+"z": 5.8
+},
+{
+"p": "kit_prop_bench",
+"x": -7.5,
+"z": -2.5,
+"r": 90
+},
+{
+"p": "kit_prop_bench",
+"x": 7.5,
+"z": 2.5,
+"r": 270
+},
+{
+"p": "kit_prop_bench",
+"x": -7.5,
+"z": 2.5,
+"r": 90
+},
+{
+"p": "kit_prop_bench",
+"x": 7.5,
+"z": -2.5,
+"r": 270
+},
+{
+"p": "kit_prop_flowerpot",
+"x": -8.4,
+"z": -8.4
+},
+{
+"p": "kit_prop_flowerpot",
+"x": 8.4,
+"z": -8.4
+},
+{
+"p": "kit_prop_flowerpot",
+"x": -8.4,
+"z": 8.4
+},
+{
+"p": "kit_prop_flowerpot",
+"x": 8.4,
+"z": 8.4
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": -37,
+"z": -3.7
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": -37,
+"z": 3.7,
+"r": 180
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": -29,
+"z": -3.7
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": -29,
+"z": 3.7,
+"r": 180
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": -21,
+"z": -3.7
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": -21,
+"z": 3.7,
+"r": 180
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": -13,
+"z": -3.7
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": -13,
+"z": 3.7,
+"r": 180
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": 13,
+"z": -3.7
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": 13,
+"z": 3.7,
+"r": 180
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": 21,
+"z": -3.7
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": 21,
+"z": 3.7,
+"r": 180
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": 29,
+"z": -3.7
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": 29,
+"z": 3.7,
+"r": 180
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": 37,
+"z": -3.7
+},
+{
+"p": "kit_prop_stone_lantern",
+"x": 37,
+"z": 3.7,
+"r": 180
+},
+{
+"p": "kit_banner",
+"x": -42.5,
+"z": -3.8,
+"r": 90
+},
+{
+"p": "kit_banner",
+"x": -42.5,
+"z": 3.8,
+"r": 90
+},
+{
+"a": "farmhouse_s3_porch",
+"x": -35,
+"z": -9.5
 },
 {
 "p": "kit_prop_barrel_a",
-"x": -6.4,
-"z": 4.2,
+"x": -31.8,
+"z": -7.3
+},
+{
+"p": "kit_prop_table",
+"x": -38.4,
+"z": -7.1
+},
+{
+"p": "kit_prop_stool",
+"x": -38.4,
+"z": -6.2
+},
+{
+"p": "kit_prop_bucket",
+"x": -31.4,
+"z": -6.5
+},
+{
+"a": "sample_house_4x4",
+"x": -27,
+"z": -9.5
+},
+{
+"p": "kit_prop_barrel_b",
+"x": -23.8,
+"z": -7.3,
+"r": 40
+},
+{
+"p": "kit_prop_planter",
+"x": -30.2,
+"z": -7.7,
+"r": 90
+},
+{
+"p": "kit_prop_toolrack",
+"x": -23.7,
+"z": -10.5,
+"r": 90
+},
+{
+"a": "farmhouse_s1_thatch",
+"x": -19,
+"z": -9.5
+},
+{
+"p": "kit_prop_barrel_a",
+"x": -15.8,
+"z": -7.3
+},
+{
+"p": "kit_prop_haybale",
+"x": -22.6,
+"z": -10.0,
+"r": 30
+},
+{
+"p": "kit_prop_woodpile",
+"x": -15.6,
+"z": -10.7,
+"r": 90
+},
+{
+"p": "kit_prop_cart",
+"x": -22.4,
+"z": -7.3,
+"r": 20
+},
+{
+"a": "farmhouse_s3_porch",
+"x": 19,
+"z": -9.5
+},
+{
+"p": "kit_prop_barrel_b",
+"x": 22.2,
+"z": -7.3
+},
+{
+"p": "kit_prop_table",
+"x": 15.6,
+"z": -7.1
+},
+{
+"p": "kit_prop_stool",
+"x": 15.6,
+"z": -6.2
+},
+{
+"p": "kit_prop_bucket",
+"x": 22.6,
+"z": -6.5
+},
+{
+"a": "sample_house_4x4",
+"x": 27,
+"z": -9.5
+},
+{
+"p": "kit_prop_barrel_a",
+"x": 30.2,
+"z": -7.3,
+"r": 40
+},
+{
+"p": "kit_prop_planter",
+"x": 23.8,
+"z": -7.7,
+"r": 90
+},
+{
+"p": "kit_prop_toolrack",
+"x": 30.3,
+"z": -10.5,
+"r": 90
+},
+{
+"a": "farmhouse_s1_thatch",
+"x": 35,
+"z": -9.5
+},
+{
+"p": "kit_prop_barrel_b",
+"x": 38.2,
+"z": -7.3,
+"r": 80
+},
+{
+"p": "kit_prop_haybale",
+"x": 31.4,
+"z": -10.0,
+"r": 30
+},
+{
+"p": "kit_prop_woodpile",
+"x": 38.4,
+"z": -10.7,
+"r": 90
+},
+{
+"p": "kit_prop_cart",
+"x": 31.6,
+"z": -7.3,
+"r": 20
+},
+{
+"a": "farmhouse_s3_porch",
+"x": -35,
+"z": 9.5,
+"r": 180
+},
+{
+"p": "kit_prop_barrel_a",
+"x": -31.8,
+"z": 7.3
+},
+{
+"p": "kit_prop_table",
+"x": -38.4,
+"z": 7.1
+},
+{
+"p": "kit_prop_stool",
+"x": -38.4,
+"z": 6.2
+},
+{
+"p": "kit_prop_bucket",
+"x": -31.4,
+"z": 6.5
+},
+{
+"a": "sample_house_4x4",
+"x": -27,
+"z": 9.5,
+"r": 180
+},
+{
+"p": "kit_prop_barrel_b",
+"x": -23.8,
+"z": 7.3,
+"r": 80
+},
+{
+"p": "kit_prop_planter",
+"x": -30.2,
+"z": 7.7,
+"r": 90
+},
+{
+"p": "kit_prop_toolrack",
+"x": -23.7,
+"z": 10.5,
+"r": 270
+},
+{
+"a": "farmhouse_s1_thatch",
+"x": -19,
+"z": 9.5,
+"r": 180
+},
+{
+"p": "kit_prop_barrel_a",
+"x": -15.8,
+"z": 7.3,
+"r": 80
+},
+{
+"p": "kit_prop_haybale",
+"x": -22.6,
+"z": 10.0
+},
+{
+"p": "kit_prop_woodpile",
+"x": -15.6,
+"z": 10.7,
+"r": 270
+},
+{
+"p": "kit_prop_cart",
+"x": -22.4,
+"z": 7.3,
+"r": 20
+},
+{
+"a": "farmhouse_s3_porch",
+"x": 19,
+"z": 9.5,
+"r": 180
+},
+{
+"p": "kit_prop_barrel_b",
+"x": 22.2,
+"z": 7.3,
+"r": 80
+},
+{
+"p": "kit_prop_table",
+"x": 15.6,
+"z": 7.1
+},
+{
+"p": "kit_prop_stool",
+"x": 15.6,
+"z": 6.2
+},
+{
+"p": "kit_prop_bucket",
+"x": 22.6,
+"z": 6.5
+},
+{
+"a": "sample_house_4x4",
+"x": 27,
+"z": 9.5,
+"r": 180
+},
+{
+"p": "kit_prop_barrel_a",
+"x": 30.2,
+"z": 7.3
+},
+{
+"p": "kit_prop_planter",
+"x": 23.8,
+"z": 7.7,
+"r": 90
+},
+{
+"p": "kit_prop_toolrack",
+"x": 30.3,
+"z": 10.5,
+"r": 270
+},
+{
+"a": "farmhouse_s1_thatch",
+"x": 35,
+"z": 9.5,
+"r": 180
+},
+{
+"p": "kit_prop_barrel_b",
+"x": 38.2,
+"z": 7.3
+},
+{
+"p": "kit_prop_haybale",
+"x": 31.4,
+"z": 10.0
+},
+{
+"p": "kit_prop_woodpile",
+"x": 38.4,
+"z": 10.7,
+"r": 270
+},
+{
+"p": "kit_prop_cart",
+"x": 31.6,
+"z": 7.3,
 "r": 60
 },
 {
-"p": "kit_prop_barrel_a",
-"x": 6.6,
-"z": -4.0,
-"r": 60
+"p": "kit_fence_wood_2m",
+"x": -39,
+"z": -13.6
 },
 {
-"a": "farmhouse_s3_porch",
+"p": "kit_fence_wood_2m",
+"x": -37,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
+"x": -35,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
+"x": -33,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
 "x": -31,
-"z": -9
+"z": -13.6
 },
 {
-"p": "kit_prop_barrel_a",
-"x": -27.8,
-"z": -6.8,
-"r": 80
+"p": "kit_fence_wood_2m",
+"x": -29,
+"z": -13.6
 },
 {
-"a": "sample_house_4x4",
+"p": "kit_fence_wood_2m",
+"x": -27,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
+"x": -25,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
 "x": -23,
-"z": -9
+"z": -13.6
 },
 {
-"p": "kit_prop_barrel_a",
-"x": -19.8,
-"z": -6.8
+"p": "kit_fence_wood_2m",
+"x": -21,
+"z": -13.6
 },
 {
-"a": "farmhouse_s1_thatch",
+"p": "kit_fence_wood_2m",
+"x": -19,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
+"x": -17,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
 "x": -15,
-"z": -9
+"z": -13.6
 },
 {
-"p": "kit_prop_barrel_a",
-"x": -11.8,
-"z": -6.8,
-"r": 80
+"p": "kit_fence_wood_post",
+"x": -40,
+"z": -13.6
 },
 {
-"a": "farmhouse_s3_porch",
+"p": "kit_fence_wood_post",
+"x": -38,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -36,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -34,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -32,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -30,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -28,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -26,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -24,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -22,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -20,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -18,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -16,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -14,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
 "x": 15,
-"z": -9
+"z": -13.6
 },
 {
-"p": "kit_prop_barrel_a",
-"x": 18.2,
-"z": -6.8,
-"r": 80
+"p": "kit_fence_wood_2m",
+"x": 17,
+"z": -13.6
 },
 {
-"a": "sample_house_4x4",
+"p": "kit_fence_wood_2m",
+"x": 19,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
+"x": 21,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
 "x": 23,
-"z": -9
+"z": -13.6
 },
 {
-"p": "kit_prop_barrel_a",
-"x": 26.2,
-"z": -6.8,
-"r": 80
+"p": "kit_fence_wood_2m",
+"x": 25,
+"z": -13.6
 },
 {
-"a": "farmhouse_s1_thatch",
+"p": "kit_fence_wood_2m",
+"x": 27,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
+"x": 29,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
 "x": 31,
-"z": -9
+"z": -13.6
 },
 {
-"p": "kit_prop_barrel_a",
-"x": 34.2,
-"z": -6.8,
-"r": 80
+"p": "kit_fence_wood_2m",
+"x": 33,
+"z": -13.6
 },
 {
-"a": "farmhouse_s3_porch",
+"p": "kit_fence_wood_2m",
+"x": 35,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
+"x": 37,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
+"x": 39,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 14,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 16,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 18,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 20,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 22,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 24,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 26,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 28,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 30,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 32,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 34,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 36,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 38,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 40,
+"z": -13.6
+},
+{
+"p": "kit_fence_wood_2m",
+"x": -39,
+"z": 13.6,
+"r": 180
+},
+{
+"p": "kit_fence_wood_2m",
+"x": -37,
+"z": 13.6,
+"r": 180
+},
+{
+"p": "kit_fence_wood_2m",
+"x": -35,
+"z": 13.6,
+"r": 180
+},
+{
+"p": "kit_fence_wood_2m",
+"x": -33,
+"z": 13.6,
+"r": 180
+},
+{
+"p": "kit_fence_wood_2m",
 "x": -31,
-"z": 9,
+"z": 13.6,
 "r": 180
 },
 {
-"p": "kit_prop_barrel_a",
-"x": -27.8,
-"z": 6.8,
-"r": 40
+"p": "kit_fence_wood_2m",
+"x": -29,
+"z": 13.6,
+"r": 180
 },
 {
-"a": "sample_house_4x4",
+"p": "kit_fence_wood_2m",
+"x": -27,
+"z": 13.6,
+"r": 180
+},
+{
+"p": "kit_fence_wood_2m",
+"x": -25,
+"z": 13.6,
+"r": 180
+},
+{
+"p": "kit_fence_wood_2m",
 "x": -23,
-"z": 9,
+"z": 13.6,
 "r": 180
 },
 {
-"p": "kit_prop_barrel_a",
-"x": -19.8,
-"z": 6.8
+"p": "kit_fence_wood_2m",
+"x": -21,
+"z": 13.6,
+"r": 180
 },
 {
-"a": "farmhouse_s1_thatch",
+"p": "kit_fence_wood_2m",
+"x": -19,
+"z": 13.6,
+"r": 180
+},
+{
+"p": "kit_fence_wood_2m",
+"x": -17,
+"z": 13.6,
+"r": 180
+},
+{
+"p": "kit_fence_wood_2m",
 "x": -15,
-"z": 9,
+"z": 13.6,
 "r": 180
 },
 {
-"p": "kit_prop_barrel_a",
-"x": -11.8,
-"z": 6.8,
-"r": 40
+"p": "kit_fence_wood_post",
+"x": -40,
+"z": 13.6
 },
 {
-"a": "farmhouse_s3_porch",
+"p": "kit_fence_wood_post",
+"x": -38,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -36,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -34,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -32,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -30,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -28,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -26,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -24,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -22,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -20,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -18,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -16,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": -14,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_2m",
 "x": 15,
-"z": 9,
+"z": 13.6,
 "r": 180
 },
 {
-"p": "kit_prop_barrel_a",
-"x": 18.2,
-"z": 6.8,
-"r": 80
+"p": "kit_fence_wood_2m",
+"x": 17,
+"z": 13.6,
+"r": 180
 },
 {
-"a": "sample_house_4x4",
+"p": "kit_fence_wood_2m",
+"x": 19,
+"z": 13.6,
+"r": 180
+},
+{
+"p": "kit_fence_wood_2m",
+"x": 21,
+"z": 13.6,
+"r": 180
+},
+{
+"p": "kit_fence_wood_2m",
 "x": 23,
-"z": 9,
+"z": 13.6,
 "r": 180
 },
 {
-"p": "kit_prop_barrel_a",
-"x": 26.2,
-"z": 6.8,
-"r": 40
+"p": "kit_fence_wood_2m",
+"x": 25,
+"z": 13.6,
+"r": 180
 },
 {
-"a": "farmhouse_s1_thatch",
+"p": "kit_fence_wood_2m",
+"x": 27,
+"z": 13.6,
+"r": 180
+},
+{
+"p": "kit_fence_wood_2m",
+"x": 29,
+"z": 13.6,
+"r": 180
+},
+{
+"p": "kit_fence_wood_2m",
 "x": 31,
-"z": 9,
+"z": 13.6,
 "r": 180
 },
 {
-"p": "kit_prop_barrel_a",
-"x": 34.2,
-"z": 6.8,
-"r": 80
+"p": "kit_fence_wood_2m",
+"x": 33,
+"z": 13.6,
+"r": 180
 },
 {
-"p": "kit_wall_half_2m",
-"x": -28,
-"z": -12
+"p": "kit_fence_wood_2m",
+"x": 35,
+"z": 13.6,
+"r": 180
 },
 {
-"p": "kit_wall_half_2m",
-"x": -26,
-"z": -12
+"p": "kit_fence_wood_2m",
+"x": 37,
+"z": 13.6,
+"r": 180
 },
 {
-"p": "kit_wall_half_2m",
-"x": -20,
-"z": -12
+"p": "kit_fence_wood_2m",
+"x": 39,
+"z": 13.6,
+"r": 180
 },
 {
-"p": "kit_wall_half_2m",
-"x": -18,
-"z": -12
+"p": "kit_fence_wood_post",
+"x": 14,
+"z": 13.6
 },
 {
-"p": "kit_wall_half_2m",
+"p": "kit_fence_wood_post",
+"x": 16,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
 "x": 18,
-"z": -12
+"z": 13.6
 },
 {
-"p": "kit_wall_half_2m",
+"p": "kit_fence_wood_post",
 "x": 20,
-"z": -12
+"z": 13.6
 },
 {
-"p": "kit_wall_half_2m",
+"p": "kit_fence_wood_post",
+"x": 22,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
+"x": 24,
+"z": 13.6
+},
+{
+"p": "kit_fence_wood_post",
 "x": 26,
-"z": -12
+"z": 13.6
 },
 {
-"p": "kit_wall_half_2m",
+"p": "kit_fence_wood_post",
 "x": 28,
-"z": -12
+"z": 13.6
 },
 {
-"p": "kit_wall_half_2m",
-"x": -28,
-"z": 12
+"p": "kit_fence_wood_post",
+"x": 30,
+"z": 13.6
 },
 {
-"p": "kit_wall_half_2m",
-"x": -26,
-"z": 12
+"p": "kit_fence_wood_post",
+"x": 32,
+"z": 13.6
 },
 {
-"p": "kit_wall_half_2m",
-"x": -20,
-"z": 12
+"p": "kit_fence_wood_post",
+"x": 34,
+"z": 13.6
 },
 {
-"p": "kit_wall_half_2m",
-"x": -18,
-"z": 12
+"p": "kit_fence_wood_post",
+"x": 36,
+"z": 13.6
 },
 {
-"p": "kit_wall_half_2m",
-"x": 18,
-"z": 12
+"p": "kit_fence_wood_post",
+"x": 38,
+"z": 13.6
 },
 {
-"p": "kit_wall_half_2m",
-"x": 20,
-"z": 12
-},
-{
-"p": "kit_wall_half_2m",
-"x": 26,
-"z": 12
-},
-{
-"p": "kit_wall_half_2m",
-"x": 28,
-"z": 12
+"p": "kit_fence_wood_post",
+"x": 40,
+"z": 13.6
 }
 ],
 "trees": [
 [
-47.5,
-2.3,
-1.15
-],
-[
-45.7,
-5.3,
-1.45
-],
-[
-55.7,
-7.8,
-1.37
-],
-[
-47.1,
-12.6,
-1.44
-],
-[
-45.4,
-12.8,
-1.24
-],
-[
-48.5,
-18.0,
-0.93
-],
-[
-43.8,
-22.5,
-1.37
-],
-[
-38.0,
-22.8,
-0.94
-],
-[
-37.8,
-28.0,
+59.1,
+2.7,
 1.32
 ],
 [
-31.1,
-27.3,
+53.3,
+5.9,
 0.94
 ],
 [
-28.9,
-31.7,
+55.3,
+10.7,
 1.48
 ],
 [
-26.2,
-32.4,
+53.9,
+12.9,
 0.94
 ],
 [
-25.3,
-37.6,
+57.6,
+17.5,
 1.19
 ],
 [
-17.7,
-35.5,
+49.8,
+20.1,
 1.32
 ],
 [
-14.5,
-38.2,
+49.5,
+24.0,
 1.01
 ],
 [
-7.5,
-34.1,
+40.2,
+24.8,
 1.46
-],
-[
-7.3,
-43.1,
-1.42
-],
-[
--1.3,
-42.5,
-0.96
-],
-[
--2.4,
-39.6,
-1.47
-],
-[
--10.2,
-41.9,
-1.05
-],
-[
--11.7,
-33.6,
-1.32
-],
-[
--16.5,
-34.8,
-1.18
-],
-[
--22.7,
-36.1,
-1.1
-],
-[
--26.3,
-31.3,
-1.05
-],
-[
--33.8,
-34.5,
-1.21
-],
-[
--36.0,
-30.5,
-0.99
-],
-[
--37.6,
-26.7,
-1.02
-],
-[
--37.6,
-22.7,
-1.25
-],
-[
--43.8,
-22.9,
-1.06
-],
-[
--50.0,
-21.1,
-1.16
-],
-[
--46.3,
-13.7,
-1.03
-],
-[
--49.5,
-12.2,
-1.29
-],
-[
--48.5,
-9.9,
-1.18
-],
-[
--47.3,
-3.6,
-1.44
-],
-[
--54.7,
-2.3,
-1.47
-],
-[
--56.5,
--1.5,
-1.02
-],
-[
--55.9,
--5.6,
-1.39
-],
-[
--49.3,
--9.7,
-1.4
-],
-[
--54.0,
--14.5,
-1.4
-],
-[
--54.0,
--15.3,
-1.19
-],
-[
--40.8,
--17.7,
-0.96
-],
-[
--43.0,
--20.9,
-1.39
-],
-[
--44.0,
--24.6,
-1.35
-],
-[
--39.2,
--29.2,
-0.92
-],
-[
--37.7,
--31.4,
-1.49
-],
-[
--30.2,
--32.6,
-0.91
-],
-[
--30.4,
--37.0,
-1.46
-],
-[
--23.3,
--35.8,
-1.24
-],
-[
--22.2,
--39.6,
-1.07
-],
-[
--14.0,
--38.2,
-1.07
-],
-[
--10.6,
--42.6,
-1.0
-],
-[
--4.9,
--41.1,
-1.47
-],
-[
-0.2,
--39.8,
-0.99
-],
-[
-5.9,
--35.4,
-0.95
-],
-[
-9.7,
--36.4,
-1.09
-],
-[
-12.6,
--33.7,
-1.06
-],
-[
-19.5,
--38.2,
-1.17
-],
-[
-20.7,
--31.0,
-0.97
-],
-[
-28.0,
--36.6,
-1.3
-],
-[
-30.1,
--32.8,
-1.35
-],
-[
-32.2,
--27.9,
-1.44
-],
-[
-35.3,
--23.6,
-1.27
-],
-[
-38.3,
--23.9,
-1.24
-],
-[
-41.5,
--19.1,
-1.22
-],
-[
-44.8,
--19.4,
-1.15
-],
-[
-53.0,
--15.6,
-0.95
-],
-[
-51.8,
--12.4,
-1.09
-],
-[
-53.9,
--9.1,
-1.04
 ],
 [
 47.8,
+31.9,
+1.42
+],
+[
+40.2,
+36.1,
+0.96
+],
+[
+36.7,
+34.6,
+1.47
+],
+[
+32.1,
+40.5,
+1.05
+],
+[
+23.3,
+35.1,
+1.32
+],
+[
+20.3,
+38.5,
+1.18
+],
+[
+16.3,
+42.7,
+1.1
+],
+[
+8.5,
+41.0,
+1.05
+],
+[
+5.3,
+47.1,
+1.21
+],
+[
+-0.4,
+45.2,
+0.99
+],
+[
+-5.5,
+43.1,
+1.02
+],
+[
+-9.5,
+40.1,
+1.25
+],
+[
+-14.3,
+43.2,
+1.06
+],
+[
+-21.1,
+44.8,
+1.16
+],
+[
+-25.6,
+37.2,
+1.03
+],
+[
+-29.7,
+37.4,
+1.29
+],
+[
+-31.2,
+35.2,
+1.18
+],
+[
+-36.5,
+29.4,
+1.44
+],
+[
+-43.4,
+31.9,
+1.47
+],
+[
+-48.5,
+29.6,
+1.02
+],
+[
+-52.0,
+25.8,
+1.39
+],
+[
+-51.0,
+19.0,
+1.4
+],
+[
+-59.0,
+17.4,
+1.4
+],
+[
+-59.8,
+16.7,
+1.19
+],
+[
+-52.2,
+7.6,
+0.96
+],
+[
+-56.6,
+6.2,
+1.39
+],
+[
+-60.7,
+3.5,
+1.35
+],
+[
+-61.1,
+-2.9,
+0.92
+],
+[
+-61.9,
 -5.6,
+1.49
+],
+[
+-57.2,
+-10.8,
+0.91
+],
+[
+-61.1,
+-14.2,
+1.46
+],
+[
+-54.5,
+-17.1,
+1.24
+],
+[
+-56.9,
+-20.8,
+1.07
+],
+[
+-49.0,
+-24.3,
+1.07
+],
+[
+-50.1,
+-29.7,
+1.0
+],
+[
+-44.1,
+-31.6,
+1.47
+],
+[
+-38.7,
+-33.4,
+0.99
+],
+[
+-29.9,
+-33.3,
+0.95
+],
+[
+-27.6,
+-36.0,
+1.09
+],
+[
+-22.7,
+-35.7,
+1.06
+],
+[
+-20.9,
+-42.6,
+1.17
+],
+[
+-13.0,
+-37.9,
+0.97
+],
+[
+-12.2,
+-45.8,
+1.3
+],
+[
+-6.9,
+-44.0,
+1.35
+],
+[
+-0.3,
+-41.4,
+1.44
+],
+[
+6.6,
+-39.7,
+1.27
+],
+[
+8.8,
+-41.4,
+1.24
+],
+[
+16.2,
+-39.2,
+1.22
+],
+[
+18.6,
+-41.0,
+1.15
+],
+[
+28.9,
+-41.9,
+0.95
+],
+[
+31.2,
+-38.8,
+1.09
+],
+[
+36.2,
+-37.1,
+1.04
+],
+[
+34.9,
+-31.3,
 1.34
 ],
 [
-51.0,
--1.0,
+41.9,
+-29.0,
 1.01
 ],
 [
--34.3,
+44.7,
+-25.9,
+1.29
+],
+[
+48.1,
+-25.6,
+1.03
+],
+[
+46.5,
+-18.2,
+1.02
+],
+[
+53.7,
+-15.8,
+1.04
+],
+[
+49.8,
+-11.3,
+1.38
+],
+[
+53.2,
+-9.5,
+1.24
+],
+[
+52.2,
+-4.7,
+1.3
+],
+[
+52.5,
+-1.2,
+1.22
+],
+[
+-38.2,
+-16.9,
+1.26
+],
+[
+-39.4,
+16.2,
+1.15
+],
+[
+-30.2,
+-16.5,
+1.06
+],
+[
+-29.9,
+17.2,
+0.92
+],
+[
+-21.6,
+-17.8,
+1.15
+],
+[
+-22.6,
+16.2,
+1.19
+],
+[
+-16.3,
+-17.0,
+0.97
+],
+[
+-16.0,
+16.8,
+1.29
+],
+[
+13.5,
+-16.6,
+0.82
+],
+[
+14.3,
+16.9,
+1.2
+],
+[
+22.8,
+-16.5,
+1.21
+],
+[
+22.5,
+16.8,
+0.85
+],
+[
+29.7,
+-17.4,
+1.15
+],
+[
+30.4,
+16.4,
+1.26
+],
+[
+38.3,
 -16.4,
 1.13
 ],
 [
--36.1,
-16.3,
-0.91
+38.0,
+16.1,
+1.21
 ],
 [
--26.3,
--17.4,
-0.9
-],
-[
--25.7,
-15.9,
-0.91
-],
-[
--18.0,
--17.5,
-1.2
-],
-[
--19.2,
-15.2,
-1.08
-],
-[
--10.3,
--17.4,
-1.14
-],
-[
--10.2,
-14.6,
-1.07
-],
-[
-11.8,
--15.9,
-1.26
-],
-[
-10.6,
-14.8,
-1.15
-],
-[
-19.8,
--15.2,
-1.06
-],
-[
-20.1,
-16.4,
-0.92
-],
-[
-28.4,
--17.2,
-1.15
-],
-[
-27.4,
-14.8,
-1.19
-],
-[
-33.7,
--16.0,
-0.97
-],
-[
-34.0,
-15.7,
-1.29
-],
-[
--10,
--5,
+-11.5,
+-6,
 0.8
 ],
 [
-10,
-5,
+11.5,
+6,
 0.8
 ],
 [
--10,
-5,
+-11.5,
+6,
 0.8
 ],
 [
-10,
--5,
+11.5,
+-6,
 0.8
 ]
 ],
