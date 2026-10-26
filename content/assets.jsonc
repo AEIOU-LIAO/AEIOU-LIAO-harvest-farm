@@ -1,6 +1,6 @@
 // 美术资源清单。每个资源由 tools/pack_art.py 处理后放在 base 目录：<file>.glb / <file>.glb.gz / tex/（手机 1024）/ tex2k/（高清 2048）
 // stage：test 技术测试 · candidate 外观候选 · approved 甲方确认外观 · live 已上线游戏
-// kind：hero 人物 · dog 狗 · beast 野兽（名山猎场）· creature 生物 · building 建筑 · prop 道具
+// kind：hero 人物 · dog 狗 · beast 野兽（名山猎场）· creature 生物 · building 建筑（v7 起：家园的固定建筑，加载好替换程序拼的模型）· prop 道具
 // loco：移动动作的实测步幅（stride 米 / 每个循环 dur 秒；程序按真实移动速度调动作快慢）· thumb：选角色用的小图
 // natural：美术的走 / 跑已自带扭腰、摆臂、起伏、腾空（v6 起），程序不再叠加「放松跑姿」· desc：选角色时显示的完整描述
 // anims：已有的动作（空 = 静态模型）· accessories：可以单独显示 / 隐藏的配件网格名 · tiers：贴图档位
@@ -45,4 +45,7 @@
   {"id":"v4w_boar","kind":"beast","name":"野猪","stage":"candidate","base":"art/v4_wildlife/boar/","file":"boar","tiers":["1k"],"anims":["idle","walk","run"],"accessories":[],"heightM":0.6,"loco":{"walk":{"stride":0.5,"dur":1.333},"run":{"stride":1.001,"dur":0.933}},"note":"2026-10-26 美术 v4_wildlife 第一批：idle / walk / run（sleep 等还没交）"},
   {"id":"v4w_wolf","kind":"beast","name":"灰狼","stage":"candidate","base":"art/v4_wildlife/wolf/","file":"wolf","tiers":["1k"],"anims":["idle","walk","run"],"accessories":[],"heightM":0.7,"loco":{"walk":{"stride":0.75,"dur":1.333},"run":{"stride":1.5,"dur":0.933}},"note":"2026-10-26 美术 v4_wildlife 第一批：idle / walk / run（sleep 等还没交）"},
   {"id":"v4w_bear","kind":"beast","name":"黑熊","stage":"candidate","base":"art/v4_wildlife/bear/","file":"bear","tiers":["1k"],"anims":["idle","walk","run"],"accessories":[],"heightM":1.0,"loco":{"walk":{"stride":0.9,"dur":1.333},"run":{"stride":1.6,"dur":0.933}},"note":"2026-10-26 美术 v4_wildlife 第一批：idle / walk / run（sleep 等还没交）"},
+  {"id":"v7_house_s2","kind":"building","name":"农舍（二级）","stage":"candidate","base":"art/v7_buildings/house_s2/","file":"house_s2","tiers":["1k"],"anims":[],"accessories":[],"note":"2026-10-26 美术 v7_buildings 样板：roof / wall 染色、window_glow 夜灯、base 本色、烘焙 AO；烟囱口 [1.35, 4.55, -2.03]"},
+  {"id":"v7_windmill","kind":"building","name":"风车","stage":"candidate","base":"art/v7_buildings/windmill/","file":"windmill","tiers":["1k"],"anims":["idle"],"accessories":[],"note":"2026-10-26 美术 v7_buildings 样板：rotor 节点 idle 6 秒一圈，叶片最低离地 2.85 米"},
+  {"id":"v7_doghouse","kind":"building","name":"狗窝","stage":"candidate","base":"art/v7_buildings/doghouse/","file":"doghouse","tiers":["1k"],"anims":[],"accessories":[],"note":"2026-10-26 美术 v7_buildings 样板：门洞 0.55 × 0.6 米，内部留空，碗在侧边"},
 ]

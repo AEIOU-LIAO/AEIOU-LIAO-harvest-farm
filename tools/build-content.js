@@ -52,6 +52,9 @@ const TABLES = [
   { file: 'hunt', key: 'HUNT', kind: 'object', check: (h, C) => { ['creatures', 'weapons', 'materials', 'gen'].forEach(k => { if (!h[k]) fail('hunt 缺少 ' + k); }); mustSeq(h.materials, 'hunt.materials'); uniq(h.creatures.map(c => c.id), 'hunt.creatures.id'); uniq(h.weapons.map(w => w.id), 'hunt.weapons.id');
       const bio = new Set(C.BIOMES.map(b => b.id)); h.creatures.forEach(c => { need([c], ['id', 'name', 'lv', 'hp', 'speed', 'biomes', 'count', 'reward'], 'hunt.creatures'); c.biomes.forEach(b => { if (!bio.has(b)) fail(`野兽 ${c.id} 的群系 ${b} 不存在`); }); Object.keys(c.reward.items || {}).forEach(k => { const m = /^hm(\d+)$/.exec(k); if (!m || !h.materials[+m[1]]) fail(`野兽 ${c.id} 的奖励 ${k} 不是材料`); }); });
       if (!h.weapons.some(w => !w.price)) fail('至少要有一把免费的入门武器'); h.weapons.forEach(w => need([w], ['id', 'name', 'lv', 'price', 'dmg', 'range', 'cd'], 'hunt.weapons')); } },
+  { file: 'lake', key: 'LAKE', kind: 'object', check: (l, C) => { ['fish', 'rods', 'trips', 'tripSec', 'minBiteSec', 'bites'].forEach(k => { if (l[k] === undefined) fail('lake 缺少 ' + k); }); uniq(l.rods.map(r => r.id), 'lake.rods.id');
+      l.fish.forEach(f => { need([f], ['fish', 'w', 'lv', 'diff', 'cm'], 'lake.fish'); if (!C.FISH.some(x => x.id === f.fish)) fail(`钓场的鱼 ${f.fish} 在 fish.jsonc 里不存在`); if (!(f.diff >= 0 && f.diff <= 1)) fail(`钓场的鱼 ${f.fish} 的 diff 要在 0~1`); });
+      if (!l.rods.some(r => !r.price)) fail('至少要有一根免费的鱼竿'); l.rods.forEach(r => need([r], ['id', 'name', 'lv', 'price', 'power', 'luck'], 'lake.rods')); } },
   { file: 'assets', key: 'ASSETS', kind: 'keyed', fields: ['kind', 'name', 'stage'] },
 ];
 

@@ -39,7 +39,10 @@ def pack(src, out_dir, mobile=0):
         ex = m.setdefault('extras', {})
         pbr = m.get('pbrMetallicRoughness', {})
         for key, holder in [('baseColorTexture', pbr), ('metallicRoughnessTexture', pbr), ('normalTexture', m), ('occlusionTexture', m), ('emissiveTexture', m)]:
-            if key in holder: ex[key] = J['images'][J['textures'][holder[key]['index']]['source']]['name']; del holder[key]
+            if key in holder:
+                ex[key] = J['images'][J['textures'][holder[key]['index']]['source']]['name']
+                if key == 'occlusionTexture' and 'strength' in holder[key]: ex['aoStrength'] = holder[key]['strength']
+                del holder[key]
     for k in ('images', 'textures', 'samplers'): J.pop(k, None)
     # 重新排列 bufferView，去掉图片数据
     new_views, remap, nb = [], {}, bytearray()

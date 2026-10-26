@@ -86,3 +86,11 @@ const dst = path.join(root, 'cloud-functions', 'api', '[[default]].js');
 fs.mkdirSync(path.dirname(dst), { recursive: true });
 fs.writeFileSync(dst, out);
 console.log('built', path.relative(root, dst), out.length, 'bytes');
+/* 诊断接口 /api/ping 也写上版本号和打包时间：部署后对比 /api/ping 和 /api/health，就知道云函数到底有没有更新（2026-10-26：发现线上接口停在 3.15.0） */
+const VER = (/VERSION = '([0-9.]+)'/.exec(fs.readFileSync(path.join(root, 'shared/config.js'), 'utf8')) || [])[1] || '';
+fs.writeFileSync(path.join(root, 'cloud-functions', 'api', 'ping.js'), `// 自动生成（deploy/bundle-functions.js），不要手改。诊断用：不依赖任何其他代码的最小云函数。/api/ping 能返回 JSON，说明 EdgeOne 云函数已正常部署
+const BUILD = { version: '${VER}', bundleBytes: ${out.length} };
+export function onRequest(context) {
+  return new Response(JSON.stringify({ ok: true, fn: 'ping', build: BUILD, node: process.version, region: (context && context.server && context.server.region) || '', hasTursoUrl: !!(context && context.env && context.env.TURSO_DATABASE_URL), now: Date.now() }), { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
+`);
