@@ -1,5 +1,6 @@
 // 四季与节日（第 1 期）。按真实日期（北京时间）轮换，前后端共用。
 // list：季节。months 月份 · crops 当季作物的类别（按作物外观类别 art.type，南瓜 / 瓜类按 art.kind）· bonus 当季作物增产比例（种下时结算）
+//   2026-10-26：秋天也开花（菊花、薰衣草季末）；冬天树叶改成深绿灰，树冠顶上由程序盖雪（积雪着色器），不再整棵涂白
 //   look：画面 —— ground 地面颜色（和原色混合的目标色）· groundK 混合比例 · grass 草的颜色 · leaf 树叶 · leaf2 部分树的第二种颜色（春天开花、秋天红叶）· hills 远山 · flowers 是否开花 · fx 飘落效果（petal 花瓣 / firefly 萤火虫 / leaf 落叶 / snow 雪）
 // festivals：节日。start / end 为北京时间的日期（含当天），会自动变成限时活动（和后台建的活动一样生效）
 //   kind：yield_mult 产量 · exp_mult 经验 · golden_mult 变异几率 · price_mult 收购价；mult 倍率
@@ -11,9 +12,9 @@
     { "id": "summer", "name": "夏", "full": "夏天", "months": [6, 7, 8], "crops": ["bush", "melon", "sunflower", "corn"], "bonus": 0.1,
       "look": { "ground": "#9cb46e", "groundK": 0, "grass": "#7cb84a", "leaf": "", "leaf2": "", "hills": "#6a9a4a", "flowers": true, "fx": "firefly" } },
     { "id": "autumn", "name": "秋", "full": "秋天", "months": [9, 10, 11], "crops": ["pumpkin", "grain", "corn", "pine", "flower"], "bonus": 0.1,
-      "look": { "ground": "#cfae5e", "groundK": 0.58, "grass": "#b8a548", "leaf": "#e08a2c", "leaf2": "#c8452a", "hills": "#a39248", "flowers": false, "fx": "leaf" } },
+      "look": { "ground": "#c8b062", "groundK": 0.42, "grass": "#a8ad4c", "leaf": "#e08a2c", "leaf2": "#c8452a", "hills": "#a39248", "flowers": true, "fx": "leaf" } },
     { "id": "winter", "name": "冬", "full": "冬天", "months": [12, 1, 2], "crops": ["cabbage", "root"], "bonus": 0.1,
-      "look": { "ground": "#eef3f6", "groundK": 0.78, "grass": "#c9d6c4", "leaf": "#e6eef2", "leaf2": "#5c7f62", "hills": "#e2eaef", "flowers": false, "fx": "snow" } }
+      "look": { "ground": "#eef3f6", "groundK": 0.78, "grass": "#c9d6c4", "leaf": "#7d9682", "leaf2": "#5c7f62", "hills": "#e2eaef", "flowers": false, "fx": "snow" } }
   ],
   "festivals": [
     { "id": "dongzhi2026", "name": "冬至", "start": "2026-12-22", "end": "2026-12-22", "kind": "exp_mult", "mult": 1.5, "descr": "冬至大如年：全天经验 1.5 倍" },

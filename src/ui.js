@@ -379,6 +379,8 @@ function openMenu() {
     ${row('背景音乐', PREF.music ? '已开启' : '已关闭', `<button class="sw${PREF.music ? ' on' : ''}" id="tmusic" role="switch" aria-checked="${PREF.music}"><i></i><span>${PREF.music ? '开' : '关'}</span></button>`)}
     ${row('音量', '分别调节音乐和音效', `<button class="btn sm" id="tvol">调节</button>`)}
     ${row('昼夜', '', `<button class="btn sm" id="ttod">${({ auto: '跟随时间', day: '白天', dusk: '黄昏', night: '夜晚' })[PREF.tod] || '跟随时间'}</button>`)}
+    ${row('季节画面', `只改画面；当季作物和产量加成按真实日期（现在是${CFG.seasonOf(NET.now()).full}）`, `<button class="btn sm" id="tsea">${({ auto: '跟随日期', spring: '春天', summer: '夏天', autumn: '秋天', winter: '冬天' })[PREF.sea] || '跟随日期'}</button>`)}
+    ${row('飘雪 / 落叶 / 花瓣', PREF.wfx !== false ? '已开启' : '已关闭（手机卡顿时可以关掉）', `<button class="sw${PREF.wfx !== false ? ' on' : ''}" id="twfx" role="switch" aria-checked="${PREF.wfx !== false}"><i></i><span>${PREF.wfx !== false ? '开' : '关'}</span></button>`)}
     ${row('新角色模型（测试）', `美术新模型：${esc((CFG.ASSETS.find(a => a.id === (PREF.v3hero || 'v4_hero_boy')) || { name: '男主角' }).name)}、福旺、睿宝。<a href="javascript:openCharPick()">换角色</a>；装扮颜色暂不生效`, `<button class="sw${PREF.v3char ? ' on' : ''}" id="tv3" role="switch" aria-checked="${!!PREF.v3char}"><i></i><span>${PREF.v3char ? '开' : '关'}</span></button>`)}
     ${row('成熟 / 被偷提醒', '页面在后台时，用浏览器通知提醒你（默认关闭）', `<button class="btn sm ${PREF.notify ? 'primary' : ''}" id="tnotify">${PREF.notify ? '开启' : '关闭'}</button>`)}
     ${row('账号与数据', S.me.guest ? '游客账号只能在这个浏览器登录，建议绑定' : '已绑定账号：' + esc(S.me.username), '<button class="btn sm" id="tacc">管理</button>')}
@@ -391,6 +393,8 @@ function openMenu() {
       $('tsound').onclick = () => { setSound({ sound: !PREF.sound }); openMenu(); }; $('tmusic').onclick = () => { setSound({ music: !PREF.music }); openMenu(); }; $('tvol').onclick = () => { closeModal(); toggleSndPop(true); };
       $('ttod').onclick = () => { const o = ['auto', 'day', 'dusk', 'night']; savePref({ tod: o[(o.indexOf(PREF.tod) + 1) % 4] }); renderTitle(); openMenu(); };
       $('tnotify').onclick = async () => { if (!PREF.notify && 'Notification' in window) { const p = await Notification.requestPermission(); if (p !== 'granted') { toast('浏览器没有允许通知', 'warn'); return; } } else if (!('Notification' in window)) { toast('这个浏览器不支持通知', 'warn'); return; } savePref({ notify: !PREF.notify }); openMenu(); };
+      $('tsea').onclick = async () => { const o = ['auto', 'spring', 'summer', 'autumn', 'winter']; await savePref({ sea: o[(o.indexOf(PREF.sea || 'auto') + 1) % 5] }); W3.setSeason(seasonLook().id); openMenu(); };
+      $('twfx').onclick = async () => { await savePref({ wfx: PREF.wfx === false }); W3.setWeatherFx(PREF.wfx !== false); openMenu(); };
       $('tv3').onclick = async () => { const on = !PREF.v3char; await savePref({ v3char: on }); openMenu(); applyNewChar(true); };
       $('tacc').onclick = openAccount; $('thelp').onclick = openHelp; $('tlogout').onclick = logout; $('tswitch').onclick = () => showLogin('quick', null, true);
     }

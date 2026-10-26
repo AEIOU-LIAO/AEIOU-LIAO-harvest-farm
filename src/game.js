@@ -21,7 +21,7 @@ let S = null;                 // 服务器快照：me / plots / inv / badges / r
 let FR = { list: [], requests: [], sent: [], visitors: [] }; // 好友
 let NB = { list: [] };        // 附近的人
 let MSGS = [];
-let PREF = { sound: true, music: true, notify: false, tod: 'auto', tut: 0, mvol: 70, svol: 80, pan: 0, v3char: false, v3hero: '' };
+let PREF = { sound: true, music: true, notify: false, tod: 'auto', tut: 0, mvol: 70, svol: 80, pan: 0, v3char: false, v3hero: '', sea: 'auto', wfx: true };
 let view = { key: 'home', friend: null, plots: [], farm: null };
 let redTo = 0, tool = 'auto', hoverIdx = -1, painting = false, lastPaint = -1, mouse = { x: 0, y: 0, in: false };
 let started = false, dogBarkUntil = 0, sideTab = 'nearby';
@@ -200,7 +200,7 @@ async function refreshState() { try { const r = await NET.get('/api/state'); app
 function applyState(st) {
   if (st && st.me && W3.ready) W3.setHero((() => { const a = st.me.avatar || {}, A = CFG.AVATAR_OPTS; return { skin: A.skin[a.skin | 0], hair: A.hair[a.hair | 0], shirt: A.shirt[a.shirt | 0], band: A.band[a.band | 0], hat: a.hat ? 1 : 0 }; })());
   const prevUnread = S ? S.badges.unread : 0;
-  S = st; PREF = Object.assign({ sound: true, music: true, notify: false, tod: 'auto', tut: 0, mvol: 70, svol: 80, pan: 0, v3char: false, v3hero: '' }, S.me.settings || {}); applyVol(); if (!PREF.music) stopMusic(); applyNewChar();
+  S = st; PREF = Object.assign({ sound: true, music: true, notify: false, tod: 'auto', tut: 0, mvol: 70, svol: 80, pan: 0, v3char: false, v3hero: '', sea: 'auto', wfx: true }, S.me.settings || {}); applyVol(); if (!PREF.music) stopMusic(); applyNewChar();
   if (view.key === 'home') view.plots = S.plots;
   renderHud(); renderToolbar(); renderTitle(); renderSide();
   if (S.badges.unread > prevUnread) { loadMessages(true); loadFriends(); }
@@ -375,6 +375,8 @@ function renderHud() {
 function setField(f) { const nf = Math.ceil((view.plots || []).length / CFG.NPLOTS); f = Math.max(0, Math.min(nf - 1, f | 0)); W3.setField(f); if (W3.mode === 'walk') { const [x, z] = W3.fieldCenter(f); W3.teleport(x, z + 6.2, 0); } renderTitle(); }
 /* 第 1 期：四季（网址加 ?season=winter 可以预览别的季节，只改画面，不影响结算） */
 const SEASON_PREVIEW = (new URLSearchParams(location.search).get('season') || '').toLowerCase(); let seasonSeen = '';
+/* 画面上的季节：设置里可以固定成某个季节（只改画面；当季作物和产量加成仍按真实日期） */
+function seasonLook() { return (SEASON_PREVIEW && CFG.SEASONS.list.find(s => s.id === SEASON_PREVIEW)) || (PREF.sea && PREF.sea !== 'auto' && CFG.SEASONS.list.find(s => s.id === PREF.sea)) || CFG.seasonOf(NET.now()); }
 function seasonNow() { return (SEASON_PREVIEW && CFG.SEASONS.list.find(s => s.id === SEASON_PREVIEW)) || CFG.seasonOf(NET.now()); }
 const SEASON_TAGS = { root: '根菜', cabbage: '叶菜', flower: '花卉', bush: '茄果', melon: '瓜类', sunflower: '向日葵', corn: '玉米', pumpkin: '南瓜', grain: '麦稻', pine: '菠萝' };
 function seasonCropText(s) { return (s || seasonNow()).crops.map(k => SEASON_TAGS[k] || k).join('、'); }
@@ -521,7 +523,7 @@ function frame(now) {
   const home = view.key === 'home';
   W3.setTheme(themeOf(home ? (S ? S.me.theme : 'classic') : view.friend.theme)); W3.setDog(dogMode()); W3.setRanch(ranch3d()); W3.setPets(view.key === 'home' ? (S && S.me.pets || []) : ((view.friend && view.friend.pets) || [])); W3.setEnv(curHour(), rainK);
   { const pn = W3.mode !== 'walk' && W3.panned; if (pn !== document.body.classList.contains('panned')) document.body.classList.toggle('panned', pn); }
-  { const sid = seasonNow().id; W3.setSeason(sid); if (started && seasonSeen && sid !== seasonSeen) { toast(`${seasonNow().full}到了：${seasonCropText()}当季，产量 +10%`); renderTitle(); } if (started) seasonSeen = sid; }
+  { const sid = seasonNow().id; W3.setWeatherFx(PREF.wfx !== false); W3.setSeason(seasonLook().id); if (started && seasonSeen && sid !== seasonSeen) { toast(`${seasonNow().full}到了：${seasonCropText()}当季，产量 +10%`); renderTitle(); } if (started) seasonSeen = sid; }
   if (BUILD.on && (!home || W3.mode === 'walk' || !S)) closeBuild();
   W3.setLayout(home ? (S && S.me.layout) : (view.friend && view.friend.layout)); if (BUILD.on && (BUILD.tick = (BUILD.tick || 0) + 1) % 20 === 0) buildSync(); /* 金币、等级变化时刷新建造栏 */
   W3.setPlots(view.plots, home); W3.setHover(!BUILD.on && (mouse.in || painting) ? hoverIdx : -1); W3.render(dt);

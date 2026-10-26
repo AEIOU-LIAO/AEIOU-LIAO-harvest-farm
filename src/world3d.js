@@ -545,19 +545,131 @@ const W3 = (() => {
     const blade = new T.BufferGeometry(), pos = [0, 0, -0.035, 0, 0, 0.035, 0.01, 0.17, -0.025, 0.01, 0.17, 0.025, 0.03, 0.34, 0], col = [0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 1.1, 1.1, 1.1];
     blade.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); blade.setAttribute('color', new T.Float32BufferAttribute(col, 3)); blade.setIndex([0, 1, 2, 2, 1, 3, 2, 3, 4]); blade.computeVertexNormals();
     const m = new T.MeshStandardMaterial({ color: new T.Color('#7cb84a'), vertexColors: true, side: T.DoubleSide, roughness: 0.8 });
-    m.onBeforeCompile = sh => { sh.uniforms.uT = anim.grassU; sh.vertexShader = 'uniform float uT;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\nfloat ph = instanceMatrix[3].x*0.6 + instanceMatrix[3].z*0.8;\ntransformed.x += sin(uT*1.6+ph)*0.07*position.y*3.0;\ntransformed.z += cos(uT*1.2+ph*1.3)*0.05*position.y*3.0;\n#endif'); };
+    m.userData.snowFlat = 0.75; m.onBeforeCompile = sh => { sh.uniforms.uT = anim.grassU; sh.uniforms.uSnowV = SNOWU; sh.vertexShader = 'uniform float uT;\nuniform float uSnowV;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\nfloat ph = instanceMatrix[3].x*0.6 + instanceMatrix[3].z*0.8;\ntransformed.x += sin(uT*1.6+ph)*0.07*position.y*3.0;\ntransformed.z += cos(uT*1.2+ph*1.3)*0.05*position.y*3.0;\ntransformed.y *= 1.0 - uSnowV*0.6;\n#endif'); }; m.customProgramCacheKey = () => 'grass1';
     const im = new T.InstancedMesh(blade, m, n), d = new T.Object3D(), r = CFG3.rng(5), c = new T.Color(); let k = 0;
     let tries = 0; while (k < n && tries++ < n * 40) { const x = cx + (r() - 0.5) * w, z = cz + (r() - 0.5) * h; if (avoid(x, z)) continue; d.position.set(x, 0, z); d.rotation.set(0, r() * 6.28, (r() - 0.5) * 0.4); d.scale.set(0.8 + r() * 0.5, 0.5 + r() * 0.65, 0.8 + r() * 0.5); d.updateMatrix(); im.setMatrixAt(k, d.matrix); c.setHSL(0.23 + r() * 0.06, 0.5 + r() * 0.2, 0.4 + r() * 0.12); im.setColorAt(k, c); k++; }
     im.count = k; im.receiveShadow = false; return im;
   }
-  function flowerGeo() { // 五瓣小花：白色花瓣（实例颜色染色）+ 黄色花心
-    const parts = []; const add = (g, col) => { g = g.toNonIndexed(); const c = new T.Color(col), n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; } g.setAttribute('color', new T.BufferAttribute(a, 3)); g.deleteAttribute('uv'); parts.push(g); };
-    for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2, g = new T.SphereGeometry(1, 8, 5); g.scale(0.055, 0.016, 0.034); g.translate(0.05, 0, 0); g.rotateY(a); add(g, '#ffffff'); }
-    const c = new T.SphereGeometry(0.03, 8, 5); c.scale(1, 0.6, 1); c.translate(0, 0.012, 0); add(c, '#ffe9a0');
-    const n = parts.reduce((s, g) => s + g.attributes.position.count, 0), P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 3); let o = 0;
-    parts.forEach(g => { P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); C.set(g.attributes.color.array, o * 3); o += g.attributes.position.count; });
+  function flowerGeo() { // 五瓣小花：一个 10 个三角面的星形，花心黄、花瓣白（实例颜色染色）。2026-10-26 改轻量（原来约 480 面）
+    const P = [], C = [], rim = []; for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2, rr = i % 2 ? 0.045 : 0.1; rim.push([Math.cos(a) * rr, i % 2 ? 0.004 : 0.018, Math.sin(a) * rr]); }
+    for (let i = 0; i < 10; i++) { const p0 = rim[i], p1 = rim[(i + 1) % 10]; P.push(0, 0.012, 0, ...p1, ...p0); C.push(1, 0.9, 0.55, 1, 1, 1, 1, 1, 1); }
+    const G = new T.BufferGeometry(); G.setAttribute('position', new T.Float32BufferAttribute(P, 3)); G.setAttribute('color', new T.Float32BufferAttribute(C, 3)); G.computeVertexNormals(); return G; }
+  /* 把几个带 position / normal / color 的几何体拼成一个（不依赖扩展库） */
+  function joinGeo(parts) { const gs = parts.map(g => g.index ? g.toNonIndexed() : g); let n = 0; gs.forEach(g => n += g.attributes.position.count); const P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 3); let o = 0;
+    gs.forEach(g => { if (!g.attributes.normal) g.computeVertexNormals(); P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); if (g.attributes.color) C.set(g.attributes.color.array, o * 3); else C.fill(1, o * 3, (o + g.attributes.position.count) * 3); o += g.attributes.position.count; });
     const G = new T.BufferGeometry(); G.setAttribute('position', new T.BufferAttribute(P, 3)); G.setAttribute('normal', new T.BufferAttribute(N, 3)); G.setAttribute('color', new T.BufferAttribute(C, 3)); return G; }
   function flowers(n, avoid, cx, cz, w, h) { cx = cx || 0; cz = cz || 0; w = w || 60; h = h || 50; const geo = flowerGeo(); const im = new T.InstancedMesh(geo, mat('#ffffff', { vc: 1, p: { roughness: 0.6 } }), n), d = new T.Object3D(), r = CFG3.rng(15), c = new T.Color(), pal = ['#ff7aa0', '#ffd23a', '#ffffff', '#b98aff', '#ff9a4a', '#7ac8ff']; let k = 0; let tries = 0; while (k < n && tries++ < n * 40) { const x = cx + (r() - 0.5) * w, z = cz + (r() - 0.5) * h; if (avoid(x, z)) continue; d.position.set(x, 0.14 + r() * 0.1, z); d.rotation.set((r() - 0.5) * 0.5, r() * 6.28, (r() - 0.5) * 0.5); d.scale.setScalar(0.9 + r() * 0.7); d.updateMatrix(); im.setMatrixAt(k, d.matrix); im.setColorAt(k, c.set(pal[Math.floor(r() * pal.length)])); k++; } im.count = k; im.userData.flowers = 1; return im; }
+
+  /* ---------- 积雪（2026-10-26）----------
+     冬天时朝上的面（屋顶、树冠顶、灌木、篱笆、地面）慢慢盖上一层雪：给材质加一段着色器，按「世界坐标里的法线有多朝上」混入雪色。
+     所有材质初始化时就加好（uSnow = 0 时没有效果），换季只改一个数，不用重新编译着色器。
+     K 积雪强度（菜地泥土 0.55，免得认不出哪里是地）；flat 不朝上的面也至少盖多少（草叶用） */
+  const SNOWU = { value: 0 };
+  function snowify(m, K, flat) {
+    if (!m || m.userData.snowy || !m.isMeshStandardMaterial || (m.transparent && m.opacity < 0.95)) return; m.userData.snowy = 1;
+    K = K !== undefined ? K : m.userData.snowK !== undefined ? m.userData.snowK : m.map && TX.soil && m.map.image === TX.soil.image ? 0.5 : 1; flat = flat || m.userData.snowFlat || 0;
+    const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey && m.customProgramCacheKey !== T.Material.prototype.customProgramCacheKey ? m.customProgramCacheKey : null;
+    m.onBeforeCompile = function (sh, r) { if (prev) prev.call(this, sh, r); sh.uniforms.uSnow = SNOWU;
+      sh.vertexShader = 'varying vec3 vSnN;\n' + sh.vertexShader.replace('#include <defaultnormal_vertex>', '#include <defaultnormal_vertex>\n{ vec3 sn = objectNormal;\n#ifdef USE_INSTANCING\nsn = mat3(instanceMatrix) * sn;\n#endif\nvSnN = normalize(mat3(modelMatrix) * sn); }');
+      sh.fragmentShader = 'uniform float uSnow;\nvarying vec3 vSnN;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n{ float sk = uSnow * ' + K.toFixed(2) + ' * max(smoothstep(0.2, 0.7, vSnN.y), ' + flat.toFixed(2) + '); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.88, 0.92, 0.97), sk); }'); };
+    m.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|snow' + K + ',' + flat; };
+    m.needsUpdate = true;
+  }
+  /* 场景里所有物体加积雪；主人、狗、鸡、小动物、羊不加（身上一层白看着怪） */
+  function snowifyScene(root) {
+    const skip = new Set([HERO.g].concat(anim.dogs.map(d => d.g), anim.chickens.map(c => c.m), (typeof CRIT !== 'undefined' ? CRIT.list : []).map(c => c.g), (RANCH3.sheep || []).map(x => x.g)).filter(Boolean));
+    const walk = o => { if (skip.has(o) || o.userData.noSnow || o.isSkinnedMesh) return; if (o.isMesh && o.material) [].concat(o.material).forEach(m => snowify(m)); o.children.forEach(walk); };
+    walk(root || scene);
+  }
+
+  /* ---------- 花花草草（2026-10-26，参照甲方给的图）----------
+     整个农场（半径约 100 米）除了菜地、池塘、牧场、果园、建筑和小路，都长上：茂密的草丛、薰衣草和各色穗状花、开花的灌木（粉 / 白 / 红 / 黄）、白色的芦苇草、成片的小野花。
+     房子、风车周围和菜地边上长得更密（像花境）；远处按噪声成片长，有疏有密。
+     全部实例化；按 72 米分块，每块单独做包围球，看不到的块不画；草丛和小花离镜头远了也不画。
+     玩家在空地上建了东西，压在下面的花草会隐藏（setLayout 里调 floraMask）。 */
+  const FLORA = { recs: [], chunks: [], tick: 0 };
+  function floraGeos() {
+    const r = CFG3.rng(4242), G = {};
+    const vcol = (g, fn) => { g = g.index ? g.toNonIndexed() : g; return colorize(g, fn); };
+    /* 草丛：5 片弯弯的草叶，每片 3 个三角面，根部暗、叶尖亮 */
+    { const parts = []; for (let b = 0; b < 5; b++) { const a = b / 5 * 6.28 + r() * 0.6, h = 0.32 + r() * 0.3, w = 0.035 + r() * 0.02, lean = 0.12 + r() * 0.18, ox = Math.cos(a) * 0.06, oz = Math.sin(a) * 0.06;
+        const P = [], C = [], pt = (u, side) => { const t = u, x = ox + Math.cos(a) * lean * t * t * h * 2 + side * w * (1 - t) * Math.cos(a + 1.57), y = h * t, z = oz + Math.sin(a) * lean * t * t * h * 2 + side * w * (1 - t) * Math.sin(a + 1.57); return [x, y, z]; };
+        const v = [pt(0, -1), pt(0, 1), pt(0.5, -1), pt(0.5, 1), pt(1, 0)]; [[0, 1, 2], [2, 1, 3], [2, 3, 4]].forEach(tr => tr.forEach(i => { P.push(...v[i]); const l = [0.42, 0.42, 0.75, 0.75, 1.1][i]; C.push(l, l, l); }));
+        const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(P, 3)); g.setAttribute('color', new T.Float32BufferAttribute(C, 3)); g.computeVertexNormals(); parts.push(g); }
+      G.tuft = joinGeo(parts); }
+    /* 穗状花（薰衣草 / 金鱼草）：4 根花穗（每根 12 个三角面），白色顶点由实例颜色染成紫、粉、橙、白；下半截暗一点，看着像花茎 */
+    { const parts = []; for (let i = 0; i < 4; i++) { const a = r() * 6.28, d = r() * 0.2, x = Math.cos(a) * d, z = Math.sin(a) * d, h = 0.42 + r() * 0.3, tl = (r() - 0.5) * 0.3, tz = (r() - 0.5) * 0.3;
+        const head = new T.CylinderGeometry(0.032, 0.05, h, 4, 1, true); head.translate(0, h / 2, 0); const tip = new T.ConeGeometry(0.034, 0.1, 4, 1, true); tip.translate(0, h + 0.05, 0);
+        [head, tip].forEach(g => { g.rotateX(tz); g.rotateZ(tl); g.translate(x, 0, z); parts.push(vcol(g, (px, py) => { const t = Math.min(1, py / h), v = t < 0.45 ? 0.25 + t * 0.6 : 0.8 + (t - 0.45) * 0.45; return [v, v, v]; })); }); }
+      G.spike = joinGeo(parts); }
+    /* 开花灌木：树丛本体（绿色）+ 花朵（白色，实例颜色染色），分成两个网格 */
+    { const g = new T.IcosahedronGeometry(0.62, 1); displace(g, 0.12, 2.2, 7); g.scale(1, 0.78, 1); g.translate(0, 0.42, 0); G.bushBody = vcol(g, (px, py) => { const v = 0.55 + Math.max(0, py) * 0.6; return [v * 0.95, v, v * 0.9]; }); }
+    { const parts = [], N = 11; for (let i = 0; i < N; i++) { const yy = 1 - (i + 0.5) / N * 1.25, rad = Math.sqrt(Math.max(0, 1 - yy * yy)), th = i * 2.4, nx = Math.cos(th) * rad, nz = Math.sin(th) * rad, ny = Math.max(-0.25, yy);
+        const f = new T.ConeGeometry(0.12, 0.06, 5, 1, true); const o = new T.Object3D(); o.position.set(nx * 0.66, 0.44 + ny * 0.52, nz * 0.66); o.lookAt(nx * 2, 0.42 + ny * 2 + 0.5, nz * 2); o.rotateX(Math.PI / 2); o.updateMatrix(); f.applyMatrix4(o.matrix); parts.push(vcol(f, () => [1, 1, 1])); }
+      G.bloom = joinGeo(parts); }
+    /* 白色芦苇草：5 根细秆 + 羽毛状的穗 */
+    { const parts = []; for (let i = 0; i < 5; i++) { const a = r() * 6.28, d = r() * 0.12, h = 0.7 + r() * 0.45, lx = (r() - 0.5) * 0.5, lz = (r() - 0.5) * 0.5;
+        const st = new T.CylinderGeometry(0.006, 0.01, h, 3, 1, true); st.translate(0, h / 2, 0); const pl = new T.OctahedronGeometry(1, 0); pl.scale(0.035, 0.16, 0.035); pl.translate(0, h + 0.1, 0);
+        [[st, [0.45, 0.62, 0.3]], [pl, [1.0, 0.98, 0.92]]].forEach(([g, c]) => { g.rotateX(lz * 0.6); g.rotateZ(lx * 0.6); g.translate(Math.cos(a) * d, 0, Math.sin(a) * d); parts.push(vcol(g, () => c)); }); }
+      G.plume = joinGeo(parts); }
+    G.flower = flowerGeo();
+    return G;
+  }
+  function buildFlora() {
+    const lowQ = quality <= 1 || window.innerWidth < 820, K = lowQ ? 0.45 : 1;
+    const occ = GAMECFG.homeOccupancy({ fields: 20, pastLv: 100, pondLv: 99 }), GW = occ.W, cellOf = (x, z) => { const i = Math.floor((x - occ.x0) / occ.cell), j = Math.floor((z - occ.z0) / occ.cell); return i < 0 || j < 0 || i >= GW || j >= occ.H ? -1 : j * GW + i; };
+    const blocked = (x, z, m) => { for (const [dx, dz] of [[0, 0], [m, 0], [-m, 0], [0, m], [0, -m]]) { const c = cellOf(x + dx, z + dz); if (c >= 0 && occ.cells[c]) return true; } return false; };
+    const paths = [[-10, -1.2, 5.5, 1.6, 0.35], [-4.5, 7.2, 1.8, 6, -0.25]], onPath = (x, z) => paths.some(([px, pz, l, w, rr]) => { const dx = x - px, dz = z - pz, c = Math.cos(rr), sn = Math.sin(rr), u = dx * c - dz * sn, v = dx * sn + dz * c; return Math.abs(u) < l / 2 + 0.5 && Math.abs(v) < w / 2 + 0.5; });
+    const ok = (x, z, m) => { if (Math.hypot(x - FARM_C[0], z - FARM_C[1]) > FARM_R - 3) return false; if (blocked(x, z, m)) return false; if (onPath(x, z)) return false; for (const [ox, oz, rr] of OBST) if (Math.hypot(x - ox, z - oz) < rr + m) return false; return true; };
+    /* 离建筑 / 菜地边多远：越近花越密（花境） */
+    const S0 = HOMEL.structures.filter(o => o.id === 'house' || o.id === 'windmill'), F = HOMEL.fields;
+    const nearEdge = (x, z) => { let d = 99; S0.forEach(o => { d = Math.min(d, Math.max(Math.abs(x - o.x) - o.w / 2, Math.abs(z - o.z) - o.d / 2)); }); for (let f = 0; f < 8; f++) { const [cx, cz] = GAMECFG.fieldCenter(f); d = Math.min(d, Math.max(Math.abs(x - cx) - F.w / 2, Math.abs(z - cz) - F.d / 2) + 0.6); } return d; };
+    const r = CFG3.rng(777), recs = { tuft: [], spike: [], bushBody: [], bloom: [], plume: [], flower: [] }, col = new T.Color();
+    const put = (kind, x, z, sc, ry, c, tilt) => recs[kind].push({ x, z, sc, ry, c: c ? c.clone() : null, tilt: tilt || 0 });
+    const SPIKE = ['#8f6fd6', '#a487e6', '#7a5cc8', '#b79cf0', '#f08cbc', '#f59a7a', '#f4eefc', '#ff6f8f'], BLOOM = ['#ff8fb8', '#ffb3cf', '#ffffff', '#ff6f86', '#ffd86a', '#f7a3e0'], WILD = ['#ff7aa0', '#ffd23a', '#ffffff', '#b98aff', '#ff9a4a', '#7ac8ff', '#ff5a6a'];
+    const area = (fn, n) => { let k = 0, tries = 0; while (k < n && tries++ < n * 30) { const a = r() * 6.28, d = Math.sqrt(r()) * (FARM_R - 4), x = FARM_C[0] + Math.cos(a) * d, z = FARM_C[1] + Math.sin(a) * d; if (fn(x, z)) k++; } };
+    /* 1. 花境：房子、风车四周，菜地边上 */
+    area((x, z) => { const e = nearEdge(x, z); if (e < 0.4 || e > 3.2 || !ok(x, z, 0.5)) return false; const q = r(); col.set(q < 0.55 ? SPIKE[Math.floor(r() * 4)] : SPIKE[4 + Math.floor(r() * 4)]);
+      if (q < 0.5) { put('spike', x, z, 0.9 + r() * 0.5, r() * 6.28, col); put('tuft', x + 0.1, z - 0.1, 0.9, r() * 6.28, null); }
+      else if (q < 0.68) { const s = 0.7 + r() * 0.6; put('bushBody', x, z, s, r() * 6.28, null); put('bloom', x, z, s, r() * 6.28, col.set(BLOOM[Math.floor(r() * BLOOM.length)])); }
+      else { const cc = col.set(WILD[Math.floor(r() * WILD.length)]).clone(); for (let i = 0; i < 7; i++) put('flower', x + (r() - 0.5) * 1.1, z + (r() - 0.5) * 1.1, 1.4 + r() * 0.7, r() * 6.28, cc, 0.4); }
+      return true; }, Math.round(760 * K));
+    /* 1b. 房子、风车、狗窝门前屋后：再密一圈（甲方参考图里房子四周全是花） */
+    const HS = HOMEL.structures.filter(o => o.id === 'house' || o.id === 'windmill' || o.id === 'doghouse');
+    for (let n = 0, tries = 0; n < Math.round(420 * K) && tries < 8000; tries++) { const o = HS[Math.floor(r() * HS.length)], a = r() * 6.28, rr = Math.max(o.w, o.d) / 2 + 0.6 + r() * 3.4, x = o.x + Math.cos(a) * rr, z = o.z + Math.sin(a) * rr; if (!ok(x, z, 0.35)) continue; n++; const q = r();
+      if (q < 0.4) { col.set(SPIKE[Math.floor(r() * SPIKE.length)]); put('spike', x, z, 0.9 + r() * 0.5, r() * 6.28, col); }
+      else if (q < 0.65) { const sc = 0.6 + r() * 0.5; put('bushBody', x, z, sc, r() * 6.28, null); put('bloom', x, z, sc, r() * 6.28, col.set(BLOOM[Math.floor(r() * BLOOM.length)])); }
+      else { const cc = col.set(WILD[Math.floor(r() * WILD.length)]).clone(); for (let i = 0; i < 6; i++) put('flower', x + (r() - 0.5) * 0.9, z + (r() - 0.5) * 0.9, 1.4 + r() * 0.7, r() * 6.28, cc, 0.4); } }
+    /* 2. 成片的野花丛（同色一片） */
+    area((x, z) => { if (fbm(x * 0.05 + 3, z * 0.05 + 9, 55, 3) < (Math.hypot(x, z - 4) < 34 ? 0.34 : 0.5) || !ok(x, z, 0.6)) return false; const cc = col.set(WILD[Math.floor(r() * WILD.length)]).clone(), n = 7 + Math.floor(r() * 8); for (let i = 0; i < n; i++) { const a = r() * 6.28, d = Math.sqrt(r()) * 1.6; put('flower', x + Math.cos(a) * d, z + Math.sin(a) * d, 1.3 + r() * 0.8, r() * 6.28, cc, 0.4); } return true; }, Math.round(320 * K));
+    /* 3. 成片的薰衣草 / 灌木 / 芦苇（噪声决定哪里长哪种） */
+    area((x, z) => { const f = fbm(x * 0.03 + 11, z * 0.03 + 4, 66, 3); if (f < 0.47 || !ok(x, z, 0.7)) return false; const kind = fbm(x * 0.02 + 90, z * 0.02 + 30, 67, 2);
+      if (kind < 0.42) { col.set(SPIKE[Math.floor(r() * 4)]); for (let i = 0; i < 3; i++) put('spike', x + (r() - 0.5) * 1.6, z + (r() - 0.5) * 1.6, 0.9 + r() * 0.5, r() * 6.28, col); }
+      else if (kind < 0.53) { const s = 0.8 + r() * 0.8; put('bushBody', x, z, s, r() * 6.28, null); put('bloom', x, z, s, r() * 6.28, col.set(BLOOM[Math.floor(r() * BLOOM.length)])); }
+      else for (let i = 0; i < 3; i++) put('plume', x + (r() - 0.5) * 1.2, z + (r() - 0.5) * 1.2, 0.85 + r() * 0.5, r() * 6.28, col.set('#f6f0e2'));
+      return true; }, Math.round(440 * K));
+    /* 4. 草丛：到处都有，靠近家更密 */
+    area((x, z) => { const near = Math.hypot(x + 2, z + 4) < 45, f = fbm(x * 0.06 + 7, z * 0.06 + 2, 70, 3); if ((near ? f < 0.3 : f < 0.42) || !ok(x, z, 0.25)) return false; col.setHSL(0.24 + r() * 0.06, 0.5 + r() * 0.2, 0.36 + r() * 0.12); put('tuft', x, z, 0.8 + r() * 0.8, r() * 6.28, col); return true; }, Math.round(5200 * K));
+    /* 生成：按 72 米分块，每块每种一个实例化网格 */
+    const fm = (c, rough, ds) => new T.MeshStandardMaterial({ color: new T.Color(c), vertexColors: true, roughness: rough, side: ds ? T.DoubleSide : T.FrontSide });   /* 不用 mat() 的缓存：下面要改着色器，不能影响别的物体 */
+    const G = floraGeos(), CH = 72, mats = { tuft: fm('#7cb84a', 0.85, 1), spike: fm('#ffffff', 0.7), bushBody: fm('#4f9a3a', 0.85), bloom: fm('#ffffff', 0.6, 1), plume: fm('#fffaf0', 0.9), flower: fm('#ffffff', 0.6, 1) };
+    /* 风吹：和草地同一个时间；冬天草丛被雪压矮 */
+    const windy = (m, amt, squash) => { m.userData.snowFlat = squash ? 0.75 : 0; m.onBeforeCompile = sh => { sh.uniforms.uT = anim.grassU; sh.uniforms.uSnowV = SNOWU; sh.vertexShader = 'uniform float uT;\nuniform float uSnowV;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\nfloat ph = instanceMatrix[3].x*0.6 + instanceMatrix[3].z*0.8;\ntransformed.x += sin(uT*1.6+ph)*' + amt + '*position.y;\ntransformed.z += cos(uT*1.2+ph*1.3)*' + (amt * 0.7).toFixed(3) + '*position.y;\n' + (squash ? 'transformed.y *= 1.0 - uSnowV*0.6;\n' : '') + '#endif'); }; m.customProgramCacheKey = () => 'flora' + amt + squash; };
+    windy(mats.tuft, 0.22, true); windy(mats.spike, 0.16, false); windy(mats.plume, 0.2, false);
+    const d = new T.Object3D(), FL = { spike: 1, bloom: 1, flower: 1 }, SMALL = { tuft: 1, flower: 1 };
+    Object.keys(recs).forEach(kind => { const by = new Map(); recs[kind].forEach(o => { const key = Math.floor(o.x / CH) + ',' + Math.floor(o.z / CH); (by.get(key) || by.set(key, []).get(key)).push(o); });
+      by.forEach(list => { const geo = G[kind].clone(), im = new T.InstancedMesh(geo, mats[kind], list.length); let sx = 0, sz = 0; list.forEach(o => { sx += o.x; sz += o.z; }); const cx = sx / list.length, cz = sz / list.length; let rad = 0;
+        list.forEach((o, i) => { d.position.set(o.x, 0, o.z); d.rotation.set(o.tilt ? (r() - 0.5) * o.tilt : 0, o.ry, o.tilt ? (r() - 0.5) * o.tilt : 0); d.scale.setScalar(o.sc); if (kind === 'flower') d.position.y = 0.06 + r() * 0.12; d.updateMatrix(); im.setMatrixAt(i, d.matrix); if (o.c) im.setColorAt(i, o.c); else if (im.instanceColor || kind === 'tuft') im.setColorAt(i, col.setHSL(0.26, 0.45, 0.42));
+          o.mi = i; o.im = im; o.m = d.matrix.clone(); o.cell = cellOf(o.x, o.z); rad = Math.max(rad, Math.hypot(o.x - cx, o.z - cz)); FLORA.recs.push(o); });
+        /* 包围球用整块的范围（实例位置是世界坐标，网格本身在原点） */
+        geo.boundingSphere = new T.Sphere(new T.Vector3(cx, 0.5, cz), rad + 1.5); im.frustumCulled = true; im.castShadow = kind === 'bushBody'; im.receiveShadow = false;
+        if (FL[kind]) im.userData.flowers = 1; if (kind === 'bushBody') im.userData.noFlowerHide = 1; scene.add(im); FLORA.chunks.push({ im, cx, cz, rad, small: !!SMALL[kind] }); }); });
+  }
+  /* 玩家在空地上建了东西：压在下面的花草隐藏 */
+  const ZERO_M = new T.Matrix4().makeScale(0, 0, 0);
+  function floraMask(used) { const dirty = new Set(); FLORA.recs.forEach(o => { const hide = o.cell >= 0 && used.has(o.cell), cur = !!o.hidden; if (hide === cur) return; o.hidden = hide; o.im.setMatrixAt(o.mi, hide ? ZERO_M : o.m); dirty.add(o.im); }); dirty.forEach(im => { im.instanceMatrix.needsUpdate = true; }); }
+  /* 漫游时远处的草丛和小花不画（看不清，还占三角面） */
+  function floraCull() { if (++FLORA.tick % 15) return; const c = cam.position, far = viewMode === 'walk' ? 70 : 150; FLORA.chunks.forEach(ch => { const dd = Math.hypot(ch.cx - c.x, ch.cz - c.z) - ch.rad; ch.im.visible = !ch.im.userData.seasonHide && dd < (ch.small ? far : 230); }); }
   /* ---------- 2026-10-26 开放世界：家园往外扩大到约 1.6 公里见方 ----------
      农场（以 (-9, -24) 为中心、半径约 108 米，菜地 / 牧场 / 鱼塘 / 果园都在里面）保持平地；外面是起伏的丘陵、几片湖、成片的森林和草甸，最外面一圈高山。
      地形高度 terrainH 是一个确定的函数：地面网格、树的位置、人物走路都用它，前后一致 */
@@ -630,7 +742,7 @@ const W3 = (() => {
   let soilMats;
   function bedGeo() { const s = new T.Shape(), w = PITCH / 2 - 0.035, r = 0.06; /* 2026-10-26：地块之间不留缝，一片田连成一整块 */ s.moveTo(-w + r, -w); s.lineTo(w - r, -w); s.quadraticCurveTo(w, -w, w, -w + r); s.lineTo(w, w - r); s.quadraticCurveTo(w, w, w - r, w); s.lineTo(-w + r, w); s.quadraticCurveTo(-w, w, -w, w - r); s.lineTo(-w, -w + r); s.quadraticCurveTo(-w, -w, -w + r, -w); const g = new T.ExtrudeGeometry(s, { depth: BED_H - 0.04, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 1, curveSegments: 2 }); g.rotateX(-Math.PI / 2); const p = g.attributes.uv; for (let i = 0; i < p.count; i++) p.setXY(i, p.getX(i) / PLOT + 0.5, p.getY(i) / PLOT + 0.5); return g; }
   let BED_G, RIDGE_G, LOCK_G;
-  function soilMat(col) { return new T.MeshStandardMaterial({ color: new T.Color(col), map: TX.soil, normalMap: TX.soilN, roughness: 0.96 }); }
+  function soilMat(col) { const m = new T.MeshStandardMaterial({ color: new T.Color(col), map: TX.soil, normalMap: TX.soilN, roughness: 0.96 }); m.userData.snowK = 0.28; return m; }   /* 冬天菜地只盖薄薄一层雪，还认得出是地 */
   function buildPlotsBase() {
     BED_G = bedGeo(); RIDGE_G = new T.CapsuleGeometry(0.075, PITCH - 0.45, 4, 10); RIDGE_G.rotateZ(Math.PI / 2); RIDGE_G.scale(1, 0.55, 1);
     soilMats = { 0: { n: soilMat('#5c4130'), wet: soilMat('#3a281c'), dry: soilMat('#8c7258') }, 1: { n: soilMat('#86402a'), wet: soilMat('#5a2618'), dry: soilMat('#a8644a') },
@@ -1281,7 +1393,7 @@ const W3 = (() => {
     // 东南边的大草原（牧羊的地方）
     { const pa = (x, z) => (x > 9.9 && x < 51 && z > 6.7 && z < 37) || Math.hypot(x, z) < 34; scene.add(grassField(window.innerWidth < 820 ? 3000 : 7000, pa, 50, 62, 96, 66)); scene.add(flowers(260, pa, 50, 62, 96, 66));
       [[64, 58, 1.2, '#4f9a3a', 0], [82, 46, 1.0, '#5aa840', 1], [30, 84, 1.15, '#4a9238', 0], [88, 82, 1.1, '#4f9a3a', 0], [56, 90, 0.95, '#5aa840', 0], [8, 70, 1.05, '#4a9238', 1]].forEach(([x, z, sc, c, ap]) => { scene.add(tree(x, z, sc, c, ap)); OBST.push([x, z, 0.55 * sc]); });
-      [[46, 74, 0.9], [72, 70, 1.1], [20, 60, 0.8]].forEach(([x, z, sc]) => { scene.add(rock(x, z, sc)); OBST.push([x, z, 1.1 * sc]); }); } scene.add(flowers(420, avoid)); scene.add(hills());
+      [[46, 74, 0.9], [72, 70, 1.1], [20, 60, 0.8]].forEach(([x, z, sc]) => { scene.add(rock(x, z, sc)); OBST.push([x, z, 1.1 * sc]); }); } scene.add(flowers(420, avoid)); scene.add(hills()); buildFlora();
     for (let i = 0; i < 4; i++) { const c = buildChicken(); c.position.set([-6, 7, -2, -11][i], 0, [8.2, -8, -9.5, -6.5][i]); scene.add(c); anim.chickens.push({ m: c, tx: c.position.x, tz: c.position.z, pk: 0, home: c.position.clone() }); }
     ['#ff9ac8', '#ffe066', '#9ad8ff', '#ffffff', '#ffb050', '#c8a0ff'].forEach((c, i) => { const b = buildButterfly(c); scene.add(b.g); anim.butterflies.push(Object.assign(b, { ph: i * 2.1 })); });
     for (let i = 0; i < 6; i++) { const c = buildCloud(); c.position.set(-80 + i * 32, 30 + (i % 3) * 6, -60 - (i % 2) * 30); c.scale.setScalar(2 + (i % 3) * 0.6); scene.add(c); anim.clouds.push(c); }
@@ -1290,7 +1402,7 @@ const W3 = (() => {
     { const n = 60, g = new T.BufferGeometry(), p = new Float32Array(n * 3), r = CFG3.rng(3); for (let i = 0; i < n; i++) { p[i * 3] = (r() - 0.5) * 34; p[i * 3 + 1] = 0.5 + r() * 2.5; p[i * 3 + 2] = (r() - 0.5) * 28; } g.setAttribute('position', new T.BufferAttribute(p, 3)); anim.fireflies = new T.Points(g, new T.PointsMaterial({ size: 0.35, map: glowTex('rgba(220,255,140,1)'), transparent: true, depthWrite: false, blending: T.AdditiveBlending, color: 0xd8ff8a })); anim.fireflies.visible = false; scene.add(anim.fireflies); }
     { const n = 1600, g = new T.BufferGeometry(), p = new Float32Array(n * 6); for (let i = 0; i < n; i++) { const x = (Math.random() - 0.5) * 50, y = Math.random() * 30, z = (Math.random() - 0.5) * 50; p.set([x, y, z, x - 0.05, y - 0.6, z - 0.05], i * 6); } g.setAttribute('position', new T.BufferAttribute(p, 3)); anim.rain = new T.LineSegments(g, new T.LineBasicMaterial({ color: 0xc8dcff, transparent: true, opacity: 0.45 })); anim.rain.visible = false; scene.add(anim.rain); }
     window.addEventListener('wheel', e => { if (e.target !== canvasEl) return; if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * (e.deltaY > 0 ? 1.08 : 0.93))); return; } zoom = Math.max(0.6, Math.min(2.6, zoom * (e.deltaY > 0 ? 1.06 : 0.94))); applyCam(); }, { passive: true });
-    setHero(null);
+    setHero(null); snowifyScene();
     resize(); ready = true;
   }
 
@@ -1318,18 +1430,20 @@ const W3 = (() => {
   function setEnv(h, rain) { envState.hour = h; envState.rain = rain; }
   /* ---------- 第 1 期：四季画面（content/seasons.jsonc 的 look）----------
      初始化后按原来的颜色找出地面、草、树叶、远山的材质，换季时改颜色；冬天地面换成雪色（去掉草地贴图）、不开花；飘落效果用一组点精灵跟着镜头 */
-  const SEA = { id: '', ground: null, gBase: null, mats: null, flowers: [], fx: null, fxKind: '', fxV: null };
+  const SEA = { id: '', ground: null, gBase: null, mats: null, flowers: [], fx: null, fxKind: '', fxV: null, sk: 0, fxOn: true };
   function seasonCollect() {
-    if (SEA.mats) return; SEA.mats = { leaf: [], leaf2: [], hills: [], hillTree: [], grass: [], yard: [] };
-    const cls = { '4f9a3a': 'leaf', '4a9238': 'leaf', '5aa840': 'leaf2', '6a9a4a': 'hills', '3f7a3a': 'hillTree', '7cb84a': 'grass', '8aa060': 'yard', '7cb04e': 'yard', '7fa856': 'yard' }, seen = new Set();
-    scene.traverse(o => { if (o.userData.flowers) SEA.flowers.push(o); if (!o.isMesh || !o.material || o.userData.bid) return; [].concat(o.material).forEach(m => { if (seen.has(m) || !m.color) return; seen.add(m); const k = cls[m.color.getHexString()]; if (k) SEA.mats[k].push({ m, c0: m.color.clone(), map0: m.map }); }); });
-    if (SEA.ground) { const c = SEA.ground.geometry.attributes.color; SEA.gBase = c.array.slice(); }
+    /* 2026-10-26：可以反复调用，只收集新出现的材质（菜地、建筑等是后来才生成的），返回新收集到几个 */
+    const first = !SEA.mats; if (first) { SEA.mats = { leaf: [], leaf2: [], hills: [], hillTree: [], grass: [], yard: [] }; SEA.seen = new Set(); SEA.fseen = new Set(); }
+    const cls = { '4f9a3a': 'leaf', '4a9238': 'leaf', '5aa840': 'leaf2', '6a9a4a': 'hills', '3f7a3a': 'hillTree', '7cb84a': 'grass', '8aa060': 'yard', '7cb04e': 'yard', '7fa856': 'yard' }, seen = SEA.seen; let added = 0;
+    scene.traverse(o => { if (o.userData.flowers && !SEA.fseen.has(o)) { SEA.fseen.add(o); SEA.flowers.push(o); added++; } if (!o.isMesh || !o.material || o.userData.bid) return; [].concat(o.material).forEach(m => { if (seen.has(m) || !m.color) return; seen.add(m); const k = cls[m.color.getHexString()]; if (k) { SEA.mats[k].push({ m, c0: m.color.clone(), map0: m.map }); added++; } }); });
+    if (first && SEA.ground) { const c = SEA.ground.geometry.attributes.color; SEA.gBase = c.array.slice(); }
+    return first ? 0 : added;
   }
   /* 草地贴图本身是绿色的，换季时换成去色的版本，颜色交给季节色（只生成一次） */
   const GREY = new Map();
   function greyOf(t) { if (!t || !t.image) return t; let g = GREY.get(t); if (g) return g; const im = t.image, c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, c.width, c.height), a = d.data;
     for (let i = 0; i < a.length; i += 4) { const l = Math.min(255, (a[i] * 0.3 + a[i + 1] * 0.59 + a[i + 2] * 0.11) * 1.45); a[i] = a[i + 1] = a[i + 2] = l; } x.putImageData(d, 0, 0); g = t.clone(); g.image = c; g.needsUpdate = true; GREY.set(t, g); return g; }
-  function fxTex(kind) { if (kind === 'snow') return glowTex('rgba(255,255,255,0.95)', 1); const c = mkCanvas(32), x = c.getContext('2d'); x.translate(16, 16); x.rotate(0.5); x.fillStyle = kind === 'petal' ? '#ffc4d6' : '#e8862a'; x.beginPath(); x.ellipse(0, 0, kind === 'petal' ? 9 : 12, kind === 'petal' ? 6 : 7, 0, 0, 7); x.fill(); if (kind === 'leaf') { x.strokeStyle = 'rgba(120,50,10,.6)'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(-11, 0); x.lineTo(11, 0); x.stroke(); } return tex(c, 0); }
+  function fxTex(kind) { if (kind === 'snow') { const c = mkCanvas(32), x = c.getContext('2d'), g = x.createRadialGradient(16, 16, 0, 16, 16, 15); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.55, 'rgba(255,255,255,0.95)'); g.addColorStop(0.78, 'rgba(150,170,205,0.6)'); g.addColorStop(1, 'rgba(150,170,205,0)'); x.fillStyle = g; x.fillRect(0, 0, 32, 32); return tex(c, 0); }   /* 雪花带一圈淡蓝灰的边：落在白色雪地前面也看得出来 */ const c = mkCanvas(32), x = c.getContext('2d'); x.translate(16, 16); x.rotate(0.5); x.fillStyle = kind === 'petal' ? '#ffc4d6' : '#e8862a'; x.beginPath(); x.ellipse(0, 0, kind === 'petal' ? 9 : 12, kind === 'petal' ? 6 : 7, 0, 0, 7); x.fill(); if (kind === 'leaf') { x.strokeStyle = 'rgba(120,50,10,.6)'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(-11, 0); x.lineTo(11, 0); x.stroke(); } return tex(c, 0); }
   function setSeason(id) {
     if (!ready || id === SEA.id) return; const S0 = GAMECFG.SEASONS.list.find(s => s.id === id); if (!S0) return; SEA.id = id; seasonCollect(); const L = S0.look;
     const paint = (list, hex) => list.forEach(({ m, c0 }) => { if (hex) m.color.set(hex); else m.color.copy(c0); });
@@ -1338,16 +1452,17 @@ const W3 = (() => {
     if (SEA.ground && SEA.gBase) { const ca = SEA.ground.geometry.attributes.color, a = ca.array, b = SEA.gBase, tc = new T.Color(L.ground), k = L.groundK || 0;
       for (let i = 0; i < a.length; i += 3) { const lum = (b[i] + b[i + 1] + b[i + 2]) / 3 / 0.55; a[i] = b[i] * (1 - k) + tc.r * lum * k; a[i + 1] = b[i + 1] * (1 - k) + tc.g * lum * k; a[i + 2] = b[i + 2] * (1 - k) + tc.b * lum * k; }
       ca.needsUpdate = true; const gm = SEA.ground.material; SEA.gMap = SEA.gMap || gm.map; const want = k > 0.7 ? null : k > 0.3 ? greyOf(SEA.gMap) : SEA.gMap; if (gm.map !== want) { gm.map = want; gm.needsUpdate = true; } }
-    SEA.flowers.forEach(f => { f.visible = L.flowers !== false; });
+    SEA.flowers.forEach(f => { const show = L.flowers !== false; f.visible = show; f.userData.seasonHide = !show; });
+    scene.fog.near = id === 'winter' ? 90 : 140; scene.fog.far = id === 'winter' ? 430 : 560;   /* 下雪天远处朦胧一点 */
     /* 飘落效果 */
-    const kind = L.fx === 'firefly' ? '' : L.fx || '';
+    const kind = SEA.fxOn === false || L.fx === 'firefly' ? '' : L.fx || '';
     if (kind !== SEA.fxKind) { if (SEA.fx) { scene.remove(SEA.fx); SEA.fx.geometry.dispose(); SEA.fx.material.map.dispose(); SEA.fx.material.dispose(); SEA.fx = null; } SEA.fxKind = kind;
-      if (kind) { const N = quality <= 1 ? 160 : kind === 'snow' ? 520 : 260, pos = new Float32Array(N * 3), r = CFG3.rng(99); SEA.fxV = new Float32Array(N * 2); for (let i = 0; i < N; i++) { pos[i * 3] = (r() - 0.5) * 70; pos[i * 3 + 1] = r() * 22; pos[i * 3 + 2] = (r() - 0.5) * 70; SEA.fxV[i * 2] = r() * 6.28; SEA.fxV[i * 2 + 1] = 0.7 + r() * 0.6; }
+      if (kind) { const N = kind === 'snow' ? (quality <= 1 ? 700 : 1600) : quality <= 1 ? 160 : 260, pos = new Float32Array(N * 3), r = CFG3.rng(99); SEA.fxV = new Float32Array(N * 2); for (let i = 0; i < N; i++) { pos[i * 3] = (r() - 0.5) * 70; pos[i * 3 + 1] = r() * 22; pos[i * 3 + 2] = (r() - 0.5) * 70; SEA.fxV[i * 2] = r() * 6.28; SEA.fxV[i * 2 + 1] = 0.7 + r() * 0.6; }
         const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3));
-        SEA.fx = new T.Points(g, new T.PointsMaterial({ map: fxTex(kind), size: kind === 'snow' ? 0.32 : 0.42, transparent: true, depthWrite: false, opacity: 0.9, sizeAttenuation: true })); SEA.fx.frustumCulled = false; SEA.fx.renderOrder = 15; scene.add(SEA.fx); } }
+        SEA.fx = new T.Points(g, new T.PointsMaterial({ map: fxTex(kind), size: kind === 'snow' ? 0.44 : 0.42, transparent: true, depthWrite: false, opacity: 0.9, sizeAttenuation: true })); SEA.fx.frustumCulled = false; SEA.fx.renderOrder = 15; scene.add(SEA.fx); } }
   }
   function seasonTick(dt, t) {
-    const F = SEA.fx; if (!F) return; const p = F.geometry.attributes.position, a = p.array, V = SEA.fxV, fall = SEA.fxKind === 'snow' ? 1.3 : SEA.fxKind === 'leaf' ? 1.1 : 0.7, sway = SEA.fxKind === 'snow' ? 0.4 : 1.1, c = viewMode === 'walk' ? camFocus : eff;
+    const F = SEA.fx; if (!F) return; const p = F.geometry.attributes.position, a = p.array, V = SEA.fxV, fall = SEA.fxKind === 'snow' ? 1.1 : SEA.fxKind === 'leaf' ? 1.1 : 0.7, sway = SEA.fxKind === 'snow' ? 0.6 : 1.1, c = viewMode === 'walk' ? camFocus : eff;
     F.position.set(Math.round(c.x / 70) * 70, 0, Math.round(c.z / 70) * 70);
     for (let i = 0, n = p.count; i < n; i++) { const o = i * 3, ph = V[i * 2], sp = V[i * 2 + 1]; a[o + 1] -= fall * sp * dt; a[o] += Math.sin(t * 0.8 + ph) * sway * dt; a[o + 2] += Math.cos(t * 0.6 + ph * 1.3) * sway * 0.6 * dt;
       if (a[o + 1] < 0) { a[o + 1] += 22; } const lx = a[o] + F.position.x - c.x, lz = a[o + 2] + F.position.z - c.z; if (lx > 35) a[o] -= 70; else if (lx < -35) a[o] += 70; if (lz > 35) a[o + 2] -= 70; else if (lz < -35) a[o + 2] += 70; }
@@ -1452,6 +1567,7 @@ const W3 = (() => {
       const o = bModel(it.type, BDEF[it.type].kind === 'wonder' ? it.stage | 0 : undefined).clone(), R = bRect(it); o.position.set(R.cx, 0, R.cz); o.rotation.y = -(it.rot | 0) * Math.PI / 2; o.traverse(c => { c.userData.bid = it.id; }); scene.add(o); BUILT[it.id] = { k, o, it }; });
     Object.keys(BUILT).forEach(id => { if (!want[id]) { scene.remove(BUILT[id].o); delete BUILT[id]; } });
     rebuildBObst(); if (BM.on) drawGrid();
+    { const used = new Set(); Object.values(BUILT).forEach(({ it }) => (GAMECFG.footprint(it) || []).forEach(([i, j]) => used.add(j * GS.W + i))); floraMask(used); }
   }
   /* 建造模式 */
   const BM = { on: false, st: null, grid: null, lines: null, ghost: null, gkey: '', foot: null, sel: null, hideId: 0 };
@@ -1500,7 +1616,7 @@ const W3 = (() => {
   function render(dt) {
     if (!ready) return; dt *= simK;
     if (ZONE) { ZONE.update(dt); R.render(ZONE.scene, ZONE.camera); return; }
-    tNow += dt; const t = tNow; perfTick(dt); seasonTick(dt, t); updateCritters(dt, t); wildCull();
+    tNow += dt; const t = tNow; perfTick(dt); seasonTick(dt, t); updateCritters(dt, t); wildCull(); floraCull(); { const tg = SEA.id === 'winter' ? 1 : 0; SNOWU.value += (tg - SNOWU.value) * Math.min(1, dt * 0.8); if (Math.abs(tg - SNOWU.value) < 0.002) SNOWU.value = tg; } { const nw = performance.now(); if (nw - SEA.sk > 3000) { SEA.sk = nw; snowifyScene(); if (SEA.id && seasonCollect()) { const id = SEA.id; SEA.id = ''; setSeason(id); } } }   /* 后生成的菜地、建筑也要换季节颜色、加积雪 */
     updateHero(dt); if (viewMode === 'walk') updateWalkCam(dt); else if (panGoal.v) { if (!panGoal.s) { panGoal.s = pan.clone(); panGoal.t0 = performance.now(); } const k = Math.min(1, (performance.now() - panGoal.t0) / 450), e = 1 - Math.pow(1 - k, 3); pan.copy(panGoal.s).lerp(panGoal.v, e); if (k >= 1) { panGoal.v = null; panGoal.s = null; } applyCam(); } updateRanch(dt, tNow);
     const E = envAt(envState.hour), rk = envState.rain;
     const grey = new T.Color('#8a96a8');
@@ -1510,6 +1626,7 @@ const W3 = (() => {
     skyU.sunDir.value.copy(sd); skyU.sunCol.value.copy(E.sun).multiplyScalar(day ? 1 - rk : 0.15);
     sun.position.copy(target).addScaledVector(sd, 50); sun.color.copy(E.sun); sun.intensity = E.si * (1 - rk * 0.6);
     hemi.color.copy(E.hor).lerp(new T.Color('#ffffff'), 0.3); hemi.groundColor.set('#4a5a2a').lerp(new T.Color('#101828'), E.night); hemi.intensity = E.hi * (1 - rk * 0.2) + rk * 0.15;
+    { const w = SNOWU.value; if (w > 0.001) { skyU.hor.value.lerp(new T.Color('#e6ecf2'), 0.5 * w); skyU.top.value.lerp(new T.Color('#a7b6c6'), 0.45 * w); sun.intensity *= 1 - 0.25 * w; } }   /* 冬天：天空灰白，阳光弱一点 */
     R.toneMappingExposure = E.ex; scene.fog.color.copy(skyU.hor.value);
     const nightK = E.night; anim.windows.forEach(m => m.emissiveIntensity = nightK * 1.4); if (LAMPM) LAMPM.emissiveIntensity = nightK * 2.2; if (LAMPG) LAMPG.opacity = Math.max(0, nightK - 0.15) * 0.9; doorLamp.intensity = nightK * 1.6;
     anim.fireflies.visible = nightK > 0.4 && SEA.id !== 'winter'; if (anim.fireflies.visible) { const p = anim.fireflies.geometry.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) + Math.sin(t * 1.5 + i) * 0.004); p.needsUpdate = true; anim.fireflies.material.opacity = (0.5 + 0.5 * Math.sin(t * 3)) * nightK; }
@@ -1670,5 +1787,5 @@ const W3 = (() => {
   }
   function zoomBy(f) { if (viewMode === 'walk') { camDistW = Math.max(3.5, Math.min(16, camDistW * f)); return; } zoom = Math.max(0.6, Math.min(2.6, zoom * f)); applyCam(); }
   return { useZone, get zone() { return ZONE; }, get renderer() { return R; }, get __scene() { return scene; }, zoomBy, info: () => ({ calls: R.info.render.calls, tris: R.info.render.triangles, geos: R.info.memory.geometries, tex: R.info.memory.textures, progs: R.info.programs.length, q: quality, hits: hitBoxes.length, dogs: anim.dogs.length, objs: (() => { let n = 0, v = 0; scene.traverse(o => { if (o.isMesh || o.isSprite) { n++; let vis = true, q = o; while (q) { if (!q.visible) { vis = false; break; } q = q.parent; } if (vis) v++; } }); return n + '/' + v; })(), parts: parts.length, fish: RANCH3.fish.length, sheep: RANCH3.sheep.length, fpos: RANCH3.fish[0] ? RANCH3.fish[0].g.position.toArray().map(v => +v.toFixed(2)) : null }), get quality() { return quality; }, init, resize, render, setPlots, setMode, orbit, setInput, setHero, resetHero, get mode() { return viewMode; }, get near() { return viewMode === 'walk' ? nearIdx : -1; }, nearKennel, nearZone, setRanch, setPets, dogInfo: k => { const d = anim.dogs[k]; return d ? { did: d.did, name: d.name, kind: d.kind } : null; }, pondSplash, setField: f => { ACTF = Math.max(0, f | 0); pan.set(0, 0, 0); panGoal.v = null; if (viewMode !== 'walk') fit(); }, panBy, panTo, resetView, lookAt: k => { const p = SPOT[k] && SPOT[k](); if (p) panTo(p[0], p[1]); }, get panned() { return pan.length() > 1 || zoom > 1.35; }, worldBox, get pan() { return pan.toArray().map(v => +v.toFixed(2)); }, get zoom() { return zoom; }, get field() { return ACTF; }, fieldCenter: fieldC, setSimSpeed: k => { simK = k; }, dogFeet: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const G = GAITS_REF.g; return dg.legs.map((l, j) => { const v = new T.Vector3(0.022, -0.385, 0); l.localToWorld(v); const u = (((dg.phi || 0) + (dg.off ? dg.off[j] : 0)) % 1 + 1) % 1; return { x: v.x, y: v.y, z: v.z, st: u < (dg.st || 0.5), vel: dg.vel, pose: dg.pose, bx: dg.g.position.x, bz: dg.g.position.z, turn: dg.turn }; }); }, ranchDbg: () => ({ leg: RANCH3.leg, follow: RANCH3.follow, A: RANCH3.A && RANCH3.A.toArray().map(v => +v.toFixed(1)), phase: RANCH3.phase, hc: +(RANCH3.hc || 0).toFixed(1), zones: RANCH3.sheep.map(x => x.zone).join(''), dog: RANCH3.dogT && RANCH3.dogT.toArray().map(v => +v.toFixed(1)) }), teleport: (x, z, yaw) => { HERO.pos.set(x, 0, z); if (yaw !== undefined) camYaw = yaw; camFocus.set(x, 1, z); }, get nearDog() { return viewMode === 'walk' ? nearDog : -1; }, petDog, dbgDogCam: (k, yaw, pitch, dist) => { const dg = anim.dogs[k]; if (!dg) return null; const c = dg.g.position, cam2 = new T.PerspectiveCamera(32, W / H, 0.05, 80), d = dist || 2.2, a = dg.g.rotation.y + (yaw || 0); cam2.position.set(c.x + Math.cos(a) * d * Math.cos(pitch || 0.2), 0.35 + Math.sin(pitch || 0.2) * d, c.z - Math.sin(a) * d * Math.cos(pitch || 0.2)); cam2.lookAt(c.x, 0.3, c.z); R.render(scene, cam2); return R.domElement.toDataURL('image/png'); }, dbgPose: (k, p) => { const d = anim.dogs[k]; if (d) d.force = p || null; }, dogGround: k => { const dg = anim.dogs[k]; if (!dg) return null; dg.g.updateMatrixWorld(true); const v = new T.Vector3(); let lo = 9; const body = dg.torso.children[0], P = body.geometry.attributes.position; for (let i = 0; i < P.count; i += 2) { v.fromBufferAttribute(P, i).applyMatrix4(body.matrixWorld); if (v.y < lo) lo = v.y; }
-    const feet = dg.legs.map(l => { let m = 9; l.children.forEach(c => { const Q = c.geometry.attributes.position; for (let i = 0; i < Q.count; i++) { v.fromBufferAttribute(Q, i).applyMatrix4(c.matrixWorld); if (v.y < m) m = v.y; } }); return +m.toFixed(3); }); return { body: +lo.toFixed(3), feet, vis: dg.legs.map(l => l.visible), x: dg.g.position.x, z: dg.g.position.z, ry: dg.g.rotation.y }; }, heroModelRot: () => HERO.g ? HERO.g.rotation.y : NaN, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, critInfo: () => CRIT.list.map(c => [c.kind, +c.g.position.x.toFixed(1), +c.g.position.z.toFixed(1), c.g.visible]), setSeason, get season() { return SEA.id; }, releaseIcons, afterShown, setLayout, buildMode, setBuildState, setGhost, setBuildSel, cellAt, builtAt, centerCell, buildIcon, get buildOn() { return BM.on; }, setNewChar, get newChar() { return NC.on && !!NC.hero; }, ncBox: () => { const b = o => { const B = new T.Box3().setFromObject(o); return [+(B.max.y - B.min.y).toFixed(3), +B.min.y.toFixed(3)]; }, r = {}; if (HERO.g) { r.heroOld = b(HERO.g.children.find(c => c !== HERO.p.ring && (!NC.hero || c !== NC.hero.wrap))); if (NC.hero) r.heroNew = b(NC.hero.wrap); } const dg = anim.dogs.find(d => d.did === 'fuwang'); if (dg) { r.dogOld = b(dg.torso); if (dg.rig) r.dogNew = b(dg.rig.wrap); } return r; }, ncInfo: () => ({ on: NC.on, hero: !!NC.hero, heroId: NC.heroId, heroReal: NC.hero && NC.hero.rig.real, heroTs: NC.hero && NC.hero.rig.inst.actions[NC.hero.rig.real] ? +NC.hero.rig.inst.actions[NC.hero.rig.real].timeScale.toFixed(2) : null, heroState: NC.hero && NC.hero.rig.real, dogs: anim.dogs.filter(d => d.rig).map(d => ({ did: d.did, state: d.rig.rig.state, real: d.rig.rig.real, vis: d.g.visible })) }), setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
+    const feet = dg.legs.map(l => { let m = 9; l.children.forEach(c => { const Q = c.geometry.attributes.position; for (let i = 0; i < Q.count; i++) { v.fromBufferAttribute(Q, i).applyMatrix4(c.matrixWorld); if (v.y < m) m = v.y; } }); return +m.toFixed(3); }); return { body: +lo.toFixed(3), feet, vis: dg.legs.map(l => l.visible), x: dg.g.position.x, z: dg.g.position.z, ry: dg.g.rotation.y }; }, heroModelRot: () => HERO.g ? HERO.g.rotation.y : NaN, heroInfo: () => ({ x: HERO.pos.x, z: HERO.pos.z, y: HERO.y, face: HERO.face, ground: HERO.ground }), setHover, setDog, critInfo: () => CRIT.list.map(c => [c.kind, +c.g.position.x.toFixed(1), +c.g.position.z.toFixed(1), c.g.visible]), setSeason, get season() { return SEA.id; }, setWeatherFx: on => { on = on !== false; if (SEA.fxOn === on) return; SEA.fxOn = on; const id = SEA.id; SEA.id = ''; setSeason(id); }, dbgSnow: () => { try { snowifyScene(); const n = seasonCollect(); return 'ok ' + n + ' sk=' + SEA.sk; } catch (e) { return 'ERR ' + e.message; } }, floraInfo: () => ({ n: FLORA.recs.length, chunks: FLORA.chunks.length, hidden: FLORA.recs.filter(o => o.hidden).length, snow: +SNOWU.value.toFixed(2) }), releaseIcons, afterShown, setLayout, buildMode, setBuildState, setGhost, setBuildSel, cellAt, builtAt, centerCell, buildIcon, get buildOn() { return BM.on; }, setNewChar, get newChar() { return NC.on && !!NC.hero; }, ncBox: () => { const b = o => { const B = new T.Box3().setFromObject(o); return [+(B.max.y - B.min.y).toFixed(3), +B.min.y.toFixed(3)]; }, r = {}; if (HERO.g) { r.heroOld = b(HERO.g.children.find(c => c !== HERO.p.ring && (!NC.hero || c !== NC.hero.wrap))); if (NC.hero) r.heroNew = b(NC.hero.wrap); } const dg = anim.dogs.find(d => d.did === 'fuwang'); if (dg) { r.dogOld = b(dg.torso); if (dg.rig) r.dogNew = b(dg.rig.wrap); } return r; }, ncInfo: () => ({ on: NC.on, hero: !!NC.hero, heroId: NC.heroId, heroReal: NC.hero && NC.hero.rig.real, heroTs: NC.hero && NC.hero.rig.inst.actions[NC.hero.rig.real] ? +NC.hero.rig.inst.actions[NC.hero.rig.real].timeScale.toFixed(2) : null, heroState: NC.hero && NC.hero.rig.real, dogs: anim.dogs.filter(d => d.rig).map(d => ({ did: d.did, state: d.rig.rig.state, real: d.rig.rig.real, vis: d.g.visible })) }), setEnv, setTheme, pick, screenOf, fx, cropIcon, dogPortrait, dogShot, heroShot, get ready() { return ready; } };
 })();
