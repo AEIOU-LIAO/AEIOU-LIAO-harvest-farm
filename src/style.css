@@ -429,6 +429,26 @@ body.hunting #zonebar{display:none}
 .hu-flash{position:fixed;inset:0;z-index:30;pointer-events:none;background:radial-gradient(circle,rgba(255,0,0,0) 40%,rgba(220,30,20,.55));animation:hufl .45s ease-out forwards}@keyframes hufl{to{opacity:0}}
 .hu-dot{display:inline-block;width:12px;height:12px;border-radius:50%}.row-item.dim{opacity:.55}.row-item em.lk{font-style:normal;font-size:11px;color:var(--mut);margin-left:4px}.row-item .ok{color:#9fe0a8;font-size:12px}
 body.hunting #card,body.hunting #gold,body.hunting #rightbtns,body.hunting #sndpop,body.hunting #netbar{display:none!important}
+/* 镜湖钓场（方案 C） */
+#lakeui{position:fixed;inset:0;pointer-events:none;z-index:11;color:var(--ink)}#lakeui>*{pointer-events:auto}
+#lakeui .lk-top{position:absolute;left:50%;top:max(8px,env(safe-area-inset-top));transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:14px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--sh);white-space:nowrap}
+#lakeui .lk-top b{color:#d8f0ff;letter-spacing:2px}.lk-time{font:700 15px ui-monospace,Menlo,monospace;color:#ffe9b0}.lk-time.low{color:#ff8a7a}.lk-bag{font-size:13px;color:var(--ink2)}
+#lakeui .lk-msg{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);padding:8px 16px;border-radius:12px;background:var(--panel2);border:1px solid var(--gold);font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:84vw;text-align:center}#lakeui .lk-msg.on{opacity:1}
+#lakeui .lk-btn{position:absolute;right:max(18px,env(safe-area-inset-right));bottom:max(22px,env(safe-area-inset-bottom));width:112px;height:112px;border-radius:50%;border:2px solid #e8f6ff;background:radial-gradient(circle at 35% 30%,#8fd0ff,#2a78c0);color:#fff;font:700 15px inherit;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.25;padding:10px;box-shadow:0 5px 16px rgba(0,0,0,.4);touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
+#lakeui .lk-btn.wait{filter:grayscale(.55) brightness(.85)}
+#lakeui .lk-btn.hit{background:radial-gradient(circle at 35% 30%,#ffc070,#e04a24);animation:lkpulse .32s ease-in-out infinite alternate}@keyframes lkpulse{to{transform:scale(1.08)}}
+#lakeui .lk-btn.reel{background:radial-gradient(circle at 35% 30%,#a8f0b8,#2e9a54)}
+#lakeui .lk-power{position:absolute;right:calc(max(18px,env(safe-area-inset-right)) + 124px);bottom:max(26px,env(safe-area-inset-bottom));width:18px;height:104px;border-radius:9px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.4);overflow:hidden;display:none}#lakeui .lk-power.on{display:block}
+#lakeui .lk-power i{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(#ffe08a,#ff8a3a)}
+#lakeui .lk-tension{position:absolute;right:calc(max(18px,env(safe-area-inset-right)) + 30px);bottom:calc(max(22px,env(safe-area-inset-bottom)) + 130px);width:26px;height:190px;border-radius:13px;background:linear-gradient(#e8503a 0 14%,rgba(0,0,0,.4) 14%);border:1px solid rgba(255,255,255,.45);display:none}#lakeui .lk-tension.on{display:block}
+#lakeui .lk-tension .lk-safe{position:absolute;left:3px;right:3px;bottom:12%;top:16%;border-radius:8px;background:rgba(110,220,130,.55)}
+#lakeui .lk-tension .lk-cur{position:absolute;left:-6px;right:-6px;height:6px;margin-bottom:-3px;border-radius:3px;background:#fff;box-shadow:0 0 6px rgba(0,0,0,.5);bottom:30%}#lakeui .lk-tension .lk-cur.bad{background:#ff6a5a}
+#lakeui .lk-tension span{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:12px;color:#fff;text-shadow:0 1px 2px #000;white-space:nowrap}
+#lakeui .lk-prog{position:absolute;left:50%;top:calc(max(8px,env(safe-area-inset-top)) + 52px);transform:translateX(-50%);width:min(60vw,320px);height:12px;border-radius:6px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.45);overflow:hidden;display:none}#lakeui .lk-prog.on{display:block}
+#lakeui .lk-prog i{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,#8fd0ff,#5ae0a0)}
+#lakeui .lk-card{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) scale(.9);display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 22px;border-radius:16px;background:var(--panel);border:1px solid var(--gold);box-shadow:var(--sh);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}
+#lakeui .lk-card.on{opacity:1;transform:translate(-50%,-50%) scale(1)}#lakeui .lk-card i{width:42px;height:18px;border-radius:50%}#lakeui .lk-card b{font-size:18px;color:#fff1cc}#lakeui .lk-card span{font-size:13px;color:var(--ink2)}#lakeui .lk-card em{font-style:normal;font-size:12px;padding:2px 8px;border-radius:8px;background:#e8a030;color:#2a1a08}
+body.fishing #card,body.fishing #gold,body.fishing #rightbtns,body.fishing #sndpop,body.fishing #netbar,body.fishing #zonebar{display:none!important}
 /* 选角色 */
 .charpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
 .cpick{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line2);color:var(--ink);font:inherit;cursor:pointer}

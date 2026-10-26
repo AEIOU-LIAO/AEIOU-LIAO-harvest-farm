@@ -156,7 +156,7 @@
   const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
   // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
   function ranchItem(item) { const hm = /^hm(\d+)$/.exec(item || ''); if (hm) { const d = CONTENT.HUNT.materials[+hm[1]]; return d ? { kind: 'hunt', id: d.id, name: d.name, price: d.price } : null; } const m = /^(fs|wl|fr)(\d+)$/.exec(item || ''); if (!m) return null; const d = ({ fs: FISH, wl: SHEEP, fr: TREES })[m[1]][+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : m[1] === 'wl' ? { kind: 'wool', id: d.id, name: d.woolName, price: d.sell } : { kind: 'fruit', id: d.id, name: d.fruit, price: d.sell }; }
-  const VERSION = '3.20.1'; // 每次发布改这里；设置页和 /api/health 会显示
+  const VERSION = '3.21.0'; // 每次发布改这里；设置页和 /api/health 会显示
   const ZONES = CONTENT.ZONES, ASSETS = CONTENT.ASSETS, HOME = CONTENT.HOME, BUILDINGS = CONTENT.BUILDINGS, BIOMES = CONTENT.BIOMES;
 
   /* ===== V0.3 家园布局与建造网格（3D 画面和服务器共用 content/home.jsonc） ===== */
@@ -244,7 +244,16 @@
       for (let n = 0; n < c.count && ok.length; n++) { const p = ok.splice(Math.floor(r() * ok.length), 1)[0]; list.push({ i: list.length, id: c.id, x: Math.round(p[1] * 10) / 10, z: Math.round(p[2] * 10) / 10 }); } });
     return { start, list };
   }
-  const CFG = { HOME, BUILDINGS, BIOMES, OCC, SEASONS, WONDERS, HUNT, makeNoise, biomeAt, genWorld, worldBiome, huntSpawns, wonderDef, wonderBonus, monthOf, seasonOf, cropTag, inSeason, seasonEnd, festivalsAt, fieldCenter, pastSize, pondsOf, gridSpec, homeOccupancy, footprint, canPlace };
+  /* ---------- 方案 C · 镜湖钓场（content/lake.jsonc）。同一个种子 + 等级 + 鱼竿，前后端算出一样的「咬钩序列」：第 i 次咬钩是哪条鱼、多长、浮漂落水后等几秒 ---------- */
+  const LAKE = CONTENT.LAKE;
+  function lakeBites(seed, lv, rodId) {
+    const r = rng(seed + 7), rod = LAKE.rods.find(x => x.id === rodId) || LAKE.rods[0], pool = LAKE.fish.filter(f => lv >= f.lv), n = LAKE.fish.length;
+    const W = pool.map(f => f.w * (1 + rod.luck * 4 * LAKE.fish.indexOf(f) / Math.max(1, n - 1))), tot = W.reduce((a, b) => a + b, 0), list = [];
+    for (let i = 0; i < LAKE.bites; i++) { let x = r() * tot, k = 0; while (k < pool.length - 1 && x > W[k]) { x -= W[k]; k++; } const f = pool[k], cm = Math.round(f.cm[0] + (f.cm[1] - f.cm[0]) * Math.pow(r(), 1.6));
+      list.push({ i, f: f.fish, cm, diff: +(f.diff * (0.85 + 0.3 * (cm - f.cm[0]) / Math.max(1, f.cm[1] - f.cm[0]))).toFixed(3), wait: +(2 + r() * 4).toFixed(2), big: cm >= f.cm[0] + (f.cm[1] - f.cm[0]) * LAKE.bigBonus }); }
+    return list;
+  }
+  const CFG = { HOME, BUILDINGS, BIOMES, OCC, SEASONS, WONDERS, HUNT, LAKE, lakeBites, makeNoise, biomeAt, genWorld, worldBiome, huntSpawns, wonderDef, wonderBonus, monthOf, seasonOf, cropTag, inSeason, seasonEnd, festivalsAt, fieldCenter, pastSize, pondsOf, gridSpec, homeOccupancy, footprint, canPlace };
   Object.assign(CFG, { ZONES, ASSETS, COLLIES, PETS_MAX, VERSION, COLS, ROWS, NPLOTS, FIELDS_MAX, MAX_PLOTS, fieldNeedLv, fieldCost, CROPS, RARITY, RULES, TASKS, WEEKLY, NEWBIE, ACHIEVEMENTS, THEMES, FRAMES, AVATAR_OPTS, PHRASES, SHOP_ITEMS, UNLOCK_ORDER, STAGE_NAME,
     SOILS, DOGS, soilOf, soilCost, dogChance,
     FISH, SHEEP, TREES, RANCH, pondCap, pastureCap, pondCapOf, pastureCapOf, orchardCapOf, ranchUpCost, ranchNeedLv, herdOf, sheepCycles, treeCycles, treeGrowLeft, fishLeft, ranchItem,

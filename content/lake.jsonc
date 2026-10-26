@@ -1,0 +1,24 @@
+// 镜湖钓场（方案 C 第一个新场景）：山脚下的一面湖，站在木栈道上钓鱼。钓上来的鱼就是鱼塘里的鱼（content/fish.jsonc 的序号），进仓库，可以出售、计入图鉴
+// trips 每天能来几次 · tripSec 每次最长几秒 · minBiteSec 两次咬钩最少隔几秒（服务器按这个校验，防作弊）· bites 每次最多给多少次咬钩
+// fish：fish 鱼的序号（fish.jsonc）· w 出现权重 · lv 主人多少级以后才会出现 · diff 收线难度 0~1（鱼挣扎得多猛）· cm 体长范围（厘米，越长越难）· exp 每条额外经验
+// rods：lv 解锁等级 · price 价格（0 = 进场时送）· power 收线速度倍率 · luck 稀有鱼权重加成（按稀有程度放大）· slack 拉力安全区放宽多少
+// bigBonus：体长超过这条鱼范围的 85% 算「大鱼」，多给一条
+{
+  "zone": "lake", "trips": 6, "tripSec": 300, "minBiteSec": 5, "bites": 60, "bigBonus": 0.85,
+  "fish": [
+    { "fish": 0, "w": 34, "lv": 1, "diff": 0.15, "cm": [12, 24], "exp": 4 },
+    { "fish": 1, "w": 20, "lv": 1, "diff": 0.2, "cm": [8, 18], "exp": 8 },
+    { "fish": 2, "w": 18, "lv": 6, "diff": 0.35, "cm": [35, 80], "exp": 16 },
+    { "fish": 3, "w": 14, "lv": 10, "diff": 0.45, "cm": [30, 70], "exp": 30 },
+    { "fish": 4, "w": 7, "lv": 15, "diff": 0.55, "cm": [35, 75], "exp": 60 },
+    { "fish": 5, "w": 3.5, "lv": 22, "diff": 0.65, "cm": [40, 90], "exp": 140 },
+    { "fish": 6, "w": 2, "lv": 35, "diff": 0.72, "cm": [30, 60], "exp": 240 },
+    { "fish": 7, "w": 1, "lv": 60, "diff": 0.82, "cm": [50, 110], "exp": 420 },
+    { "fish": 10, "w": 0.3, "lv": 100, "diff": 0.9, "cm": [40, 80], "exp": 1500 }
+  ],
+  "rods": [
+    { "id": "bamboo", "name": "竹竿", "lv": 1, "price": 0, "power": 1, "luck": 0, "slack": 0, "desc": "渔翁送的老竹竿" },
+    { "id": "carbon", "name": "碳素竿", "lv": 15, "price": 30000, "power": 1.35, "luck": 0.25, "slack": 0.06, "desc": "又轻又韧，收线快" },
+    { "id": "golden", "name": "金丝竿", "lv": 35, "price": 300000, "power": 1.7, "luck": 0.6, "slack": 0.12, "desc": "大鱼也拉得动，稀有鱼更爱咬钩" }
+  ]
+}

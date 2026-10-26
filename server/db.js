@@ -99,6 +99,8 @@ const MIGRATIONS = [
   `ALTER TABLE users ADD COLUMN layout TEXT NOT NULL DEFAULT '{}';`,
   // v6 名山猎场（第 2 期）：武器、每天进山次数、当前这次进山（种子）、累计捕获，存成一段 JSON
   `ALTER TABLE users ADD COLUMN hunt TEXT NOT NULL DEFAULT '{}';`,
+  // v7 镜湖钓场（方案 C）：鱼竿、每天来几次、当前这次（种子）、累计钓到、每种鱼最长纪录，存成一段 JSON
+  `ALTER TABLE users ADD COLUMN lake TEXT NOT NULL DEFAULT '{}';`,
 ];
 
 const BUSY = /SQLITE_BUSY|database is locked|SQLITE_LOCKED|BUSY_SNAPSHOT/i;

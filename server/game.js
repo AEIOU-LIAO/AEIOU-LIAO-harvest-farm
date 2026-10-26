@@ -197,9 +197,9 @@ class Game {
   /* ---------- 自己农场 ---------- */
 }
 
-/* 各玩法模块：account 账号 · farm 农田 · ranch 牧场与狗 · home 家园建造 · quest 任务成就订单 · social 好友串门 · economy 集市排行赛季 · hunt 名山猎场 */
+/* 各玩法模块：account 账号 · farm 农田 · ranch 牧场与狗 · home 家园建造 · quest 任务成就订单 · social 好友串门 · economy 集市排行赛季 · hunt 名山猎场 · lake 镜湖钓场 */
 /* 逐个字面量 require：云函数打包脚本（deploy/bundle-functions.js）只认字面量 */
-const DOMAINS = { account: require('./domains/account'), farm: require('./domains/farm'), ranch: require('./domains/ranch'), home: require('./domains/home'), quest: require('./domains/quest'), social: require('./domains/social'), economy: require('./domains/economy'), hunt: require('./domains/hunt') };
+const DOMAINS = { account: require('./domains/account'), farm: require('./domains/farm'), ranch: require('./domains/ranch'), home: require('./domains/home'), quest: require('./domains/quest'), social: require('./domains/social'), economy: require('./domains/economy'), hunt: require('./domains/hunt'), lake: require('./domains/lake') };
 for (const [m, mod] of Object.entries(DOMAINS)) {
   for (const k of Object.keys(mod)) { if (k in Game.prototype) throw new Error('玩法模块方法重名：' + m + '.' + k); Object.defineProperty(Game.prototype, k, { value: mod[k], writable: true, configurable: true }); }
 }

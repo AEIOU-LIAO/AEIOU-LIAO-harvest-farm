@@ -720,6 +720,36 @@ test('第 1 期 奇观长城：免费选址、分阶段建造（扣金币和作�
   } finally { await t.close(); }
 });
 
+test('方案 C 镜湖钓场：进场拿种子、前后端咬钩序列一致、收竿校验与奖励、大鱼多一条、最长纪录、每天次数、买鱼竿', async () => {
+  const t = await start();
+  try {
+    const L = CFG.LAKE, z = CFG.ZONES.find(x => x.id === L.zone);
+    const a = await t.guest('钓翁'); await t.app.db.run('UPDATE users SET gold=500000, lv=1 WHERE id=?', a.id);
+    let r = await t.call('POST', '/api/lake/start', {}, a.token); assert.match(r.error, new RegExp('Lv\\.' + z.unlockLv));
+    await t.app.db.run('UPDATE users SET lv=40 WHERE id=?', a.id);
+    let info = await t.call('GET', '/api/lake', null, a.token); assert.deepEqual(info.rods, ['bamboo']); assert.equal(info.tripsLeft, L.trips);
+    r = await t.call('POST', '/api/lake/start', {}, a.token); assert.ok(r.ok, r.error); const S = r.result;
+    assert.deepEqual(CFG.lakeBites(S.seed, S.lv, S.rod), S.bites, '前端用同一个种子算出一样的咬钩序列'); assert.equal(S.bites.length, L.bites);
+    r = await t.call('POST', '/api/lake/end', { sid: S.sid, caught: [0, 1, 2], used: 3 }, a.token); assert.match(r.error, /太快/);
+    r = await t.call('POST', '/api/lake/end', { sid: S.sid, caught: [9999] }, a.token); assert.match(r.error, /没有这次/);
+    await t.call('POST', '/api/test/clock', { ms: 60e3 });
+    const caught = [0, 2, 3, 2], want = {}; [0, 2, 3].forEach(i => { const x = S.bites[i]; want['fs' + x.f] = (want['fs' + x.f] || 0) + (x.big ? 2 : 1); });
+    r = await t.call('POST', '/api/lake/end', { sid: S.sid, caught, used: 6 }, a.token); assert.ok(r.ok, r.error);
+    assert.equal(r.result.n, 3, '重复的不算'); assert.equal(r.result.used, 6);
+    Object.entries(want).forEach(([it, n]) => assert.equal(r.state.inv[it], n, it));
+    assert.ok(r.result.records.length >= 1, '第一次钓到就是纪录');
+    r = await t.call('POST', '/api/lake/end', { sid: S.sid, caught: [] }, a.token); assert.match(r.error, /已经结束/);
+    info = await t.call('GET', '/api/lake', null, a.token); assert.equal(info.tripsLeft, L.trips - 1); assert.ok(Object.keys(info.best).length >= 1);
+    for (let k = 1; k < L.trips; k++) { r = await t.call('POST', '/api/lake/start', {}, a.token); assert.ok(r.ok, r.error); }
+    r = await t.call('POST', '/api/lake/start', {}, a.token); assert.match(r.error, /明天/);
+    /* 买鱼竿：好鱼竿稀有鱼更多 */
+    r = await t.call('POST', '/api/lake/buy', { rod: 'golden' }, a.token); assert.ok(r.ok, r.error); assert.equal(r.state.me.gold, 500000 - L.rods.find(x => x.id === 'golden').price);
+    r = await t.call('POST', '/api/lake/buy', { rod: 'golden' }, a.token); assert.match(r.error, /已经有/);
+    const rare = list => list.filter(x => x.f >= 5).length; let rb = 0, rg = 0; for (let s = 1; s <= 30; s++) { rb += rare(CFG.lakeBites(s, 40, 'bamboo')); rg += rare(CFG.lakeBites(s, 40, 'golden')); }
+    assert.ok(rg > rb * 1.5, '金丝竿稀有鱼明显更多：' + rb + ' → ' + rg);
+  } finally { await t.close(); }
+});
+
 test('第 2 期 名山猎场：进山拿种子、前后端野兽位置一致、下山校验与奖励、每天次数、买武器', async () => {
   const t = await start();
   try {

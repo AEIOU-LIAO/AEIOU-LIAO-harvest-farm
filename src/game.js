@@ -88,6 +88,7 @@ const SFX = {
   steal: () => { tone(300, 0.1, 'triangle', 0.07, 0, 600); tone(500, 0.12, 'triangle', 0.05, 0.08); },
   bark: () => { tone(420, 0.1, 'sawtooth', 0.08, 0, 220); tone(380, 0.12, 'sawtooth', 0.08, 0.16, 200); },
   rain: () => { noise(1.4, 0.12, 5000, 2500); },
+  splash: () => { noise(0.32, 0.2, 1800, 500); tone(360, 0.12, 'sine', 0.03, 0.03, 160); },
   open: () => { tone(520, 0.08, 'triangle', 0.05); tone(780, 0.1, 'triangle', 0.05, 0.05); },
   golden: () => { [784, 988, 1175, 1568, 1976].forEach((f, i) => tone(f, 0.25, 'triangle', 0.07, i * 0.07)); },
   on: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.2, 'triangle', 0.09, i * 0.08)); },
