@@ -494,7 +494,7 @@ body.hunting #card,body.hunting #gold,body.hunting #rightbtns,body.hunting #sndp
   if (typeof module !== 'undefined' && module.exports) module.exports = CONTENT; else root.GAMECONTENT = CONTENT;
 })(typeof window !== 'undefined' ? window : globalThis);
 
-var HF_BUILT = '2026-10-26 15:35';
+var HF_BUILT = '2026-10-26 16:39';
 /* =====================================================
    丰收农场 · 前后端共用配置与规则
    服务端是权威；客户端只用它来显示与插值。
@@ -653,7 +653,7 @@ var HF_BUILT = '2026-10-26 15:35';
   const fishLeft = (f, now) => Math.max(0, ((f.at || 0) + (FISH[f.t] ? FISH[f.t].time * 1000 : 0) - now) / 1000);
   // 鱼塘、牧场产出的物品：fs<n> 鱼，wl<n> 羊毛
   function ranchItem(item) { const hm = /^hm(\d+)$/.exec(item || ''); if (hm) { const d = CONTENT.HUNT.materials[+hm[1]]; return d ? { kind: 'hunt', id: d.id, name: d.name, price: d.price } : null; } const m = /^(fs|wl|fr)(\d+)$/.exec(item || ''); if (!m) return null; const d = ({ fs: FISH, wl: SHEEP, fr: TREES })[m[1]][+m[2]]; if (!d) return null; return m[1] === 'fs' ? { kind: 'fish', id: d.id, name: d.name, price: d.sell } : m[1] === 'wl' ? { kind: 'wool', id: d.id, name: d.woolName, price: d.sell } : { kind: 'fruit', id: d.id, name: d.fruit, price: d.sell }; }
-  const VERSION = '3.20.0'; // 每次发布改这里；设置页和 /api/health 会显示
+  const VERSION = '3.20.1'; // 每次发布改这里；设置页和 /api/health 会显示
   const ZONES = CONTENT.ZONES, ASSETS = CONTENT.ASSETS, HOME = CONTENT.HOME, BUILDINGS = CONTENT.BUILDINGS, BIOMES = CONTENT.BIOMES;
 
   /* ===== V0.3 家园布局与建造网格（3D 画面和服务器共用 content/home.jsonc） ===== */
@@ -2951,15 +2951,32 @@ const W3 = (() => {
         const pad = new T.Mesh(new T.PlaneGeometry(F.dx + 0.1, F.dz + 0.1), FIELD_SOIL || (FIELD_SOIL = mat('#7a5a3c', { p: { roughness: 1, map: TX.soil } }))); pad.rotation.x = -Math.PI / 2; pad.position.set(cx, 0.02, cz); pad.receiveShadow = true; g.add(pad);
         woodSign(g, cx - 7.6, cz + 5.3, Math.PI * 0.75, `第${f + 1}片田`); scene.add(g); fieldDeco.push(g); } }
   }
+  /* 未开垦地块：草皮一个实例化网格、草叶 + 小花一个实例化网格（草叶颜色烘进顶点色，和小花共用材质），每块地随机转个角度 */
+  const LOCKI = { patch: null, deco: null };
+  function lockInst() {
+    if (LOCKI.patch) return LOCKI; const N = 640, pg = BED_G.clone(); pg.scale(1, 0.22, 1);
+    const g = new T.Group(), tm = new T.MeshStandardMaterial({ color: new T.Color('#4f8a34') }), r = CFG3.rng(7);
+    for (let k = 0; k < 4; k++) { const tx = (r() - 0.5) * 1.5, tz = (r() - 0.5) * 1.5; for (let j = 0; j < 3; j++) addLeaf(g, leafGeo(0.22 + r() * 0.12, 0.035, 0.6, 0, 'blade'), tm, tx, 0.04, tz, r() * 6, 0.3 + r() * 0.4); }
+    g.updateMatrixWorld(true); const parts = [], lc = new T.Color('#4f8a34');
+    g.children.forEach(o => { const q = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()); q.applyMatrix4(o.matrixWorld); q.deleteAttribute('uv'); const c = q.attributes.color.array; for (let k = 0; k < c.length; k += 3) { c[k] *= lc.r; c[k + 1] *= lc.g; c[k + 2] *= lc.b; } parts.push(q); });
+    const fr = CFG3.rng(5), pal = ['#ffffff', '#ffd23a', '#ff8ab0', '#b98aff']; for (let k = 0; k < 4; k++) { const fg = new T.SphereGeometry(1, 8, 6); fg.scale(0.05, 0.03, 0.05); fg.translate((fr() - 0.5) * 1.4, 0.12, (fr() - 0.5) * 1.4); const c = new T.Color(pal[k]); const q = fg.toNonIndexed(); q.deleteAttribute('uv'); parts.push(colorize(q, () => [c.r, c.g, c.b])); }
+    LOCKI.patch = new T.InstancedMesh(pg, mat('#7fa856', { p: { roughness: 1, map: TX.grass } }), N); LOCKI.deco = new T.InstancedMesh(joinGeo(parts), mat('#ffffff', { vc: 1, ds: 1, p: { roughness: 0.8 } }), N);
+    [LOCKI.patch, LOCKI.deco].forEach(im => { im.count = 0; im.frustumCulled = false; im.castShadow = false; im.receiveShadow = true; scene.add(im); }); LOCKI.slot = new Map(); LOCKI.who = [];   /* 只画用到的：slot 地块 → 槽位，who 槽位 → 地块 */
+    return LOCKI;
+  }
+  const LK_M = new T.Matrix4(), LK_R = new T.Matrix4();
+  function lockSet(i, on) { const L = lockInst(); let k = L.slot.get(i);
+    if (on) { if (k === undefined) { if (L.who.length >= 640) return; k = L.who.length; L.who.push(i); L.slot.set(i, k); } const nd = plots[i].node; nd.updateWorldMatrix(true, false); LK_M.copy(nd.matrixWorld); L.patch.setMatrixAt(k, LK_M); LK_R.makeRotationY((i * 2.399) % 6.283); L.deco.setMatrixAt(k, LK_M.multiply(LK_R)); }
+    else { if (k === undefined) return; const last = L.who.length - 1, j = L.who[last]; if (k !== last) { L.patch.getMatrixAt(last, LK_M); L.patch.setMatrixAt(k, LK_M); L.deco.getMatrixAt(last, LK_M); L.deco.setMatrixAt(k, LK_M); L.who[k] = j; L.slot.set(j, k); } L.who.pop(); L.slot.delete(i); }
+    L.patch.count = L.deco.count = L.who.length; L.patch.instanceMatrix.needsUpdate = L.deco.instanceMatrix.needsUpdate = true; }
   function rebuildPlot(i, P, o) {
     const pl = plots[i], node = pl.node; node.children.slice().forEach(ch => { if (!ch.userData.idx && ch.userData.idx !== 0) { node.remove(ch); ch.traverse(o => { if (o.userData.own) { if (o.geometry) o.geometry.dispose(); } if (o.isSprite && o.material && o.material.map === sparkTex) o.material.dispose(); }); } }); /* 释放这块地上一次独有的几何体（荒地合并出来的草），来回串门不会越积越多 */ pl.crop = null; pl.badges = []; pl.sparks = []; pl.bug = null; pl.cropH = 0;
+    lockSet(i, !P.u);   /* 2026-10-26 性能：所有未开垦地块的草皮、草叶、小花共用两个实例化网格（以前每块 3 次绘制） */
     if (!P.u) {
-      const g = new T.Group(); const patch = mesh(BED_G, mat('#7fa856', { p: { roughness: 1, map: TX.grass } })); patch.scale.set(1, 0.22, 1); g.add(patch);
-      // 只有下一块可以开垦的荒地插木牌，其他荒地就是草地 + 野花，画面更干净
+      // 只有下一块可以开垦的荒地插木牌
+      const g = new T.Group();
       if (o.next) { const wm = mat('#8a6040', { p: { map: TX.wood } }); g.add(mesh(LOCK_G.post, wm, 0.42, 0.35, 0.42)); const b = mesh(LOCK_G.board, wm, 0.42, 0.78, 0.42); b.rotation.y = Math.PI / 4; g.add(b); const face = mesh(LOCK_G.face, LOCK_MAT || (LOCK_MAT = new T.MeshStandardMaterial({ map: lockTex(), roughness: 0.85 })), 0.42 + 0.024, 0.78, 0.42 + 0.024); face.rotation.y = Math.PI / 4; g.add(face); }
-      else { const fr = CFG3.rng(i * 13 + 5), pal = ['#ffffff', '#ffd23a', '#ff8ab0', '#b98aff']; const ps = []; for (let k = 0; k < 4; k++) { const fg = new T.SphereGeometry(1, 8, 6); fg.scale(0.05, 0.03, 0.05); fg.translate((fr() - 0.5) * 1.4, 0.12, (fr() - 0.5) * 1.4); const c = new T.Color(pal[Math.floor(fr() * 4)]); ps.push(colorize(fg.toNonIndexed(), () => [c.r, c.g, c.b])); } const fl = new T.Mesh(joinGeo(ps), mat('#ffffff', { vc: 1, p: { roughness: 0.6 } })); fl.castShadow = false; g.add(fl); }   /* 2026-10-26 性能：4 朵小花合成一次绘制 */
-      const tm = mat('#4f8a34', { vc: 1, ds: 1 }), r = CFG3.rng(i * 7); for (let k = 0; k < 4; k++) { const tx = (r() - 0.5) * 1.5, tz = (r() - 0.5) * 1.5; for (let j = 0; j < 3; j++) addLeaf(g, leafGeo(0.22 + r() * 0.12, 0.035, 0.6, 0, 'blade'), tm, tx, 0.04, tz, r() * 6, 0.3 + r() * 0.4); }
-      const mg = merge(g); mg.traverse(o => { if (o.isMesh) o.userData.own = 1; }); node.add(mg); return;
+      if (g.children.length) { const mg = merge(g); mg.traverse(o => { if (o.isMesh) o.userData.own = 1; }); node.add(mg); } return;
     }
     const sm = (soilMats[P.soil | 0] || soilMats[0])[P.pr && P.pr.d ? 'dry' : (P.wet ? 'wet' : 'n')];
     const bed = new T.Mesh(BED_G, sm); bed.receiveShadow = true; node.add(bed);
