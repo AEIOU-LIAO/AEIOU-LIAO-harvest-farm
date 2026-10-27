@@ -43,7 +43,7 @@ const Town = (() => {
     }
     const cam = new T.PerspectiveCamera(50, 1, 0.1, 600);
     /* ---------- 套件 ---------- */
-    let lib = null, kit = null, built = null, dead = false, layout = null, items = [], boxes = [];
+    let lib = null, kit = null, built = null, dead = false, layout = null, items = [], boxes = [], floors = [];
     const ready = (async () => {
       lib = new Assets3({ manifest: GAMECFG.ASSETS }); kit = new Kit3.Kit(lib, { tint: (S0 && S0.tint) || null, onMat: m => W3.snowify(m) });   /* 冬天和家园一样积雪（共用家园的积雪着色器和季节） */
       const [, L] = await Promise.all([kit.load('1k'), fetch(LAYOUT_URL).then(r => r.json()), EDIT ? fetch('art/v9_kit/names.json').then(r => r.json()).then(j => { PNAMES = j; }).catch(() => { }) : null]);
@@ -56,9 +56,12 @@ const Town = (() => {
       if (built) built.dispose(); built = kit[ed && ed.on ? 'build' : 'buildMerged'](list.concat(plants), {   /* 逛的时候用合并版（看不见的格子不画）；编辑时用实例版（能点选） */ noFlowers: W3.season === 'winter', noShadow: n => !/^kit_roof_(tile_slope|thatch_slope|pyramid|tile_hip)|^kit_canopy|^kit_porch_awning|^kit_plant_tree_(broad_a|broad_b|pine|willow)$|^kit_plant_bamboo$|^kit_stall_frame|^kit_column/.test(n),
         detail: n => /^kit_prop_|^kit_plant_(grass|bush|reed|lotus|bamboo)|^kit_fence|^kit_rail_red_post|^kit_banner|^kit_sign/.test(n) }   /* 只有屋顶、布棚、雨棚、近景树、竹子、摊位架和柱子投影（阴影要把投影的东西再画一遍，墙和小东西的影子基本被屋顶的影子盖住）；道具、花草、栅栏离镜头 40 米外不画 */); scene.add(built.group);
       /* 挡路的盒子：去掉地面、台阶这种扁的，和头顶上的屋顶；树只挡树干那一小块，草和灌木不挡 */
+      /* 能站上去的地面零件（石板路、方砖、台阶、台基、木地板、栈道、桥面）：人物踩在它们的顶面上，不再陷进石板里（2026-10-27 甲方反馈） */
+      floors = built.boxes.filter(b => /^kit_(path|floor|step|found|dock|bridge_deck|porch)/.test(b.p) && b.box.max.y - b.box.min.y <= 0.45 && b.box.min.y < 0.1).map(b => [b.box.min.x, b.box.min.z, b.box.max.x, b.box.max.z, b.box.max.y]);
       boxes = built.boxes.filter(b => !/^kit_plant_(grass|reed|lotus|bush)/.test(b.p) && b.box.max.y - b.box.min.y > 0.5 && b.box.min.y < 1.6).map(b => { if (/^kit_plant_(tree|bamboo)/.test(b.p)) { const c = b.box.getCenter(new T.Vector3()); return [c.x - 0.45, c.z - 0.45, c.x + 0.45, c.z + 0.45]; } return [b.box.min.x - 0.25, b.box.min.z - 0.25, b.box.max.x + 0.25, b.box.max.z + 0.25]; });
       findStalls(list); if (ed) ed.refresh();
     }
+    const floorAt = (x, z2) => { let y = 0; for (const f of floors) if (x >= f[0] && x <= f[2] && z2 >= f[1] && z2 <= f[3] && f[4] > y) y = f[4]; return y; };
     const blocked = (x, z2) => { if (Math.abs(x) > LIM || Math.abs(z2) > LIM) return true; for (const b of boxes) if (x > b[0] && x < b[2] && z2 > b[1] && z2 < b[3]) return true; return false; };
 
     /* ---------- 主人 ---------- */
@@ -97,7 +100,7 @@ const Town = (() => {
     const kd = e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || document.body.classList.contains('mopen')) return; const k = e.key.toLowerCase(); if (!(ed && ed.on) && (k === 'e' || k === 'f' || k === ' ' || k === 'enter')) { e.preventDefault(); if (!e.repeat) act(); return; } if (ed && ed.on) { if (ed.key(e, k)) e.preventDefault(); return; } if (KM[k] || k === 'shift') { e.preventDefault(); keys.add(k); keyIn(); } };
     const ku = e => { const k = e.key.toLowerCase(); if (keys.delete(k)) keyIn(); };
     document.addEventListener('keydown', kd, true); document.addEventListener('keyup', ku, true);
-    say('欢迎来到清河镇 · 广场上的摊位可以买卖作物', 2600);
+    say('欢迎来到清河镇 · 广场上有集市摊位，旁边有杂货铺、种子铺、订单处和收购站', 3200);
 
     /* ---------- 集市（2026-10-27）----------
        布局里每一个摊位架子（kit_stall_frame_2x2，不管是组合里的还是编辑器单独摆的）都是一个摊位：
@@ -108,7 +111,7 @@ const Town = (() => {
       const v = new T.Vector3(), q = new T.Quaternion(), sc = new T.Vector3(), f = new T.Vector3();
       MK.stalls = list.filter(it => it.p === 'kit_stall_frame_2x2').map(it => { it.m.decompose(v, q, sc); f.set(0, 0, 1).applyQuaternion(q); return { x: v.x, z: v.z, fx: f.x, fz: f.z, sx: v.x + f.x * 1.7, sz: v.z + f.z * 1.7 }; })
         .sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z) || a.x - b.x);
-      if (MK.data) paintSigns(); else refreshMarket();   /* 编辑器里改布局时不用重新拉集市 */
+      if (!MK.stalls.length) paintSpots(); else if (MK.data) paintSigns(); else refreshMarket();   /* 编辑器里改布局时不用重新拉集市 */
     }
     async function refreshMarket() {
       if (MK.loading || dead || !MK.stalls.length) return; MK.loading = true;
@@ -122,7 +125,7 @@ const Town = (() => {
       const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; return t;
     }
     function paintSigns() {
-      MK.signs.forEach(s => { scene.remove(s); s.material.map.dispose(); s.material.dispose(); }); MK.signs = [];
+      MK.signs.forEach(s => { scene.remove(s); s.material.map.dispose(); s.material.dispose(); }); MK.signs = []; paintSpots();
       const d = MK.data, others = d ? d.list.slice() : [], mine = d ? d.mine.filter(x => x.status === 'open') : [];
       MK.stalls.forEach((st, i) => {
         let lines, kind;
@@ -131,16 +134,27 @@ const Town = (() => {
         st.kind = kind; const sp = new T.Sprite(new T.SpriteMaterial({ map: signTex(lines, i === 0), depthWrite: false, transparent: true }));
         sp.scale.set(2.6, 0.81, 1); sp.position.set(st.x, 3.35, st.z); sp.renderOrder = 5; scene.add(sp); MK.signs.push(sp); });
     }
+    /* 店铺（2026-10-27）：布局里的 spots（门口的位置 + 朝向），站在门口打开对应的面板：杂货铺 → 商店、种子铺 → 选种子、订单处 → 订单、收购站 → 仓库（卖作物） */
+    const SPOT_ACT = { shop: ['进店', () => openShop()], seeds: ['选种子', () => openSeeds()], orders: ['看订单', () => openOrders()], warehouse: ['卖东西', () => openWarehouse()] };
+    const SPOTS = [];
+    function paintSpots() {
+      SPOTS.forEach(sp => { if (sp.sign) { scene.remove(sp.sign); sp.sign.material.map.dispose(); sp.sign.material.dispose(); } }); SPOTS.length = 0;
+      ((layout && layout.spots) || []).forEach(o => { const A = SPOT_ACT[o.type]; if (!A) return; const sp = Object.assign({}, o, { sx: o.x + o.fx * 1.6, sz: o.z + o.fz * 1.6, label: A[0], go: A[1] });
+        const t = signTex([o.name, A[0] + ' · 走到门口'], true), m = new T.Sprite(new T.SpriteMaterial({ map: t, depthWrite: false, transparent: true })); m.scale.set(2.2, 0.69, 1); m.position.set(o.x + o.fx * 1.25, 3.15, o.z + o.fz * 1.25); m.renderOrder = 5; scene.add(m); sp.sign = m; SPOTS.push(sp); });
+    }
     const actBtn = $u('[data-act]');
     function act() {
-      const st = MK.stalls[MK.near]; if (!st || typeof openMarket !== 'function') return; sfx('open'); MK.dirty = true;
+      const nb = nearest();
+      if (nb >= 100) { const sp = SPOTS[nb - 100]; if (sp) { sfx('open'); sp.go(); } return; }
+      const st = MK.stalls[nb]; if (!st || typeof openMarket !== 'function') return; sfx('open'); MK.dirty = true;
       if (st.kind && st.kind.sell) openMarket('sell'); else openMarket('buy', st.kind && st.kind.item || undefined);
     }
     actBtn.addEventListener('pointerdown', e => { e.preventDefault(); act(); });
+    /* 离人物最近的摊位 / 店门口（2.3 米内）：0~99 摊位，100 起是店铺 */
+    function nearest() { if (ed && ed.on) return -1; let best = -1, bd = 2.3; MK.stalls.forEach((st, i) => { const d = Math.hypot(hero.pos.x - st.sx, hero.pos.z - st.sz); if (d < bd) { bd = d; best = i; } }); SPOTS.forEach((sp, i) => { const d = Math.hypot(hero.pos.x - sp.sx, hero.pos.z - sp.sz); if (d < bd) { bd = d; best = 100 + i; } }); return best; }
     function marketTick() {
-      let best = -1, bd = 2.3; MK.stalls.forEach((st, i) => { const d = Math.hypot(hero.pos.x - st.sx, hero.pos.z - st.sz); if (d < bd) { bd = d; best = i; } });
-      if (ed && ed.on) best = -1;
-      if (best !== MK.near) { MK.near = best; actBtn.style.display = best >= 0 ? '' : 'none'; if (best >= 0) actBtn.querySelector('span').textContent = MK.stalls[best].kind && MK.stalls[best].kind.sell ? '我的摊位' : '看看'; }
+      const best = nearest();
+      if (best !== MK.near) { MK.near = best; actBtn.style.display = best >= 0 ? '' : 'none'; if (best >= 0) actBtn.querySelector('span').textContent = best >= 100 ? SPOTS[best - 100].label : MK.stalls[best].kind && MK.stalls[best].kind.sell ? '我的摊位' : '看看'; }
       if (MK.dirty && !document.body.classList.contains('mopen')) { MK.dirty = false; refreshMarket(); }
     }
 
@@ -214,11 +228,12 @@ const Town = (() => {
       /* 分小步走，低帧率也不会穿墙 */
       const fx = Math.sin(hero.face), fz = Math.cos(hero.face), steps = Math.max(1, Math.ceil(hero.spd * dt / 0.2)), st = hero.spd * dt / steps;
       for (let i = 0; i < steps; i++) { const nx = hero.pos.x + fx * st, nz = hero.pos.z + fz * st; if (!blocked(nx, nz)) { hero.pos.x = nx; hero.pos.z = nz; } else if (!blocked(nx, hero.pos.z)) hero.pos.x = nx; else if (!blocked(hero.pos.x, nz)) hero.pos.z = nz; }
+      const gy = floorAt(hero.pos.x, hero.pos.z); hero.pos.y += (gy - hero.pos.y) * Math.min(1, dt * 18); if (Math.abs(gy - hero.pos.y) < 0.002) hero.pos.y = gy;
       hero.g.position.copy(hero.pos); hero.g.rotation.y = hero.face;
       const moving = hero.spd > 0.3; hero.ph += dt * (hero.spd > 4.6 ? 11 : 7.5) * (moving ? 1 : 0);
       if (hero.rig) { const r = hero.rig; r.play(hero.spd > 2.2 ? 'run' : moving ? 'walk' : 'idle'); r.pace(hero.spd, 0.8); r.update(dt); if (r.faked) r.heroGait({ phase: hero.ph, amp: moving ? 0.55 * Math.min(1, hero.spd / 3) : 0, lean: moving ? 0.05 : 0 }); else r.liven(); }
       if (moving && drag.id === -1) { let d = hero.face + Math.PI - camYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); if (Math.abs(d) < 1.6) camYaw += d * Math.min(1, dt * 1.2); }
-      const cp = Math.cos(camPitch); tmp.set(hero.pos.x, 1.2, hero.pos.z); cam.position.set(tmp.x + Math.sin(camYaw) * cp * camDist, tmp.y + Math.sin(camPitch) * camDist, tmp.z + Math.cos(camYaw) * cp * camDist);
+      const cp = Math.cos(camPitch); tmp.set(hero.pos.x, hero.pos.y + 1.2, hero.pos.z); cam.position.set(tmp.x + Math.sin(camYaw) * cp * camDist, tmp.y + Math.sin(camPitch) * camDist, tmp.z + Math.cos(camYaw) * cp * camDist);
       if (cam.position.y < 0.8) cam.position.y = 0.8; cam.lookAt(tmp); sun.position.set(hero.pos.x + 40, 80, hero.pos.z + 30); sun.target.position.copy(hero.pos);
     }
     /* 昼夜：跟家园一样按「昼夜」设置 / 真实时间；夜里窗纸、灯笼亮 */
@@ -235,7 +250,7 @@ const Town = (() => {
       resize(w, h) { cam.aspect = w / h; cam.updateProjectionMatrix(); },
       dispose() { dead = true; document.removeEventListener('keydown', kd, true); document.removeEventListener('keyup', ku, true); canvas.removeEventListener('pointerdown', cvDown); canvas.removeEventListener('pointermove', cvMove); canvas.removeEventListener('pointerup', cvUp); canvas.removeEventListener('pointercancel', cvUp); canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('contextmenu', ctx);
         ui.remove(); document.body.classList.remove('hunting'); if (hero.rig && heroLib) Entity3.release(heroLib, hero.rig, true); if (built) built.dispose(); if (ed && ed.ghost) ed.ghost.dispose(); Zones.disposeTree(scene); },
-      market: () => ({ stalls: MK.stalls.map(st => [+st.sx.toFixed(1), +st.sz.toFixed(1), st.kind]), near: MK.near, signs: MK.signs.length, loaded: !!MK.data }), act, debug: () => ({ ready: !!built, items: items.length, tris: built ? built.tris : 0, miss: built ? built.miss : [], boxes: boxes.length, hero: [+hero.pos.x.toFixed(2), +hero.pos.z.toFixed(2)], edit: !!(ed && ed.on), sel: ed ? ed.sel : -1, blockedAt: (x, z2) => blocked(x, z2) }),
+      market: () => ({ stalls: MK.stalls.map(st => [+st.sx.toFixed(1), +st.sz.toFixed(1), st.kind]), spots: SPOTS.map(sp => [sp.type, +sp.sx.toFixed(1), +sp.sz.toFixed(1)]), near: MK.near, signs: MK.signs.length, loaded: !!MK.data }), act, debug: () => ({ ready: !!built, items: items.length, tris: built ? built.tris : 0, miss: built ? built.miss : [], boxes: boxes.length, hero: [+hero.pos.x.toFixed(2), +hero.pos.z.toFixed(2), +hero.pos.y.toFixed(3)], floors: floors.length, floorAt: (x, z2) => floorAt(x, z2), edit: !!(ed && ed.on), sel: ed ? ed.sel : -1, blockedAt: (x, z2) => blocked(x, z2) }),
       tp(x, z2, face) { hero.pos.set(x, 0, z2); if (face !== undefined) { hero.face = face; camYaw = face + Math.PI; } }, setInput(o) { Object.assign(input, o); },
       editor: ed, ready,
     };

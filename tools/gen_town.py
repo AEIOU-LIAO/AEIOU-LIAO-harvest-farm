@@ -78,8 +78,14 @@ for x in (-39, -31, -23, -15, 15, 23, 31, 39):
         trees.append([x + round(R.uniform(-1.5, 1.5), 1), z + round(R.uniform(-1.0, 1.0), 1), round(0.8 + R.random() * 0.5, 2)])
 for x, z in ((-11.5, -6), (11.5, 6), (-11.5, 6), (11.5, -6)):
     trees.append([x, z, 0.8])
+# 店铺：广场两边最近的四栋房子当店铺（站在门口打开对应的面板）。门在房子自己坐标的 (-1, 2)，正面朝 +Z
+def door(x, z, r):
+    return (x - 1, z + 2, 0, 1) if r == 0 else (x + 1, z - 2, 0, -1)
+spots = []
+for (hx, hz, hr), typ, name in (((19, -9.5, 0), 'shop', '杂货铺'), ((-19, -9.5, 0), 'seeds', '种子铺'), ((19, 9.5, 180), 'orders', '订单处'), ((-19, 9.5, 180), 'warehouse', '收购站')):
+    dx, dz, fx, fz = door(hx, hz, hr); spots.append({'type': typ, 'name': name, 'x': dx, 'z': dz, 'fx': fx, 'fz': fz})
 out = {'name': '清河镇', 'version': 1, 'spawn': [-45, 0, round(math.pi / 2, 4)],
-       'assemblies': kinds + ['market_stall', 'square_pavilion_with_red_rail', 'fence_gate', 'dock_and_arch_bridge'], 'items': items, 'trees': trees,
+       'assemblies': kinds + ['market_stall', 'square_pavilion_with_red_rail', 'fence_gate', 'dock_and_arch_bridge'], 'items': items, 'trees': trees, 'spots': spots,
        'note': '由 tools/gen_town.py 生成；之后用游戏里的场景编辑器（网址加 ?edit=1）修改，导出的 JSON 覆盖本文件'}
 p = os.path.join(os.path.dirname(__file__), '..', 'art', 'town', 'qinghe.json'); os.makedirs(os.path.dirname(p), exist_ok=True)
 json.dump(out, open(p, 'w'), ensure_ascii=False, indent=0)
