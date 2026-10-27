@@ -273,7 +273,7 @@ function harvestFx(x) {
   if (x.season2) setTimeout(() => FX.text(i, '进入第二季', '#c4f09a', 16, 2), 400);
   if (x.bonus) setTimeout(() => { FX.coins(i, 10); FX.stars(i, 16); FX.text(i, `大丰收！额外 +${x.bonus}`, '#ffb84a', 22, 2); sfx('golden'); }, 650);
 }
-async function doHarvest(i) { const r = await api('/api/farm/harvest', { idx: i }); if (!r) return; sfx('harvest'); harvestFx(r.result); }
+async function doHarvest(i) { const r = await api('/api/farm/harvest', { idx: i }); if (!r) return; sfx('harvest'); harvestFx(r.result); W3.heroFace('face_smile'); }
 function careFx(i, k, own, x) {
   if (k === 'd') { FX.drops(i); sfx('water'); } else if (k === 'w') { FX.leaves(i); sfx('weed'); } else { FX.puff(i); FX.stars(i, 6); sfx('bug'); }
   const helpTx = x && x.tired ? '帮忙成功（今日奖励已领满）' : `帮忙 +${x && x.exp !== undefined ? x.exp : RULES.helpExp}经验 +${x && x.gold !== undefined ? x.gold : RULES.helpGold}金币`;
@@ -296,7 +296,7 @@ async function doExpand(i) { const r = await api('/api/farm/expand', i >= 0 ? { 
 // 批量操作的特效：只给当前看着的那片田播放，最多 24 块、总时长不超过 1.6 秒（几百块地一起操作时不卡）
 function stagger(list, fn, gap) { const f = W3.field || 0, vis = list.filter(x => x.idx === undefined || Math.floor(x.idx / CFG.NPLOTS) === f), pick = (vis.length ? vis : list).slice(0, 24), g = Math.min(gap || 70, 1600 / Math.max(1, pick.length));
   pick.forEach((x, k) => setTimeout(() => fn(x), k * g)); if (list.length > pick.length) setTimeout(() => toast(`共 ${list.length} 块地完成`), 300); }
-async function allHarvest() { if (view.key !== 'home') return; const r = await api('/api/farm/harvest-all', null, { lvDelay: 900 }); if (!r) return; sfx('harvest'); stagger(r.result.filter(x => !x.err), harvestFx); }
+async function allHarvest() { if (view.key !== 'home') return; const r = await api('/api/farm/harvest-all', null, { lvDelay: 900 }); if (!r) return; sfx('harvest'); stagger(r.result.filter(x => !x.err), harvestFx); W3.heroFace('face_smile'); }
 async function allCare() { if (view.key !== 'home') return; const r = await api('/api/farm/care-all'); if (!r) return; stagger(r.result.filter(x => !x.err), x => careFx(x.idx, x.kind, true), 90); }
 async function allFert() {
   if (view.key !== 'home') return; if (!(S.inv.fert > 0)) { toast('没有化肥了，去商店买一些吧', 'warn'); openShop('item'); return; }

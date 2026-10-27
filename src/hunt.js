@@ -142,10 +142,10 @@ const Hunt = (() => {
       if (b.c.flee) { b.state = 'flee'; b.t = 3.5; } else { b.state = 'chase'; b.t = 8; }
       say(`打中了${b.c.name}（还要 ${Math.ceil(b.hp / w.dmg)} 下）`, 1200);
     }
-    function hurtHero(b) { if (hero.inv > 0 || ended) return; hero.hp -= b.c.dmg; hero.inv = 1.4; const d = hero.pos.clone().sub(b.g.position).setY(0).normalize(); hero.kb.copy(d).multiplyScalar(7); sfx('err'); flash();
+    function hurtHero(b) { if (hero.inv > 0 || ended) return; if (hero.rig) hero.rig.face('face_frown'); hero.hp -= b.c.dmg; hero.inv = 1.4; const d = hero.pos.clone().sub(b.g.position).setY(0).normalize(); hero.kb.copy(d).multiplyScalar(7); sfx('err'); flash();
       say(`被${b.c.name}撞到了！体力 -${b.c.dmg}`); try { navigator.vibrate && navigator.vibrate(60); } catch (e) { } if (hero.hp <= 0) { faint = true; say('体力不支……猎户把你送下了山', 3000); setTimeout(finish, 1200); } }
     function flash() { const f = document.createElement('div'); f.className = 'hu-flash'; document.body.appendChild(f); setTimeout(() => f.remove(), 450); }
-    function capture(b) { b.gone = true; caught.push(b.s.i); scene.remove(b.g); sfx('harvest'); say(`捕获了${b.c.name}！`, 1600); }
+    function capture(b) { if (hero.rig) hero.rig.face('face_smile'); b.gone = true; caught.push(b.s.i); scene.remove(b.g); sfx('harvest'); say(`捕获了${b.c.name}！`, 1600); }
     async function finish() {
       if (ended) return; ended = true; input.x = input.z = 0;
       const r = await api('/api/hunt/end', { sid: S0.sid, caught, faint }, { free: true }).catch(() => null);
@@ -176,7 +176,7 @@ const Hunt = (() => {
       if (c.flee && dh < c.flee * (hero.spd > 3.5 ? 1 : 0.55) && b.state !== 'flee') { b.state = 'flee'; b.t = 3 + Math.random() * 2; b.spT = 0; } /* 慢慢走过去（不跑）不容易惊动 */
       /* 鹿：主人慢慢靠近到警觉范围，先停下来抬头张望（alert，2.4 秒），这时候再靠近就跑；离开了就接着吃草 */
       b.alertCD = Math.max(0, (b.alertCD || 0) - dt);
-      if (c.flee && b.state === 'wander' && dh < c.flee * 1.5 && !b.alertCD && special(b, 'alert', 2.4)) { b.state = 'alert'; b.t = 2.4; b.alertCD = 9; b.tgt = null; }
+      if (c.flee && b.state === 'wander' && dh < c.flee * 1.5 && !b.alertCD && special(b, 'alert', 2.4)) { if (hero.rig) hero.rig.face('face_brow_raise'); b.state = 'alert'; b.t = 2.4; b.alertCD = 9; b.tgt = null; }
       if (b.state === 'alert') { b.v = 0; const want = Math.atan2(-(hero.pos.z - p.z), hero.pos.x - p.x); let da = want - b.g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); b.g.rotation.y += da * Math.min(1, dt * 3); if (b.t <= 0) b.state = 'wander'; }
       /* 狼扑、熊拍：快撞到主人之前先起动作（单次 1.2 秒），撞到的时候正好扑 / 拍下来 */
       if (b.state === 'chase' && b.cool <= 0 && !(b.spT > 0) && dh < 1.4 * c.size + 2.2) special(b, c.id === 'wolf' ? 'pounce' : c.id === 'bear' ? 'swipe' : '', 1.2);

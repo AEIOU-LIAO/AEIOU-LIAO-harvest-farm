@@ -170,8 +170,8 @@ const Lake = (() => {
     document.addEventListener('keydown', kd, true); document.addEventListener('keyup', ku, true);
     $u('[data-lend]').onclick = () => finish();
 
-    function fail(t) { used++; say(t, 1800); sfx('click'); toIdle(); }
-    function landFish() {
+    function fail(t) { used++; say(t, 1800); sfx('click'); toIdle(); if (rig) rig.face('face_frown'); }
+    function landFish() { if (rig) rig.face('face_smile');
       caught.push(cur.i); used++; state = 'show'; st = 0; $u('.lk-tension').classList.remove('on'); $u('.lk-prog').classList.remove('on'); setBtn('…', 'wait'); sfx('coin'); if (navigator.vibrate) navigator.vibrate([40, 40, 80]);
       const best = (S0.best || {})[cur.f], rec = !best || cur.cm > best; if (rec) { S0.best = S0.best || {}; S0.best[cur.f] = cur.cm; }
       card.innerHTML = `<i style="background:${FISHC(cur.f)}"></i><b>${esc(FISHN(cur.f))}</b><span>${cur.cm} 厘米${cur.big ? ' · 大鱼！多一条' : ''}</span>${rec ? '<em>新纪录</em>' : ''}`; card.classList.add('on');
