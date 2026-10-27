@@ -675,19 +675,21 @@ function updateTip() {
 /* ============ 启动 ============ */
 /* V0.2 新角色模型（测试开关）：设置里打开，或网址带 ?v3=1。加载失败时保持原来的角色 */
 const HERO_DEFAULT = 'h2_heroine_01';   /* 2026-10-26 甲方：没选过角色的默认女主角 1 号 */
+/* 当前角色：设置里选的角色还在资源清单里就用它，否则（比如 2026-10-27 下架的男主角）用默认女主角 1 号 */
+const heroId = () => (PREF.v3hero && CFG.ASSETS.some(a => a.id === PREF.v3hero && a.kind === 'hero') ? PREF.v3hero : HERO_DEFAULT);
 async function applyNewChar(loud) {
-  const on = true, hid = PREF.v3hero || HERO_DEFAULT;   /* 2026-10-26：新角色固定开启，原始小人不再使用 */
+  const on = true, hid = heroId();   /* 2026-10-26：新角色固定开启，原始小人不再使用 */
   if (!W3.ready) { setTimeout(() => applyNewChar(loud), 500); return; }
   const info = W3.ncInfo(); if (W3.newChar && info.heroId === hid && !loud) return; if (applyNewChar.busy && !loud) return; applyNewChar.busy = true;
   if (loud && on) toast('正在加载新角色…');
-  try { const ok = await W3.setNewChar(on, hid); applyNewChar.tries = 0; if (loud && ok) toast(`已换上：${(CFG.ASSETS.find(a => a.id === hid) || { name: '男主角' }).name}`); }
+  try { const ok = await W3.setNewChar(on, hid); applyNewChar.tries = 0; if (loud && ok) toast(`已换上：${(CFG.ASSETS.find(a => a.id === hid) || { name: '新角色' }).name}`); }
   catch (e) { console.warn('角色模型加载失败', e); if (loud) toast('角色模型加载失败，正在重试…', 'warn'); const n = applyNewChar.tries = (applyNewChar.tries || 0) + 1; setTimeout(() => applyNewChar(false), Math.min(30000, 3000 * n)); /* 网络不好时自动重试 */ }
-  finally { applyNewChar.busy = false; const want = PREF.v3hero || HERO_DEFAULT; if (W3.ncInfo().hero && W3.ncInfo().heroId !== want) setTimeout(() => applyNewChar(false), 0); /* 加载期间存档到了、选的是别的角色：接着换 */ }
+  finally { applyNewChar.busy = false; const want = heroId(); if (W3.ncInfo().hero && W3.ncInfo().heroId !== want) setTimeout(() => applyNewChar(false), 0); /* 加载期间存档到了、选的是别的角色：接着换 */ }
 }
-/* 选择自己的角色（男主角 / 14 位女主角），选了就自动打开「新角色模型」 */
+/* 选择自己的角色（10 位男生 / 14 位女主角；男主角 2026-10-27 下架），选了就自动打开「新角色模型」 */
 function openCharPick() {
-  const list = CFG.ASSETS.filter(a => a.kind === 'hero' && a.thumb), cur = PREF.v3hero || HERO_DEFAULT;
-  openModal(`${H2('user', '选择角色', `共 ${list.length} 位：男主角、${list.filter(a => /^hero_male_/.test(a.id)).length} 位男生、${list.filter(a => /^h2_heroine_/.test(a.id)).length} 位女生，都有走、跑、跳`)}<div class="charpick">${list.map(a => `<button class="cpick${a.id === cur ? ' on' : ''}" data-hid="${a.id}" title="${esc(a.desc || a.name)}"><img src="${a.thumb}" alt="" loading="lazy"><b>${esc(a.name)}</b></button>`).join('')}</div>`, {
+  const list = CFG.ASSETS.filter(a => a.kind === 'hero' && a.thumb), cur = heroId();
+  openModal(`${H2('user', '选择角色', `共 ${list.length} 位：${list.filter(a => /^hero_male_/.test(a.id)).length} 位男生、${list.filter(a => /^h2_heroine_/.test(a.id)).length} 位女生，都有走、跑、跳`)}<div class="charpick">${list.map(a => `<button class="cpick${a.id === cur ? ' on' : ''}" data-hid="${a.id}" title="${esc(a.desc || a.name)}"><img src="${a.thumb}" alt="" loading="lazy"><b>${esc(a.name)}</b></button>`).join('')}</div>`, {
     wide: true, mount: () => qsa('[data-hid]').forEach(b => b.onclick = async () => { sfx('click'); closeModal(true); await savePref({ v3hero: b.dataset.hid, v3char: true }); applyNewChar(true); })
   });
 }

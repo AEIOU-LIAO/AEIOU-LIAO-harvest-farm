@@ -1315,7 +1315,7 @@ const W3 = (() => {
     const was = HERO.g; HERO.g = buildHero(look); HERO.g.visible = true; if (was) { scene.remove(was); } scene.add(HERO.g); ncAttachHero();
   }
   /* ---------- 新角色：美术骨骼模型（lib/entity3.js）----------
-     设置里打开「新角色模型」后，主人（男主角或 14 位女主角之一）、福旺、睿宝换成美术模型；位置、朝向、碰撞、点击仍由原来的逻辑控制，只换外观和动作。
+     设置里打开「新角色模型」后，主人（14 位女主角或 10 位男生之一）、福旺、睿宝换成美术模型；位置、朝向、碰撞、点击仍由原来的逻辑控制，只换外观和动作。
      v4 起美术交了走 / 跑 / 跳和狗的坐 / 趴 / 睡 / 小跑 / 奔跑，按实测步幅调动作快慢；还缺的动作（女主角的跑和跳）按回退表顶上。关掉恢复代码拼的模型。 */
   let W3_READY_AT = 0; const NC = { on: false, lib: null, hero: null, heroId: '', dogs: {}, busy: null }, NC_DOGS = { fuwang: 'v4_dog_fuwang', ruibao: 'v4_dog_ruibao' };
   const NC_SCALE = { hero: 0.8, dog: 1.1 }; /* 原模型是 Q 版比例（人 1.25 m、狗 1.1 m）；新模型人 1.6 m、狗 0.78 m。人缩到和原来一样高，狗放大一点，免得在镜头里太小 */

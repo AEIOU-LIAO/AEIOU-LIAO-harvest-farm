@@ -57,18 +57,18 @@ const BEASTS = [['deer', '鹿', 'beast', null, 'v4w_deer'], ['boar', '野猪', '
 const CLIP_NAME = { idle: '待机', walk: '走路', run: '跑步', jump_air: '跳（空中）', sit_idle: '坐', lie_idle: '趴', sleep: '睡觉', trot: '小跑', gallop: '奔跑', sprint: '冲刺' };
 const VERS = {
   v4: { label: 'V6 动作', base: 'art/v6_motion/', rig: true, tiers: true, clips: true,
-    roster: [['hero_boy', '男主角', 'hero', 'hero_boy', 'v4_hero_boy'], ['dog_fuwang', '福旺', 'dog', 'dog_fuwang', 'v4_dog_fuwang'], ['dog_ruibao', '睿宝', 'dog', 'dog_ruibao', 'v4_dog_ruibao']].concat(MALES, HEROINES, BEASTS),
-    accBy: Object.assign({ hero_boy: [['bag', '挎包'], ['scarf', '围巾']], dog_fuwang: [['harness', '胸背带']], dog_ruibao: [['collar', '项圈'], ['tag', '吊牌']], heroine: [['bag', '提包'], ['hair', '头发']] }, Object.fromEntries(MALES.concat(BEASTS).map(r => [r[0], []]))),
+    roster: [['dog_fuwang', '福旺', 'dog', 'dog_fuwang', 'v4_dog_fuwang'], ['dog_ruibao', '睿宝', 'dog', 'dog_ruibao', 'v4_dog_ruibao']].concat(MALES, HEROINES, BEASTS),
+    accBy: Object.assign({ dog_fuwang: [['harness', '胸背带']], dog_ruibao: [['collar', '项圈'], ['tag', '吊牌']], heroine: [['bag', '提包'], ['hair', '头发']] }, Object.fromEntries(MALES.concat(BEASTS).map(r => [r[0], []]))),
     note: 'V6（2026-10-26）：男主角和 14 位女主角换成美术的自然跑步（扭腰、摆臂、腾空）；新增 10 位男生；名山猎场的鹿、野猪、狼、熊（第一批：待机 / 走 / 跑）。「边走边移动」按实测步幅移动，脚不打滑。' },
   v3: { label: 'V3 绑定+待机', base: 'art/v3_rig_idle/', rig: true, tiers: true,
-    roster: [['hero_boy', '男主角', 'hero', 'hero_boy'], ['dog_fuwang', '福旺', 'dog', 'dog_fuwang']],
+    roster: [['dog_fuwang', '福旺', 'dog', 'dog_fuwang']],
     acc: { hero: [['bag', '挎包'], ['scarf', '围巾']], dog: [['harness', '胸背带']] },
     note: 'V3：有骨骼和<b>待机</b>动作。「走路」是程序临时摆腿（美术还没交 walk）。可以在游戏「设置 → 新角色模型（测试）」里打开看实际效果。' },
   v2: { label: 'V2 外观', base: 'art/v2_static_review/', still: true,
-    roster: [['hero_boy', '男主角', 'hero', 'hero_boy'], ['hero_girl', '女主角', 'hero', 'hero_girl'], ['dog_fuwang', '福旺', 'dog', 'dog_fuwang'], ['dog_ruibao', '睿宝', 'dog', 'dog_ruibao']],
+    roster: [['hero_girl', '女主角', 'hero', 'hero_girl'], ['dog_fuwang', '福旺', 'dog', 'dog_fuwang'], ['dog_ruibao', '睿宝', 'dog', 'dog_ruibao']],
     note: 'V2 外观候选（Tripo 3D）：<b>只看外观</b>，还没有骨骼和动作，也还没有放进游戏。' },
   v1: { label: 'V1 灰盒', base: 'art/v1_test/', still: false,
-    roster: [['hero_boy', '男主角', 'hero', 'hero_boy'], ['hero_girl', '女主角', 'hero', 'hero_girl'], ['dog_collie', '边牧', 'dog', 'dog_fuwang']],
+    roster: [['hero_girl', '女主角', 'hero', 'hero_girl'], ['dog_collie', '边牧', 'dog', 'dog_fuwang']],
     note: 'V1「技术灰盒测试包」：只用来测试导入流程和手机性能，<b>不是最终外观</b>。' },
 };
 const COATS = [['fuwang', '福旺', '#8c96a4'], ['ruibao', '睿宝', '#e3a64a'], ['black', '黑白', '#222'], ['red', '巧克力红白', '#7a3a1e'], ['redmerle', '红陨石', '#c47a5a'], ['tri', '三色', '#3a2a20'], ['lilac', '丁香紫', '#a898a0'], ['slate', '石板蓝', '#5a6270'], ['merle', '蓝陌', '#9aa4b4'], ['gold', '黄白', '#e8b860']];

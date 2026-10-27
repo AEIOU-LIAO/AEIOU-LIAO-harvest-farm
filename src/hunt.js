@@ -1,7 +1,7 @@
 /* =====================================================
    第 2 期 · 名山猎场（温和狩猎）
    - 进山前：世界地图「名山猎场」→ 猎场面板（今天还能进几次山、武器、山里有什么野兽）→ 进山（服务器给种子）
-   - 山里：程序生成的大山（种子 + 生物群系，和服务器算的一样）；主人是美术 V3 男主角（加载失败时用简单模型）
+   - 山里：程序生成的大山（种子 + 生物群系，和服务器算的一样）；主人是设置里选的角色（默认女主角 1 号；加载失败时用简单模型）
      左下摇杆 / WASD 走，Shift 或推满摇杆跑；右下「发射」自动瞄准射程内最近的野兽；把野兽打晕后走到旁边自动捕获
      梅花鹿见人就跑；野猪被打中会冲过来；灰狼、黑熊看见人会扑过来，被撞到掉体力；体力掉光被猎户送回家，收获减半
      带着吃饱的福旺进山：福旺会闻出最近的野兽在哪个方向，下山时金币多 20%
@@ -76,7 +76,7 @@ const Hunt = (() => {
     { const cap = new T.Mesh(new T.CapsuleGeometry(0.3, 0.8, 4, 10), new T.MeshStandardMaterial({ color: new T.Color('#4a8fd8').convertSRGBToLinear(), roughness: 0.7 })); cap.position.y = 0.7; cap.castShadow = true; cap.visible = false; /* 2026-10-26：不显示占位的胶囊，角色模型加载好再出现（加载失败才显示） */ hero.g.add(cap); hero.cap = cap; }
     const ring = new T.Mesh(new T.RingGeometry(0.42, 0.52, 28), new T.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.6, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; hero.g.add(ring); scene.add(hero.g);
     let lib = null, dead = false;
-    (async () => { try { lib = new Assets3({ manifest: GAMECFG.ASSETS }); const rig = await Entity3.spawn(lib, PREF.v3hero || HERO_DEFAULT, 'hero', { tier: '1k' }); if (dead) { Entity3.release(lib, rig, true); return; } rig.object.scale.setScalar(0.8); rig.play('idle', 0); hero.g.add(rig.object); hero.rig = rig; hero.g.remove(hero.cap); } catch (e) { console.warn('猎场主人模型加载失败，用简单模型', e); hero.cap.visible = true; } })();
+    (async () => { try { lib = new Assets3({ manifest: GAMECFG.ASSETS }); const rig = await Entity3.spawn(lib, heroId(), 'hero', { tier: '1k' }); if (dead) { Entity3.release(lib, rig, true); return; } rig.object.scale.setScalar(0.8); rig.play('idle', 0); hero.g.add(rig.object); hero.rig = rig; hero.g.remove(hero.cap); } catch (e) { console.warn('猎场主人模型加载失败，用简单模型', e); hero.cap.visible = true; } })();
     /* 野兽 */
     const cmat = CMAT(), beasts = S0.list.map(s => { const b = makeCreature(s, cmat); b.g.position.set(s.x, groundAt(s.x, s.z), s.z); b.g.rotation.y = Math.random() * 6.28; scene.add(b.g); return b; });
     /* 2026-10-26 美术 v4_wildlife 第一批：鹿、野猪、狼、熊的骨骼模型（idle / walk / run）。占位模型先顶着，加载好就换掉；

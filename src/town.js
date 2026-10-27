@@ -68,7 +68,7 @@ const Town = (() => {
     const hero = { pos: new T.Vector3(-34, 0, 0), face: Math.PI / 2, spd: 0, ph: 0, g: new T.Group(), rig: null };
     const ring = new T.Mesh(new T.RingGeometry(0.42, 0.52, 28), new T.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.6, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; hero.g.add(ring); scene.add(hero.g);
     let heroLib = null;
-    (async () => { try { await ready; heroLib = lib; const rig = await Entity3.spawn(lib, PREF.v3hero || HERO_DEFAULT, 'hero', { tier: '1k' }); if (dead) { Entity3.release(lib, rig, true); return; } rig.object.scale.setScalar(0.8); rig.play('idle', 0); hero.g.add(rig.object); hero.rig = rig; } catch (e) { console.warn('镇上主人模型加载失败', e); } })();
+    (async () => { try { await ready; heroLib = lib; const rig = await Entity3.spawn(lib, heroId(), 'hero', { tier: '1k' }); if (dead) { Entity3.release(lib, rig, true); return; } rig.object.scale.setScalar(0.8); rig.play('idle', 0); hero.g.add(rig.object); hero.rig = rig; } catch (e) { console.warn('镇上主人模型加载失败', e); } })();
     let camYaw = -Math.PI / 2, camPitch = 0.42, camDist = 9;
     const input = { x: 0, z: 0, run: false }, keys = new Set(), tmp = new T.Vector3();
 
