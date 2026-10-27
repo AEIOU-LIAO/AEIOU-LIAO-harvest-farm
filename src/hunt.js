@@ -162,22 +162,33 @@ const Hunt = (() => {
     const tmp = new T.Vector3();
     function nearestAwake() { let best = null, bd = 1e9; beasts.forEach(b => { if (b.gone || b.state === 'sleep') return; const d = b.g.position.distanceTo(hero.pos); if (d < bd) { bd = d; best = b; } }); return best ? { b: best, d: bd } : null; }
     function moveTo(b, tx, tz, v, dt) { const p = b.g.position, dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz); if (d < 0.2) { b.v = 0; return d; } const st = Math.min(d, v * dt), nx = p.x + dx / d * st, nz = p.z + dz / d * st; if (!TR.walkable(nx, nz)) { b.tgt = null; b.v = 0; return 0; } p.x = nx; p.z = nz; b.v = v; const want = Math.atan2(-dz, dx); let da = want - b.g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); b.g.rotation.y += da * Math.min(1, dt * 8); return d; }
+    /* 专属单次动作（美术 v4_wildlife_v2）：有这个动作才播，返回是否播了 */
+    function special(b, name, dur) { if (!name || !b.rig || !b.rig.inst.has(name)) return false; b.rig.state = null; b.rig.play(name, 0.15); const a = b.rig.inst.actions[name]; if (a) a.timeScale = 1; b.spT = dur; return true; }
     function updateBeast(b, dt, t) {
       const p = b.g.position, c = b.c, dh = Math.hypot(hero.pos.x - p.x, hero.pos.z - p.z);
       if (dh > 90 && b.state !== 'chase') { b.g.visible = false; return; } b.g.visible = true;
-      if (b.state === 'sleep') { b.sleepT -= dt; b.g.rotation.x = Math.min(1.45, b.g.rotation.x + dt * 4); b.legs.forEach(l => { l.rotation.z = 0; }); if (b.zzz) b.zzz.position.y = 1.5 + Math.sin(t * 2) * 0.12; if (b.rig) { b.rig.play('sleep'); b.rig.pace(0, 1); b.rig.update(dt * 0.4); } /* 美术还没交 sleep：回退 idle、放慢，侧躺由上面的整体旋转做 */
+      if (b.state === 'sleep') { b.sleepT -= dt; b.legs.forEach(l => { l.rotation.z = 0; }); if (b.zzz) b.zzz.position.y = 1.5 + Math.sin(t * 2) * 0.12;
+        /* 2026-10-27 美术 v4_wildlife_v2 交了侧躺呼吸的 sleep（自带侧躺、收腿、闭眼）：直接播，不再整只侧翻；没有骨骼模型（加载失败的占位）才用旧的整体侧翻 */
+        if (b.rig && b.rig.inst.has('sleep')) { b.spT = 0; b.rig.play('sleep', 0.3); b.rig.pace(0, 1); b.rig.update(dt); } else { b.g.rotation.x = Math.min(1.45, b.g.rotation.x + dt * 4); if (b.rig) { b.rig.play('sleep'); b.rig.update(dt * 0.4); } }
         if (dh < H.captureDist) capture(b); else if (b.sleepT <= 0) { b.state = 'flee'; b.t = 4; b.hp = Math.ceil(c.hp / 2); b.g.rotation.x = 0; b.g.remove(b.zzz); b.zzz = null; say(`${c.name}醒了，跑掉了！`); } p.y = groundAt(p.x, p.z); return; }
       b.cool = Math.max(0, b.cool - dt); b.t -= dt;
       if (c.aggro && dh < c.aggro && b.state !== 'flee') { b.state = 'chase'; b.t = Math.max(b.t, 2); }
-      if (c.flee && dh < c.flee * (hero.spd > 3.5 ? 1 : 0.55) && b.state !== 'flee') { b.state = 'flee'; b.t = 3 + Math.random() * 2; } /* 慢慢走过去（不跑）不容易惊动 */
+      if (c.flee && dh < c.flee * (hero.spd > 3.5 ? 1 : 0.55) && b.state !== 'flee') { b.state = 'flee'; b.t = 3 + Math.random() * 2; b.spT = 0; } /* 慢慢走过去（不跑）不容易惊动 */
+      /* 鹿：主人慢慢靠近到警觉范围，先停下来抬头张望（alert，2.4 秒），这时候再靠近就跑；离开了就接着吃草 */
+      b.alertCD = Math.max(0, (b.alertCD || 0) - dt);
+      if (c.flee && b.state === 'wander' && dh < c.flee * 1.5 && !b.alertCD && special(b, 'alert', 2.4)) { b.state = 'alert'; b.t = 2.4; b.alertCD = 9; b.tgt = null; }
+      if (b.state === 'alert') { b.v = 0; const want = Math.atan2(-(hero.pos.z - p.z), hero.pos.x - p.x); let da = want - b.g.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); b.g.rotation.y += da * Math.min(1, dt * 3); if (b.t <= 0) b.state = 'wander'; }
+      /* 狼扑、熊拍：快撞到主人之前先起动作（单次 1.2 秒），撞到的时候正好扑 / 拍下来 */
+      if (b.state === 'chase' && b.cool <= 0 && !(b.spT > 0) && dh < 1.4 * c.size + 2.2) special(b, c.id === 'wolf' ? 'pounce' : c.id === 'bear' ? 'swipe' : '', 1.2);
       if (b.state === 'chase') { if (dh > 32 || b.t <= 0) { b.state = 'wander'; b.tgt = null; } else { moveTo(b, hero.pos.x, hero.pos.z, c.speed, dt); if (dh < 1.4 * c.size + 0.4 && b.cool <= 0) { hurtHero(b); b.cool = 1.6; b.state = 'back'; b.t = 1.2; } } }
       else if (b.state === 'back') { const a = Math.atan2(p.z - hero.pos.z, p.x - hero.pos.x); moveTo(b, p.x + Math.cos(a) * 3, p.z + Math.sin(a) * 3, c.speed * 0.6, dt); if (b.t <= 0) b.state = c.aggro || c.charge ? 'chase' : 'wander'; }
       else if (b.state === 'flee') { const a = Math.atan2(p.z - hero.pos.z, p.x - hero.pos.x) + Math.sin(t + b.ph) * 0.4; if (!moveTo(b, p.x + Math.cos(a) * 5, p.z + Math.sin(a) * 5, c.speed, dt)) b.g.rotation.y += dt * 3; if (b.t <= 0) { b.state = 'wander'; b.tgt = null; } }
+      else if (b.state === 'alert') { }
       else { if (!b.tgt) { b.t = Math.min(b.t, 0); if (b.t <= 0) { const a = Math.random() * 6.28, r = 3 + Math.random() * 10, tx = b.home[0] + Math.cos(a) * r, tz = b.home[1] + Math.sin(a) * r; if (TR.walkable(tx, tz)) b.tgt = [tx, tz]; b.t = 2 + Math.random() * 4; } b.v = 0; } else if (moveTo(b, b.tgt[0], b.tgt[1], c.speed * 0.3, dt) < 0.3) { b.tgt = null; b.t = 1.5 + Math.random() * 3; } }
       p.y = groundAt(p.x, p.z); b.ph += dt * b.v * 2.6; const sw = Math.min(0.7, b.v * 0.12);
       b.legs.forEach((l, k) => { l.rotation.z = Math.sin(b.ph + (k === 0 || k === 3 ? 0 : Math.PI)) * sw; }); b.body.position.y = Math.abs(Math.sin(b.ph)) * sw * 0.08;
       if (b.hit > 0) { b.hit -= dt; b.body.position.y += 0.08; }
-      if (b.rig) { const r = b.rig, v = b.v || 0; r.play(v > c.speed * 0.55 ? 'run' : v > 0.15 ? 'walk' : 'idle'); r.pace(v, BEAST_K); r.update(dt); b.rw.position.y = b.hit > 0 ? 0.08 / c.size : 0; }
+      if (b.rig) { const r = b.rig, v = b.v || 0; if (b.spT > 0) { b.spT -= dt; r.update(dt); } else { r.play(v > c.speed * 0.55 ? 'run' : v > 0.15 ? 'walk' : 'idle'); r.pace(v, BEAST_K); r.update(dt); } b.rw.position.y = b.hit > 0 ? 0.08 / c.size : 0; }
     }
     function updateHero(dt) {
       const mag = Math.min(1, Math.hypot(input.x, input.z)), sy = Math.sin(camYaw), cy = Math.cos(camYaw), mx = input.x * cy + input.z * sy, mz = -input.x * sy + input.z * cy;
@@ -214,7 +225,9 @@ const Hunt = (() => {
       resize(w, h) { cam.aspect = w / h; cam.updateProjectionMatrix(); },
       dispose() { dead = true; ended = true; document.removeEventListener('keydown', kd, true); document.removeEventListener('keyup', ku, true); canvas.removeEventListener('pointerdown', cvDown); canvas.removeEventListener('pointermove', cvMove); canvas.removeEventListener('pointerup', cvUp); canvas.removeEventListener('pointercancel', cvUp); canvas.removeEventListener('wheel', wheel);
         ui.remove(); document.body.classList.remove('hunting'); if (hero.rig && lib) Entity3.release(lib, hero.rig, true); beasts.forEach(b => { if (b.rig && beastLib.lib) Entity3.release(beastLib.lib, b.rig, true); b.rig = null; }); Zones.disposeTree(scene); Object.values(shotGeo).forEach(g => g.dispose()); zzzTex.dispose(); Object.keys(GEO).forEach(k => { GEO[k].body.dispose(); GEO[k].leg.dispose(); delete GEO[k]; }); },
-      debug: () => ({ hero: [hero.pos.x, hero.pos.z, hero.hp], caught: caught.slice(), beasts: beasts.map(b => [b.c.id, +b.g.position.x.toFixed(1), +b.g.position.z.toFixed(1), b.state, b.hp, !!b.gone, b.rig ? b.rig.real : null]), weapon }),
+      debug: () => ({ hero: [hero.pos.x, hero.pos.z, hero.hp], caught: caught.slice(), beasts: beasts.map(b => [b.c.id, +b.g.position.x.toFixed(1), +b.g.position.z.toFixed(1), b.state, b.hp, !!b.gone, b.rig ? b.rig.real : null, +b.g.position.y.toFixed(2)]), weapon }),
+      /* 只在 ?dev=1 时可用：让最近的一只野兽直接睡着（测试 sleep 动作用） */
+      dbgSleep: () => { if (!Zones.DEV) return false; const n = nearestAwake(); if (!n) return false; const b = n.b; b.hp = 1; hitBeast(b, { dmg: 9 }); return b.c.id; },
       fire, finish, tp(x, z2) { hero.pos.set(x, 0, z2); }, face(a) { hero.face = a; camYaw = a + Math.PI; },
     };
   }
